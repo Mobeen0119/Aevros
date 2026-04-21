@@ -8,7 +8,7 @@ dd 0x00 ; Flags
 dd -(0x1BADB002 + 0x00) ; Checksum
 
 [bits 32]
-global _start       ; <--- MUST HAVE THIS
+global _start       ;
 extern _main
 
 _start:

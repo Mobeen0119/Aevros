@@ -1,72 +1,40 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include "screen.h"
 #define RAM_SIZE 1024
 
-int available_ram = RAM_SIZE;
-
-typedef struct
+struct PCB
 {
     int pid;
-    int burst_time;
     int ram;
     int state;
-} Process;
+};
 
-typedef struct
-{
-    int processes[3];
-    int count;
-} PCB;
+struct PCB process_list[3];
+int used_ram=0;
 
-void add_process(PCB *pcb, Process *p)
-{
-    if (pcb->count >= 3)
-    {
-        printf("Error: PCB is full!\n");
-        return;
-    }
-    if (p->ram < RAM_SIZE && p->ram <= available_ram)
-    {
-        pcb->processes[pcb->count] = p->pid;
-        pcb->count++;
-        available_ram -= p->ram;
-        printf("Process %d added to PCB.\n", p->pid);
-    }
-    else
-    {
-        printf("Error: Not enough RAM for Process %d!\n", p->pid);
-    }
+void forge_init(){
+    clear_screen();
+    print("ForgeOS Kernel v1.0",0,25);
+    print("Status: System Booted ",2,0);
 }
 
-void dellocate(PCB *pcb, Process *p)
-{
-    for (int i = 0; i < pcb->count; i++)
-    {
-        if (pcb->processes[i] == p->pid)
-        {
-            for (int j = i; j < pcb->count - 1; j++)
-            {
-                pcb->processes[j] = pcb->processes[j + 1];
-            }
-            pcb->count--;
-            available_ram += p->ram;
-            printf("Process %d deallocated from PCB.\n", p->pid);
-            return;
-        }
+void show_memory_status(){
+    print("RAM Usage : ",5,0);
+    print("Allocated 256MB to Process 1: ",7,0);
+}
+
+
+void main() {
+    clear_screen();
+
+    char* video_memory = (char*) 0xB8000;
+    char* message = "Welcome to ForgeOS!";
+    
+    for (int i = 0; message[i] != '\0'; i++) {
+        video_memory[i * 2] = message[i];
+        video_memory[i * 2 + 1] = 0x0F; 
     }
-    printf("Error: Process %d not found in PCB!\n", p->pid);
+
+    while(1); 
 }
-int main()
-{
-    PCB myPCB = {.count = 0};
 
-    Process p1 = {.pid = 101, .burst_time = 5, .ram = 250};
-
-    Process p2 = {.pid = 102, .burst_time = 10, .ram = 900};
-
-    add_process(&myPCB, &p1);
-     dellocate(&myPCB, &p1);
-    add_process(&myPCB, &p2);
-
-    return 0;
-}
+void __main() {}

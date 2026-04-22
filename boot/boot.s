@@ -20,3 +20,9 @@ hlt ; Halt the CPU
 section .bss
 resb 8192
 stack_space:
+
+[GLOBAL idt_load]
+idt_load:
+mov,edx,[esp+4]
+lidt[edx]
+ret

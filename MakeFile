@@ -1,0 +1,1 @@
+CFLAGS= -g -fstack-protecter-strong  //add guard to only those who need 

@@ -1,0 +1,19 @@
+#include "io.h"
+
+void pic_remap(){
+    outb(0x20,0x11);   //Master (0-7)
+    outb(0xA0,0x11);  //Slave (8-15)
+     
+    outb(0x21,0x20);  //Start at 32
+    outb(0xA1,0x28);  //Starts at 40
+    
+    outb(0x21,0x04);
+    outb(0xA1,0x02);   //Slave cross Master at 2
+
+    outb(0x21,0x01);
+    outb(0xA1,0x01);    //Set to 8086 mode
+
+    outb(0x21,0x0);
+    outb(0xA1,0x0);   //Enable Interrupts
+
+}

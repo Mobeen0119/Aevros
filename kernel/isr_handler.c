@@ -25,14 +25,14 @@ void Paging_handler(struct registers r)
     asm volatile(
         "mov %%cr2,%0" : "=r"(faulting_address));
 
-    int present = !(r.err_code & 0x01);
-    int write = r.err_code & 0x02;
-    int user_mode = r.err_code & 0x04;
+    int present = !(r.err_code & 0x1);
+    int write = r.err_code & 0x2;
+    int user_mode = r.err_code & 0x4;
 
     if (present)
     {
         uint32_t page = pmm_alloc();
-        map_page(faulting_address, page);
+        map_page(faulting_address, page,0x3);
         return;
     }
 

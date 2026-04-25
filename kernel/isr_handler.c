@@ -16,3 +16,4 @@ void isr_handler(struct registers r)
     if (r.int_no > 32)
         outb(0x20, 0x20);
 }
+

@@ -5,53 +5,110 @@
 
 uint8_t current_color = 0x0F;
 
-char buffer[MAX_LINES][WIDTH];
-uint8_t colors[MAX_LINES][WIDTH];
+struct Line
+{
+    char text[80];
+    uint8_t colors[80];
+} buffer[MAX_LINES];
+
 uint16_t *const vga_memory = (uint16_t *)0xB8000;
 
-int cursor_x = 0;   // Columns
-int cursor_y = 0;   // Logical line
-int scroll_top = 0; // first line
+char input_line[WIDTH];
+int input_length = 0; // Columns
+int cursor_y = 0;     // Logical line
+int scroll_top = 0;   // first line
 
-void terminal_writeData(char c)
+void buffer_init()
 {
-    if (c == '\n')
+    for (int i = 0; i < MAX_LINES; i++)
     {
-        cursor_x = 0;
-        cursor_y++;
-        return;
-    }else{
-    buffer[cursor_y][cursor_x] = c;
-    colors[cursor_y][cursor_x] = current_color;
-    cursor_x++;
+        for (int j = 0; j < WIDTH; j++)
+        {
+            buffer[i].text[j] = '\0';
+            buffer[i].colors[j] = current_color;
+        }
     }
-    if (cursor_x >= WIDTH)
+}
+void handle_char(char c)
+{
+    if (input_length >= WIDTH - 1)
     {
-        cursor_x = 0;
-        cursor_y++;
+        handle_enter();
     }
+    input_line[input_length++] = c;
+}
 
-    if (cursor_y >= scroll_top + HEIGHT)
-        scroll_top++;
+void handle_backspace()
+{
+    if (input_length > 0)
+    {
+        input_line[--input_length] = '\0';
+    }
+}
 
-    if (cursor_y >= MAX_LINES)
-        cursor_y = cursor_y % MAX_LINES;
+void handle_enter()
+{
+    if (input_length > 0)
+    {
+        for (int i = 0; i < input_length; i++)
+        {
+            buffer[cursor_y].text[i] = input_line[i];
+            buffer[cursor_y].colors[i] = current_color;
+        }
+        buffer[cursor_y].text[input_length] = '\0';
+
+        cursor_y++;
+        if (cursor_y >= MAX_LINES)
+        {
+            cursor_y = cursor_y % MAX_LINES;
+        }
+        for (int i = 0; i < WIDTH; i++)
+            input_line[i] = '\0';
+        input_length = 0;
+
+        while (cursor_y >= scroll_top + HEIGHT)
+            scroll_top++;
+    }
 }
 
 void render()
 {
-    for (int y = 0; y < HEIGHT; y++)
+   
+    for (int y = 0; y < HEIGHT; y++)              // History
     {
         int line = scroll_top + y;
+
         if (line >= MAX_LINES)
             continue;
 
         for (int x = 0; x < WIDTH; x++)
         {
-            char c = buffer[line][x];
-            uint8_t color = colors[line][x];
+            char c = buffer[line].text[x];
+            uint8_t color = buffer[line].colors[x];
 
-            vga_memory[y * WIDTH + x] = (uint16_t)c | (color << 8);
+            vga_memory[y * WIDTH + x] =
+                (uint16_t)c | (color << 8);
+        }
+    }
+
+    // Live Writing 
+    int input_row = cursor_y - scroll_top;
+    if (input_row >= 0 && input_row < HEIGHT)
+    {
+        for (int x = 0; x < input_length; x++)
+        {
+
+            vga_memory[input_row * WIDTH + x] = (uint16_t)input_line[x] | (current_color << 8);
+        }
+        for (int x = input_length; x < WIDTH; x++)
+        {
+            vga_memory[input_row * WIDTH + x] =
+                (uint16_t)' ' | (current_color << 8);
+        }
+        if (input_length < WIDTH)
+        {
+            vga_memory[input_row * WIDTH + input_length] =
+                ('_' | (current_color << 8));
         }
     }
 }

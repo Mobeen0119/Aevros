@@ -44,12 +44,12 @@ void map_page(uint32_t vir_addr, uint32_t phy_addr, uint32_t flags)
     uint32_t page_dir_index = vir_addr >> 22;
     uint32_t page_table_index = (vir_addr >> 22) & 0x03FF;
 
-    uint32_t *page_dir = (uint32_t *)0xFFFFF000; // Acess to Page directory
+    uint32_t *page_dir = (uint32_t *)0xFFFFF000;    // Acess to Page directory
     if (!(page_dir[page_dir_index]) && 0x1)
     {
 
         uint32_t new_page = pmm_alloc();
-        page_dir[page_dir_index] = new_page | 3; // Present + Read/Write
+        page_dir[page_dir_index] = new_page | 3;     // Present + Read/Write
 
         memset(get_virtual_table_address(page_dir_index), 0, 4096);
     }

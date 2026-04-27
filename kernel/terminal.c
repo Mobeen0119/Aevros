@@ -17,6 +17,7 @@ char input_line[WIDTH];
 int input_length = 0; // Columns
 int cursor_y = 0;     // Logical line
 int scroll_top = 0;   // first line
+int cursor_x = 0;     // Input position in the current line
 
 void buffer_init()
 {
@@ -29,21 +30,54 @@ void buffer_init()
         }
     }
 }
-void handle_char(char c)
+void move_right()
+{
+    if (cursor_x < input_length)
+        cursor_x++;
+}
+void insert_char(char c)
 {
     if (input_length >= WIDTH - 1)
+        return;
+
+    for (int i = input_length; i > cursor_x; i--)
     {
-        handle_enter();
+        input_line[i] = input_line[i - 1];
     }
-    input_line[input_length++] = c;
+    input_line[cursor_x] = c;
+    cursor_x++;
+    input_length++;
+}
+
+void delete_char()
+{
+    if (cursor_x >= input_length)
+        return;
+
+    for (int i = cursor_x; i < input_length - 1; i++)
+    {
+        input_line[i] = input_line[i + 1];
+    }
+
+    input_length--;
+}
+
+void handle_char(char c)
+{
+    insert_char(c);
 }
 
 void handle_backspace()
 {
-    if (input_length > 0)
+    if (cursor_x == 0)
+        return;
+
+    for (int i = cursor_x - 1; i < input_length - 1; i++)
     {
-        input_line[--input_length] = '\0';
+        input_line[i] = input_line[i + 1];
     }
+    cursor_x--;
+    input_length--;
 }
 
 void handle_enter()
@@ -73,8 +107,8 @@ void handle_enter()
 
 void render()
 {
-   
-    for (int y = 0; y < HEIGHT; y++)              // History
+
+    for (int y = 0; y < HEIGHT; y++) // History
     {
         int line = scroll_top + y;
 
@@ -91,7 +125,7 @@ void render()
         }
     }
 
-    // Live Writing 
+    // Live Writing
     int input_row = cursor_y - scroll_top;
     if (input_row >= 0 && input_row < HEIGHT)
     {
@@ -107,8 +141,10 @@ void render()
         }
         if (input_length < WIDTH)
         {
-            vga_memory[input_row * WIDTH + input_length] =
-                ('_' | (current_color << 8));
+            if (input_length < WIDTH)
+            {
+                vga_memory[input_row * WIDTH + cursor_x] =
+                    ('_' | (current_color << 8));
+            }
         }
     }
-}

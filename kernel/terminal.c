@@ -13,11 +13,19 @@ void buffer_init()
         }
     }
 }
+
 void move_right()
 {
     if (cursor_x < input_length)
         cursor_x++;
 }
+
+void move_left()
+{
+    if (cursor_x > 0)
+        cursor_x--;
+}
+
 void insert_char(char c)
 {
     if (input_length >= WIDTH - 1)

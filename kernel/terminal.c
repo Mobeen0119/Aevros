@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include "../include/terminal.h"
 
-
 void buffer_init()
 {
     for (int i = 0; i < MAX_LINES; i++)
@@ -99,44 +98,41 @@ void handle_enter()
 void render()
 {
 
-    for (int y = 0; y < HEIGHT; y++) // History
-    {
+    for (int y = 0; y < HEIGHT; y++) // History 
+     {
         int line = scroll_top + y;
-
-        if (line >= MAX_LINES)
-            continue;
-
-        for (int x = 0; x < WIDTH; x++)
-        {
-            char c = buffer[line].text[x];
-            uint8_t color = buffer[line].colors[x];
-
-            vga_memory[y * WIDTH + x] =
-                (uint16_t)c | (color << 8);
-        }
-    }
-
-    // Live Writing
-    int input_row = cursor_y - scroll_top;
-    if (input_row >= 0 && input_row < HEIGHT)
+    if (line >= MAX_LINES)
+        continue;
+    for (int x = 0; x < WIDTH; x++)
     {
-        for (int x = 0; x < input_length; x++)
-        {
+        char c = buffer[line].text[x];
+        uint8_t color = buffer[line].colors[x];
+        vga_memory[y * WIDTH + x] =
+            (uint16_t)c | (color << 8);
+    }
+}
 
-            vga_memory[input_row * WIDTH + x] = (uint16_t)input_line[x] | (current_color << 8);
-        }
-        for (int x = input_length; x < WIDTH; x++)
-        {
-            vga_memory[input_row * WIDTH + x] =
-                (uint16_t)' ' | (current_color << 8);
-        }
+// Live Writing
+int input_row = cursor_y - scroll_top;
+if (input_row >= 0 && input_row < HEIGHT)
+{
+    for (int x = 0; x < input_length; x++)
+    {
+
+        vga_memory[input_row * WIDTH + x] = (uint16_t)input_line[x] | (current_color << 8);
+    }
+    for (int x = input_length; x < WIDTH; x++)
+    {
+        vga_memory[input_row * WIDTH + x] =
+            (uint16_t)' ' | (current_color << 8);
+    }
+    if (input_length < WIDTH)
+    {
         if (input_length < WIDTH)
         {
-            if (input_length < WIDTH)
-            {
-                vga_memory[input_row * WIDTH + cursor_x] =
-                    ('_' | (current_color << 8));
-            }
+            vga_memory[input_row * WIDTH + cursor_x] =
+                ('_' | (current_color << 8));
         }
     }
+}
 }

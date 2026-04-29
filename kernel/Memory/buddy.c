@@ -53,8 +53,7 @@ void remove_from_list(void *ptr, int order)
     buddy_block_t *target = (buddy_block_t *)ptr;
     buddy_block_t *current = free_lists[order];
 
-    if (!current)
-        return;
+    if (!current)  return;
 
     if (current == target)
     {

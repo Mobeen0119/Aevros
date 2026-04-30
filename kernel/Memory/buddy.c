@@ -6,11 +6,11 @@
 
 typedef struct _buddy_block
 {
-    struct _buddy_block *next; // Pointer to the next block in the free list               
+    struct _buddy_block *next; // Pointer to the next block in the free list
 } buddy_block_t;
 
 buddy_block_t *free_lists[MAX_ORDER + 1];
-   
+
 void *buddy_alloc(int order)
 {
     if (free_lists[order])
@@ -25,14 +25,15 @@ void *buddy_alloc(int order)
         if (free_lists[i] != NULL)
         {
             void *block = (void *)free_lists[i];
-            
+
             remove_from_list(block, i);
 
             while (i > order)
             {
                 i--;
                 uint32_t size = (1 << i) * 4096;
-buddy_block_t *buddy = (buddy_block_t *)((uintptr_t)block + size);                add_to_list(buddy, i);
+                buddy_block_t *buddy = (buddy_block_t *)((uintptr_t)block + size);
+                add_to_list(buddy, i);
             }
             return (void *)block;
         }
@@ -51,7 +52,7 @@ void remove_from_list(void *ptr, int order)
     buddy_block_t *target = (buddy_block_t *)ptr;
     buddy_block_t *current = free_lists[order];
 
-      if (!current || !target)
+    if (!current || !target)
         return;
 
     if (current == target)
@@ -62,7 +63,7 @@ void remove_from_list(void *ptr, int order)
     while (current && current->next != target)
         current = current->next;
 
-     if (current && current->next == target)
+    if (current && current->next == target)
         current->next = target->next;
 }
 

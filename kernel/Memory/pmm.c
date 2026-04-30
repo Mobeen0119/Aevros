@@ -59,3 +59,4 @@ void map_page(uint32_t vir_addr, uint32_t phy_addr, uint32_t flags)
 
     asm volatile("invlpg (%0)," ::"r"(vir_addr) : "memory");
 }
+

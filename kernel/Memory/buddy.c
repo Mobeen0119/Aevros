@@ -6,9 +6,7 @@
 
 typedef struct _buddy_block
 {
-    struct _buddy_block *next; // Pointer to the next block in the free list
-    size_t size;               // Size of the memory block
-    bool is_free;
+    struct _buddy_block *next; // Pointer to the next block in the free list               
 } buddy_block_t;
 
 buddy_block_t *free_lists[MAX_ORDER + 1];
@@ -27,14 +25,14 @@ void *buddy_alloc(int order)
         if (free_lists[i] != NULL)
         {
             void *block = (void *)free_lists[i];
+            
             remove_from_list(block, i);
 
             while (i > order)
             {
                 i--;
                 uint32_t size = (1 << i) * 4096;
-                buddy_block_t *buddy = (buddy_block_t *)((uint32_t)block + size);
-                add_to_list(buddy, i);
+buddy_block_t *buddy = (buddy_block_t *)((uintptr_t)block + size);                add_to_list(buddy, i);
             }
             return (void *)block;
         }
@@ -53,7 +51,8 @@ void remove_from_list(void *ptr, int order)
     buddy_block_t *target = (buddy_block_t *)ptr;
     buddy_block_t *current = free_lists[order];
 
-    if (!current)  return;
+      if (!current || !target)
+        return;
 
     if (current == target)
     {
@@ -63,38 +62,48 @@ void remove_from_list(void *ptr, int order)
     while (current && current->next != target)
         current = current->next;
 
-    if (current->next)
+     if (current && current->next == target)
         current->next = target->next;
-}
-
-bool is_buddy_free(void *address, int order)
-{
-    buddy_block_t *current = free_lists[order];
-    while (current)
-    {
-        if ((void *)current == address)
-            return 1;
-        current = current->next;
-    }
-    return 0;
 }
 
 void buddy_free(void *ptr, int order)
 {
-    uint32_t address = (uint32_t)ptr;
-    uint32_t size = (1 << order) * 4096;
+    uintptr_t address = (uintptr_t)ptr;
+    uintptr_t size = ((uintptr_t)1 << order) * 4096;
 
     while (order < MAX_ORDER)
     {
-        uint32_t buddy_address = address ^ size;
+        uintptr_t buddy_address = address ^ size;
 
-        if (!is_buddy_free(buddy_address, order))
+        buddy_block_t *current = free_lists[order];
+        buddy_block_t *prev = NULL;
+
+        bool found = false;
+
+        while (current)
+        {
+            if ((uintptr_t)current == buddy_address)
+            {
+                found = true;
+                break;
+            }
+            prev = current;
+            current = current->next;
+        }
+
+        if (!found)
             break;
 
-        remove_from_list(buddy_address, order);
+        if (prev)
+            prev->next = current->next;
+        else
+            free_lists[order] = current->next;
+
         address &= ~size;
+
         order++;
         size <<= 1;
     }
-    add_to_list(address, order);
+
+    add_to_list((void *)address, order);
 }

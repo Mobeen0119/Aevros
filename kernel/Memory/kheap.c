@@ -2,6 +2,18 @@
 #include "slab.c"
 #define MAX_ORDER 10
 
+int size_to_order(size_t size)
+{
+    int order = 0;
+    size_t block = 4096;
+
+    while (block < size)
+    {
+        block *= 2;
+        order++;
+    }
+    return order;
+}
 void *kmalloc(size_t size)
 {
     if (size <= 16)

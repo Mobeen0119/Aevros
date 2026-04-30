@@ -23,7 +23,7 @@ void* slab_alloc(slab_t* slab){
   
     uint32_t free_mask=~slab->bitmap;
     if(free_mask==0) return NULL;
-    int free_bit=__builtin_ctz(~slab->bitmap);
+    int free_bit=__builtin_ctz(free_mask);
 
         slab->bitmap |= (1<<free_bit);
         

@@ -6,9 +6,9 @@ uint32_t *get_virtual_table_address(uint32_t pd)
 {
     return (uint32_t *)RECURSIVE_PT_BASE + (pd * 4096);
 }
+
 void map_page(uint32_t vir_addr, uint32_t phy_addr, uint32_t flags)
 {
-
     uint32_t page_dir_index = vir_addr >> 22;
     uint32_t page_table_index = (vir_addr >> 12) & 0x03FF;
 

@@ -2,9 +2,9 @@ ENTRY(_start)
 
 SECTIONS
 {
-    . = 0x100000;
+    . = 0xC0100000;  //Virtual address where the kernel will be loaded
 
-    .text : {
+    .text : AT(ADDR(.text)-0xC0000000) {  //load at physical 1MB
         *(.multiboot)
         *(.text)
     }
@@ -17,7 +17,7 @@ SECTIONS
         *(.data)
     }
 
-    .bss : {
+    .bss : AT(ADDR(.bss) - 0xC0000000){
         *(COMMON)
         *(.bss)
     }

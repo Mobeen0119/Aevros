@@ -1,6 +1,9 @@
 #include <stdint.h>
 #include "paging.h"
 #include "pmm.c"
+#include "../Process/task.h"
+
+page_directory_t* kernel_directory = (page_directory_t*)0xFFFFF000;
 
 uint32_t *get_virtual_table_address(uint32_t pd)
 {

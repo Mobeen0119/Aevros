@@ -49,8 +49,10 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     *(--sp) = 0;
 
     new_task->id = next_pid++;
-    if(page_dir) new_task->page_directory=page_dir;
-    else new_task->page_directory = (uint32_t)clone_kernel_directory();
+    if (page_dir)
+        new_task->page_directory = page_dir;
+    else
+        new_task->page_directory = (uint32_t)clone_kernel_directory();
 
     new_task->ebp = new_task->esp = (uint32_t)sp;
     new_task->eip = (uint32_t)entry_point;
@@ -63,7 +65,6 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
         while (temp->next)
             temp = temp->next;
         temp->next = new_task;
-      
     }
     return new_task;
 }
@@ -72,7 +73,7 @@ page_directory_t *clone_kernel_directory()
 {
     uint32_t pd_phy = pmm_alloc();
 
-    map_page(Temp_p_vir_addr,pd_phy,0x03);
+    map_page(Temp_p_vir_addr, pd_phy, 0x03);
 
     page_directory_t *page_virtual = (page_directory_t *)Temp_p_vir_addr;
 

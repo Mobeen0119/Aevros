@@ -3,7 +3,7 @@
 #include "pmm.c"
 #include "../Process/task.h"
 
-page_directory_t* kernel_directory = (page_directory_t*)0xFFFFF000;
+page_directory_t *kernel_directory = (page_directory_t *)0xFFFFF000;
 
 uint32_t *get_virtual_table_address(uint32_t pd)
 {
@@ -16,7 +16,7 @@ void map_page(uint32_t vir_addr, uint32_t phy_addr, uint32_t flags)
     uint32_t page_table_index = (vir_addr >> 12) & 0x03FF;
 
     uint32_t *page_dir = (uint32_t *)PAGE_RECURSIVE; // Acess to Page directory
-    if (!(page_dir[page_dir_index]) && PAGE_PRESENT)
+    if (!(page_dir[page_dir_index] & PAGE_PRESENT))
     {
 
         uint32_t new_page = pmm_alloc();
@@ -26,7 +26,27 @@ void map_page(uint32_t vir_addr, uint32_t phy_addr, uint32_t flags)
     }
 
     uint32_t *page_table = get_virtual_table_address(page_table_index);
-    page_table[page_table_index] = phy_addr | PAGE_PRESENT | PAGE_WRITE ;
+    page_table[page_table_index] = phy_addr | PAGE_PRESENT | PAGE_WRITE;
 
     asm volatile("invlpg (%0)," ::"r"(vir_addr) : "memory");
+}
+
+void unmap(uint32_t vir_addr)
+{
+    uint32_t p_dir_index = vir_addr >> 22;
+    uint32_t p_table_index = (vir_addr >> 12) & 0x03FF;
+
+    uint32_t *p_dir = (uint32_t *)0xFFFFF000;
+
+    if (!(p_dir[p_dir_index] & 0x1))
+        return;
+
+    uint32_t *p_table = (uint32_t *)0xFFC00000 + (p_dir_index << 12);
+
+    if (!(p_table[p_table_index] & 0x1))
+        return;
+
+    p_table[p_table_index] = 0;
+
+    asm volatile("invlpg (%0)" ::"r"(vir_addr) : "memory");
 }

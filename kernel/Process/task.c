@@ -2,6 +2,7 @@
 #include "pmm.c"
 #include "pmm.h"
 #include "Paging/paging.c"
+#include "../io.c"
 #define Temp_p_vir_addr 0xFFC00000
 
 task_t *current, *ready_queue;
@@ -55,16 +56,18 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
 
     new_task->ebp = new_task->esp = (uint32_t)sp;
 
-    if (!ready_queue){
+    if (!ready_queue)
+    {
         ready_queue = new_task;
-        new_task->next=new_task;}
+        new_task->next = new_task;
+    }
     else
     {
         task_t *temp = ready_queue;
-        while (temp->next!=ready_queue)
+        while (temp->next != ready_queue)
             temp = temp->next;
         temp->next = new_task;
-        new_task->next=ready_queue;
+        new_task->next = ready_queue;
     }
     return new_task;
 }
@@ -90,12 +93,24 @@ page_directory_t *clone_kernel_directory()
     return (page_directory_t *)pd_phy;
 }
 
-void schedule(){
-    if(!current) return;
+void schedule()
+{
+    if (!current)
+        return;
 
-    task_t* prev=current;
-    current=current->next;
+    task_t *prev = current;
+    current = current->next;
 
-   
-    switch_current_task(prev,current);
+    switch_current_task(prev, current);
+}
+
+void pit_init(uint32_t frequency)
+{
+
+    uint32_t divisor = 1193182 / frequency;
+
+    outb(0x43, 0x36);
+
+    outb(0x40, (uint8_t)divisor & 0xFF);
+    outb(0x40, (uint8_t)(divisor >> 8) & 0xFF);
 }

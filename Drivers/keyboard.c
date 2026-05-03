@@ -1,4 +1,5 @@
 #include "keyboard.h"
+#include "../kernel/io.c"
 
 void keyboard_handler()
 {

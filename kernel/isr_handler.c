@@ -1,12 +1,17 @@
 #include "isr.h"
 #include <stdint.h>
 #include "../Memory/pmm.c"
+#include "../Process/task.c"
 
 void isr_handler(struct registers r)
 {
     if (r.int_no == 33)
     {
         keyboard_handler();
+    }
+    else if (r.int_no == 32)
+    {
+        schedule();
     }
     else if (r.int_no < 32)
     {
@@ -32,7 +37,7 @@ void Paging_handler(struct registers r)
     if (present)
     {
         uint32_t page = pmm_alloc();
-        map_page(faulting_address, page,0x3);
+        map_page(faulting_address, page, 0x3);
         return;
     }
 

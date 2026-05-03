@@ -26,8 +26,7 @@ void init_tasking()
     asm volatile("mov %%ebp, %0" : "=r"(current->ebp));
 
     current->page_directory = current_page_directory();
-    current->next = 0;
-
+    current->next = current;
     ready_queue = current;
 }
 
@@ -46,25 +45,26 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     uint32_t stack_top = (stack_base) + 4096;
 
     uint32_t *sp = (uint32_t *)stack_top;
-    *(--sp) = 0;
+    *(--sp) = entry_point;
 
     new_task->id = next_pid++;
     if (page_dir)
         new_task->page_directory = page_dir;
     else
-        new_task->page_directory = (uint32_t)clone_kernel_directory();
+        new_task->page_directory = current_page_directory;
 
     new_task->ebp = new_task->esp = (uint32_t)sp;
-    new_task->eip = (uint32_t)entry_point;
 
-    if (!ready_queue)
+    if (!ready_queue){
         ready_queue = new_task;
+        new_task->next=new_task;}
     else
     {
         task_t *temp = ready_queue;
-        while (temp->next)
+        while (temp->next!=ready_queue)
             temp = temp->next;
         temp->next = new_task;
+        new_task->next=ready_queue;
     }
     return new_task;
 }
@@ -74,11 +74,11 @@ page_directory_t *clone_kernel_directory()
     uint32_t pd_phy = pmm_alloc();
 
     map_page(Temp_p_vir_addr, pd_phy, 0x03);
+    invlpg(Temp_p_vir_addr);
 
     page_directory_t *page_virtual = (page_directory_t *)Temp_p_vir_addr;
 
     memset(page_virtual, 0, 4096);
-
     for (int i = 768; i < 1023; i++)
     {
         page_virtual->entries[i] = kernel_directory->entries[i];
@@ -88,4 +88,14 @@ page_directory_t *clone_kernel_directory()
     unmap(Temp_p_vir_addr);
 
     return (page_directory_t *)pd_phy;
+}
+
+void schedule(){
+    if(!current) return;
+
+    task_t* prev=current;
+    current=current->next;
+
+   
+    switch_current_task(prev,current);
 }

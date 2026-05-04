@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include "slab.c"
+#include "buddy.c"
 #define MAX_ORDER 10
 
 int size_to_order(size_t size)
@@ -16,13 +17,54 @@ int size_to_order(size_t size)
 }
 void *kmalloc(size_t size)
 {
+    block_header_t *hdr;
+
     if (size <= 16)
-        return slab_alloc(&cache_16b);
+    {
+        hdr = (block_header_t *)slab_alloc(&cache_16b);
+        hdr->type = SLAB;
+        hdr->infor.cache = &cache_16b;
+        return (void *)(hdr + 1);
+    }
+
     if (size <= 32)
-        return slab_alloc(&cache_32b);
+    {
+        hdr = (block_header_t *)slab_alloc(&cache_32b);
+        hdr->type = SLAB;
+        hdr->infor.cache = &cache_32b;
+        return (void *)(hdr + 1);
+    }
+
     if (size <= 64)
-        return slab_alloc(&cache_64b);
+    {
+        hdr = (block_header_t *)slab_alloc(&cache_64b);
+        hdr->type = SLAB;
+        hdr->infor.cache = &cache_64b;
+        return (void *)(hdr + 1);
+    }
 
     int order = size_to_order(size);
-    return buddy_alloc(order);
+
+    hdr = (block_header_t *)buddy_alloc(order);
+    hdr->type = BUDDY;
+    hdr->infor.order = order;
+
+    return (void *)(hdr + 1);
+}
+
+void kfree(void *ptr)
+{
+    if (!ptr)
+        return;
+
+    block_header_t *hdr = ((block_header_t *)ptr) - 1;
+
+    if (hdr->type == SLAB)
+    {
+        slab_free(hdr->infor.cache, hdr);
+    }
+    else if (hdr->type == BUDDY)
+    {
+        buddy_free(hdr, hdr->infor.order);
+    }
 }

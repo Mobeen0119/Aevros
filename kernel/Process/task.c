@@ -114,3 +114,36 @@ void pit_init(uint32_t frequency)
     outb(0x40, (uint8_t)divisor & 0xFF);
     outb(0x40, (uint8_t)(divisor >> 8) & 0xFF);
 }
+
+void sys_print(char *user_string)
+{
+    if (!user_string)
+        return;
+
+    for (int i = 0; i < 1024; i++)
+    {
+        char c = user_string[i];
+        if (c == '\0')
+            break;
+        putchar(c);
+    }
+}
+
+void sys_exit()
+{
+    if (!current)
+        return;
+
+    task_t *prev = current;
+
+    task_t *temp = current;
+    while (temp->next != current)
+        temp = temp->next;
+
+    temp->next = current->next;
+
+    current = current->next;
+    kfree(prev);
+
+    switch_current_task(prev, current);
+}

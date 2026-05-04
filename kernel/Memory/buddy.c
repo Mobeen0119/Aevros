@@ -4,6 +4,25 @@
 
 #define MAX_ORDER 10
 
+typedef struct block_header
+{
+    uint32_t size;
+    alloc_type_t type;
+
+    union
+    {
+        struct slab_cache *cache;
+        uint32_t order;
+
+    } infor;
+} block_header_t;
+
+typedef enum
+{
+    SLAB = 1,
+    BUDDY = 2
+} alloc_type_t;
+
 typedef struct _buddy_block
 {
     struct _buddy_block *next; // Pointer to the next block in the free list

@@ -30,4 +30,5 @@ syscall_asm_handler:
 
     popa
     add esp, 8 ; Clean up the two values we pushed at the start
+    
     iret

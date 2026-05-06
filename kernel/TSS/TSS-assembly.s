@@ -1,23 +1,23 @@
-global jump_user_mode
-extern user_stack_top
-extern user_function
-
+[GLOBAL jump_user_mode]
 jump_user_mode:
 
-cli
-mov ax,0x23
-mov ds,ax
-mov fs,ax
-mov es,ax
-mov gs,ax
+    cli
 
-push 0x23
-push user_stack_top
+    mov eax,[esp+4] ; Load the address of the user function into eax
+    mov ebx,[esp+8] ; Load the user stack top into ebx
 
-pushf
-or dword[esp],0x200
+    mov ax,0x23
+    mov ds,ax
+    mov fs,ax
+    mov es,ax
+    mov gs,ax
 
-push 0x1B
-push user_function
+    push 0x23  ; data segment for user
+    push ebx ; Push the user stack top onto the stack
 
-iret
+    push 0x200 ; EFLAGS with interrupts enabled
+
+    push 0x1B  ; code segment for user
+    push eax
+
+    iret

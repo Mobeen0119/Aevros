@@ -9,6 +9,7 @@ switch_current_task:
     push ebp
 
     extern current_task
+    extern tss_entry
     mov eax, [current_task]
     mov [eax+0], esp
 
@@ -20,6 +21,8 @@ switch_current_task:
 
     mov esp, [ecx+4]
     mov ebp, [ecx+8]
+
+    mov[tss_entry + 4], eax ; Update TSS esp0
 
     pop eax
     pop ebx

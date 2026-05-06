@@ -3,6 +3,7 @@
 #include "../../Memory/pmm.h"
 
 struct gdt_entry_struct gdt_entries[5];
+tss_entry_t tss_entry;
 
 struct gdt_ptr_s
 {
@@ -40,8 +41,26 @@ void gdt_init()
 
     gdt_gate_set(4, 0, 0xFFFFFFFF, 0xF2, 0xCF);
 
-    gdt_ptr.limit = sizeof(struct gdt_entry_struct)  - 1;
+    gdt_ptr.limit = sizeof(struct gdt_entry_struct) - 1;
     gdt_ptr.base = (uint32_t)gdt_entries;
 
     gdt_flush((uint32_t)&gdt_ptr);
+}
+
+void write_tss(int32_t num, uint32_t ss0, uint32_t esp0)
+{
+    uint32_t base = (uint32_t)&tss_entry;
+    uint32_t limit = sizeof(tss_entry) - 1;
+
+    gdt_gate_set(num, base, limit, 0x89, 0x00);
+
+    memset(&tss_entry, 0, sizeof(tss_entry));
+
+    tss_entry.ss0 = ss0;
+    tss_entry.esp0 = esp0;
+}
+
+void update_tss(uint32_t stack)
+{
+    tss_entry.esp0 = stack;
 }

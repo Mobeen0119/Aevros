@@ -1,22 +1,12 @@
-unsigned short *vga_buffer = (unsigned short *)0xB8000;
+#ifndef SCREEN_H
+#define SCREEN_H
 
-const int Row = 25;
-const int Col = 80; 
+#include <stdint.h>
+#include <stdarg.h>
 
-void clear_screen()
-{
-    for (int i = 0; i < Row * Col; i++)
-    {
-        vga_buffer[i] = (unsigned short)' ' | 0x7000;
-    }
-}
+void kprintf(const char *format, ...);
+void kput_char(char c);
+void kclear_screen();
+void kprint_at(const char *str, int row, int col);
 
-void print(const char *str, int row, int col)
-{
-    int ind = (Row * Col) + col;  // move pixel wise
-
-    for (int i = 0; str[i] != '\0'; i++)
-    {
-        vga_buffer[ind + i] = (unsigned short)str[i] | 0x0400;
-    }
-}
+#endif

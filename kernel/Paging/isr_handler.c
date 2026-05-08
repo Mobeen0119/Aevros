@@ -2,25 +2,28 @@
 #include <stdint.h>
 #include "../Memory/pmm.c"
 #include "../Process/task.c"
+#include "page_fault.c"
 
-void isr_handler(struct registers r)
+void isr_handler(struct registers* r)
 {
-    if (r.int_no == 33)
+    if(r->int_no==14){
+        page_fault_handler(r);
+    }
+    else if (r->int_no == 33)
     {
         keyboard_handler();
     }
-    else if (r.int_no == 32)
+    else if (r->int_no == 32)
     {
         schedule();
     }
-    else if (r.int_no < 32)
+    else if (r->int_no < 32)
     {
         print_string("CPU HANDLES IT : ");
-        print_hex(r.int_no);
+        print_hex(r->int_no);
         asm volatile("hlt");
     }
-
-    if (r.int_no > 32)
+    else if (r->int_no > 32)
         outb(0x20, 0x20);
 }
 

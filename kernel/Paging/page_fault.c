@@ -4,7 +4,7 @@
 #include "../Paging/isr.h"
 
 
-uint32_t read_cr2()
+static inline uint32_t read_cr2()
 {
     uint32_t value;
     asm volatile("mov %%cr2,%0" : "=r"(value));
@@ -16,7 +16,7 @@ void page_fault_handler(struct registers *reg)
     uint32_t addr = read_cr2();
     uint32_t err = reg->err_code;
 
-    int present = err & 0x1;
+    int protection = err & 0x1;
     int write = err & 0x2;
     int user = err & 0x4;
     int reserved = err & 0x8;
@@ -24,22 +24,27 @@ void page_fault_handler(struct registers *reg)
 
     kprintf("\n--------------PAGE FAULT---------------\n");
 
-    kprintf("Address : 0x%x\n", addr);
+    kprintf("Address : 0s%x\n", addr);
 
-    kprintf("Cause of it : %x\n", present ? "Protection Violation " : "Page Not Present");
+    kprintf("Cause of it : %x\n", protection ? "Protection Violation " : "Page Not Present");
 
-    kprintf("Access : %s\n", write ? "Write" : "Read-Only");
+    kprintf("Access : %s\n", write ? "Write" : "Read");
 
     kprintf("Mode : %s\n", user ? "User" : "Kernel");
 
     if (reserved)
         kprintf("Reserved bits overwritten\n");
     if (fetch)
-        kprint("Instruction Fetch Fault\n");
+        kprintf("Instruction Fetch Fault\n");
 
     kprintf("ESP : 0x%x\n", reg->esp);
     kprintf("EIP : 0x%x\n", reg->eip);
 
+    kprintf("\n----USER PROCESS CRASH\n");
     for (;;)
         asm volatile ("hlt");
+
+
+        kprintf("\nKERNEL PANIC\n");
+        for(;;) asm volatile ("hlt");
 }

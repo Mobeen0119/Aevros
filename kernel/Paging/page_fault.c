@@ -37,14 +37,17 @@ void page_fault_handler(struct registers *reg)
     if (fetch)
         kprintf("Instruction Fetch Fault\n");
 
+        //Future----
     kprintf("ESP : 0x%x\n", reg->esp);
     kprintf("EIP : 0x%x\n", reg->eip);
 
+    if(user){
     kprintf("\n----USER PROCESS CRASH\n");
     for (;;)
-        asm volatile ("hlt");
+        asm volatile ("hlt"); 
+    }
 
 
-        kprintf("\nKERNEL PANIC\n");
-        for(;;) asm volatile ("hlt");
+    kprintf("\nKERNEL PANIC\n");
+    for(;;) asm volatile ("hlt");
 }

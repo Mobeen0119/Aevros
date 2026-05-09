@@ -14,6 +14,7 @@ typedef struct vfs_ops
 {
     read_fn read;
     write_fn write;
+    
 } vfs_ops_t;
 
 #define VFS_FILE 1
@@ -26,14 +27,17 @@ typedef struct file_descriptor
 {
     vfs_node_t *node;
     uint32_t position, flags;
+
 } fd_t;
 
 typedef struct vfs_node
 {
     char name[128];
     uint32_t flags, length;
+
     struct vfs_node *parent;
     struct vfs_node **children;
+
     uint32_t child_count;
     uint32_t gid;
 

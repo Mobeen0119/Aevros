@@ -30,13 +30,16 @@ static const char *skip_slash(const char *p)
 
 //-----------------------a=>what exist ---b=>what asked for
 
-static int name_match(const char *a, const char *b)
+static int match_seg(const char *name, const char *start, uint32_t len)
 {
-    int i = 0;
-    while (a[i] && b[i] && a[i] == b[i])
+    uint32_t i = 0;
+    while (name[i] && i < len)
+    {
+        if (name[i] != start[i])
+            return 0;
         i++;
-
-    return (a[i] == '\0' && b[i] == '\0');
+    }
+    return (name[i] == '\0' && i == len);
 }
 
 vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path)
@@ -45,27 +48,33 @@ vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path)
     if (!root || !path)
         return 0;
 
-    const char *p = skip_slash(path);
+    const char *p = path;
     vfs_node_t *current = root;
 
     while (*p)
     {
-        char part[128];
-        int i = 0;
+        while (*p == '/')
+            p++;
 
-        while (*p && *p != '/' && i < 127)
-            part[i++] = *p++;
+        if (!*p)
+            break;
 
-        part[i] = '\0';
-        p = skip_slash(p);
+        const char *start = p;
+        uint32_t len = 0;
+
+        while (*p && *p != '/')
+        {
+            p++;
+            len++;
+        }
 
         int found = 0;
 
         for (uint32_t j = 0; j < current->child_count; j++)
         {
-            vfs_node_t *child = current->children[i];
+            vfs_node_t *child = current->children[j];
 
-            if (child && name_match(child->name, part))
+            if (child && match_seg(child->name, start, len))
             {
                 current = child;
                 found = 1;
@@ -75,6 +84,6 @@ vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path)
         if (!found)
             return 0;
     }
-    
+
     return current;
 }

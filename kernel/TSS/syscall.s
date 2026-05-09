@@ -1,6 +1,7 @@
-extern syscall_handler
+
 
 [GLOBAL syscall_asm_handler]
+extern syscall_handler
 
 syscall_asm_handler:
     cli

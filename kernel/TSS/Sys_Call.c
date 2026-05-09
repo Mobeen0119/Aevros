@@ -1,6 +1,6 @@
-
 #include "../Process/task.c"
-#include "../isr.h"
+#include "../Paging/isr.h"
+#include "../lib/kprintf.c"
 
 
 void sysCall_handler(struct registers *r){
@@ -13,6 +13,7 @@ void sysCall_handler(struct registers *r){
       sys_exit();
       break;
     default:
+      kprintf("Unknown Syscall: %d\n", r->eax);
         break;
     }
 }

@@ -72,7 +72,7 @@ void kprintf(const char *format, ...)
             int num = va_arg(args, int);
             print_decimal(num);
             break;
-
+ 
         case 'x':
             uint32_t num = va_arg(args, uint32_t);
             print_hex(num);

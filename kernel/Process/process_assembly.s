@@ -1,36 +1,29 @@
 global switch_current_task
+extern current 
 switch_current_task:
-    push eax
-    push ebx
-    push ecx
-    push edx
-    push esi
-    push edi
-    push ebp
+    pusha
 
-    extern current_task
-    extern tss_entry
-    mov eax, [current_task]
-    mov [eax+0], esp
+    mov eax, [current]
+    mov [eax+ESP_OFFSET], esp
+    mov [eax+EBP_OFFSET], ebp
 
-    mov ecx, [esp+28]
-    mov [eax +8 ], ecx ; Update global current_task
+    mov ecx, [esp+ARGS_OFFSET] 
+    mov [current], ecx 
 
-    mov eax, [ecx+12]
+    mov eax, [ecx+CR3_OFFSET]
     mov cr3, eax
 
-    mov esp, [ecx+4]
-    mov ebp, [ecx+8]
+    mov esp, [ecx + ESP_OFFSET]
+    mov ebp, [ecx + EBP_OFFSET]
 
+    mov eax, [ecx + KERNEL_STACK]
     mov [tss_entry + 4], eax ; Update TSS esp0
 
-    pop eax
-    pop ebx
-    pop ecx
-    pop edx
-    pop esi
-    pop edi
-    pop ebp
+    popa
     
-    jmp [eax +8]
+    ret
 
+global read_eip
+read_eip:
+    mov eax,[esp]
+    jmp eax

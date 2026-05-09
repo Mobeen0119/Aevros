@@ -7,9 +7,10 @@
 static inline uint32_t read_cr2()
 {
     uint32_t value;
-    asm volatile("mov %%cr2,%0" : "=r"(value));
+    asm volatile("mov %%cr3,%0" : "=r"(value));
     return value;
 }
+
 
 void page_fault_handler(struct registers *reg)
 {

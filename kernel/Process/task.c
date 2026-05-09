@@ -1,5 +1,4 @@
 #include "task.h"
-#include "pmm.c"
 #include "pmm.h"
 #include "Paging/paging.c"
 #include "../io.c"
@@ -27,6 +26,7 @@ void init_tasking()
 
     current->pid = next_pid++;
     current->state = TASK_RUNNING;
+    memset(current->fd_table,0,sizeof(current->fd_table));
 
     asm volatile("mov %%esp, %0" : "=r"(current->esp));
     asm volatile("mov %%ebp, %0" : "=r"(current->ebp));
@@ -99,7 +99,8 @@ void schedule()
     task_t *prev = current;
     current = current->next;
     current->state = TASK_RUNNING;
-    prev->state=TASK_READY;
+    if(prev->state==TASK_RUNNING)
+        prev->state=TASK_READY;
 
     switch_current_task(prev, current);
 }
@@ -134,6 +135,12 @@ void sys_exit()
     if (!current)
         return;
 
+    for(int i=0;i<32;i++){
+        if(current->fd_table[i]){
+            sys_close(i);
+        }
+    }
+
     task_t *dead = current;
 
     task_t *temp = current;
@@ -146,6 +153,5 @@ void sys_exit()
 
     switch_current_task(dead, current);
 
-    for (;;)
-        ;
+    __buitin_unreachable();
 }

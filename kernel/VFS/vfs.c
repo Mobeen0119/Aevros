@@ -1,22 +1,24 @@
 #include <stdint.h>
+#include "../Memory/kheap.c"
+#include "../Process/task.h"
 #include "C:\Users\PROLINE LAPTOP STORE\ForgeOS\include\vfs.h"
 
-vfs_node_t *vfs_root = 0;
+dentry_t *vfs_root = 0;
 
-uint32_t vfs_read(vfs_node_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
+uint32_t vfs_read(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
-    if (node && node->ops && node->ops->read)
+    if (node && node->inode && node->inode->ops && node->inode->ops->read)
     {
-        return node->ops->read(node, offset, size, buffer);
+        return node->inode->ops->read(node->inode, offset, size, buffer);
     }
     return 0;
 }
 
-uint32_t vfs_write(vfs_node_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
+uint32_t vfs_write(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
-    if (node && node->ops && node->ops->write)
+    if (node && node->inode && node->inode->ops && node->inode->ops->write)
     {
-        return node->ops->write(node, offset, size, buffer);
+        return node->inode->ops->write(node->inode, offset, size, buffer);
     }
     return 0;
 }
@@ -42,14 +44,14 @@ static int match_seg(const char *name, const char *start, uint32_t len)
     return (name[i] == '\0' && i == len);
 }
 
-vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path)
+dentry_t *vfs_lookup(dentry_t *root, const char *path)
 {
 
     if (!root || !path)
         return 0;
 
     const char *p = path;
-    vfs_node_t *current = root;
+    dentry_t *current = root;
 
     while (*p)
     {
@@ -60,30 +62,58 @@ vfs_node_t *vfs_lookup(vfs_node_t *root, const char *path)
             break;
 
         const char *start = p;
-        uint32_t len = 0;
 
         while (*p && *p != '/')
-        {
             p++;
-            len++;
-        }
 
+        uint32_t len = p - start;
+        dentry_t *child = current->children;
         int found = 0;
 
-        for (uint32_t j = 0; j < current->child_count; j++)
+        while (child)
         {
-            vfs_node_t *child = current->children[j];
-
-            if (child && match_seg(child->name, start, len))
+            if (match_seg(child->name, start, len))
             {
                 current = child;
                 found = 1;
                 break;
             }
+            child = child->next;
         }
         if (!found)
             return 0;
     }
 
     return current;
+}
+
+int sys_open(const char *path, uint32_t flags)
+{
+    if (!path)
+        return -1;
+    dentry_t *dentry = vfs_lookup(vfs_root, path);
+
+    if (!dentry || !dentry->inode)
+        return -1;
+    inode_t *inode = dentry->inode;
+
+    file_t *file = kmalloc(sizeof(file_t));
+
+    if (!file)
+        return -1;
+
+    file->inode = inode;
+    file->offset = 0;
+    file->flags = flags;
+
+    for (int i = 0; i < 32; i++)
+    {
+        if (!current->fd_table[i])
+        {
+            current->fd_table[i] = file;
+            return i;
+        }
+    }
+    kfree(file);
+    return -1;
 }

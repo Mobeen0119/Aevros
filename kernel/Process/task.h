@@ -1,5 +1,6 @@
 #ifndef TASK_H
 #define TASK_H
+#include "../include/vfs.h"
 
 #include <stdint.h>
 
@@ -19,7 +20,7 @@ typedef struct task
     uint32_t esp;
     uint32_t ebp;
     uint32_t eip;
-
+    file_t* fd_table[32];
     uint32_t cr3;
 
     uint32_t kernel_stack;

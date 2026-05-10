@@ -6,12 +6,12 @@
 #define VFS_DIR 2
 #define VFS_DEVICE 4
 
-typedef struct vfs_node vfs_node_t;
+typedef struct dentry dentry_t;
 
 //--------ptr to fnc-->ptr to file_node-->offset(start)-->size-->buffer
 
-typedef uint32_t (*read_fn)(vfs_node_t *, uint32_t, uint32_t, uint8_t *);
-typedef uint32_t (*write_fn)(vfs_node_t *, uint32_t, uint32_t, uint8_t *);
+typedef uint32_t (*read_fn)(dentry_t*, uint32_t, uint32_t, uint8_t *);
+typedef uint32_t (*write_fn)(dentry_t*, uint32_t, uint32_t, uint8_t *);
 
 typedef struct vfs_ops
 {

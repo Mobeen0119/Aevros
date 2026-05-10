@@ -2,6 +2,10 @@
 #include "../Memory/kheap.c"
 #include "../Process/task.h"
 #include "C:\Users\PROLINE LAPTOP STORE\ForgeOS\include\vfs.h"
+#define READ_ONLY 0x01  // Read only
+#define WRITE_ONLY 0x02 // Write Only
+#define READ_WRITE 0x03 // Read and Write
+#define CREAT 0x04
 
 dentry_t *vfs_root = 0;
 
@@ -116,4 +120,37 @@ int sys_open(const char *path, uint32_t flags)
     }
     kfree(file);
     return -1;
+}
+
+int sys_read(int fd, uint8_t *buf, uint32_t size)
+{
+    if (fd < 0 || fd >= 32 || !current->fd_table[fd])
+    {
+        return -1;
+    }
+
+    file_t *file = current->fd_table[fd];
+
+    uint32_t bytes_read = file->inode->ops->read(file->inode, file->offset, size, buf);
+    file->offset += bytes_read;
+
+    return bytes_read;
+}
+
+int sys_write(int fd, uint8_t *buf, uint32_t size)
+{
+    if (fd < 0 || fd >= 32 || !current->fd_table[fd])
+        return -1;
+
+    file_t *file = current->fd_table[fd];
+
+    if (!(file->flags & WRITE_ONLY) && !(file->flags & READ_WRITE))
+    {
+        return -1;
+    }
+
+    int byte_write = file->inode->ops->write(file->inode, file->offset, size, buf);
+
+    file->offset += byte_write;
+    return byte_write;
 }

@@ -1,6 +1,7 @@
 #include "task.h"
 #include "pmm.h"
 #include "Paging/paging.c"
+#include "../VFS/vfs.c"
 #include "../io.c"
 #include "../include/screen.h"
 #define Temp_p_vir_addr 0xFFC00000

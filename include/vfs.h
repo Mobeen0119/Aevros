@@ -32,9 +32,10 @@ typedef struct file_descriptor // Open file state
 
 typedef struct inode
 { // File metadata
-    uint32_t size, flags;
+    uint32_t size, flags,ref_count;
     vfs_ops_t *ops;
     void *fs_private;
+    
 } inode_t;
 
 typedef struct dentry

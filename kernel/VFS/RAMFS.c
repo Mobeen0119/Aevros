@@ -1,6 +1,7 @@
 #include <stdint.h>
-#include "C:\Users\PROLINE LAPTOP STORE\ForgeOS\Include\ramfs.h"
-#include "C:\Users\PROLINE LAPTOP STORE\ForgeOS\Include\vfs.h"
+#include "..\..\Include\ramfs.h"
+#include "..\..\Include\vfs.h"
+#include "..\Memory\pmm.h"
 
 int ramfs_read(inode_t *inode, uint32_t offset, uint32_t size, uint8_t *buffer)
 {

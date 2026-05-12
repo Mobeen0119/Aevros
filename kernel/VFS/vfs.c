@@ -1,10 +1,11 @@
 #include <stdint.h>
 #include "../Memory/kheap.c"
 #include "../Process/task.h"
-#include "C:\Users\PROLINE LAPTOP STORE\ForgeOS\include\vfs.h"
-#define READ_ONLY 0x01  
-#define WRITE_ONLY 0x02 
-#define READ_WRITE (READ_ONLY | WRITE_ONLY) 
+#include "..\include\vfs.h"
+#include "../include/RAMFS.h"
+#define READ_ONLY 0x01
+#define WRITE_ONLY 0x02
+#define READ_WRITE (READ_ONLY | WRITE_ONLY)
 #define CREAT 0x04
 
 dentry_t *vfs_root = 0;
@@ -46,6 +47,41 @@ static int match_seg(const char *name, const char *start, uint32_t len)
         i++;
     }
     return (name[i] == '\0' && i == len);
+}
+
+const char *basename(const char *path)
+{
+    const char *last = path;
+
+    while (*path)
+    {
+        if (path == '/')
+            last = path + 1;
+        path++;
+    }
+    return last;
+}
+
+void parent_dirname(const char *path, char *parent)
+{
+    int last = -1;
+    for (int i = 0; path[i]; i++)
+    {
+        if (path == '/')
+            last = i;
+    }
+    if (last <= 0)
+    {
+        parent[0] = '/';
+        parent[1] = '\0';
+        return;
+    }
+
+    for (int i = 0; i < last; i++)
+    {
+        parent[i] = path[i];
+    }
+    parent[last] = '\0';
 }
 
 dentry_t *vfs_lookup(dentry_t *root, const char *path)
@@ -97,8 +133,26 @@ int sys_open(const char *path, uint32_t flags)
         return -1;
     dentry_t *dentry = vfs_lookup(vfs_root, path);
 
-    if (!dentry || !dentry->inode)
-        return -1;
+    if (!dentry)
+    {
+        if (flags & CREAT)
+        {
+            char parent_path[256];
+
+            parent_dirname(path, parent_path);
+
+            char *name = basename(path);
+            dentry_t *parent = vfs_lookup(vfs_root, parent_path);
+
+            if (!parent)
+                return -1;
+
+            dentry = ramfs_create_files(parent, name);
+        }
+        else
+            return -1;
+    }
+
     inode_t *inode = dentry->inode;
 
     file_t *file = kmalloc(sizeof(file_t));
@@ -132,7 +186,7 @@ int sys_read(int fd, uint8_t *buf, uint32_t size)
 
     file_t *file = current->fd_table[fd];
 
-    if (!file || !file->inode ||!file->inode->ops ||!file->inode->ops->read)
+    if (!file || !file->inode || !file->inode->ops || !file->inode->ops->read)
     {
         return -1;
     }
@@ -154,7 +208,7 @@ int sys_write(int fd, uint8_t *buf, uint32_t size)
 
     file_t *file = current->fd_table[fd];
 
-    if (!file || !file->inode || !file->inode->ops ||   !file->inode->ops->write)
+    if (!file || !file->inode || !file->inode->ops || !file->inode->ops->write)
     {
         return -1;
     }
@@ -166,28 +220,30 @@ int sys_write(int fd, uint8_t *buf, uint32_t size)
 
     int byte_write = file->inode->ops->write(file->inode, file->offset, size, buf);
 
-
-    
     if (byte_write > 0)
         file->offset += byte_write;
     return byte_write;
 }
 
-int sys_close(int fd){
-    if(fd<0 || fd>=32) return -1;
+int sys_close(int fd)
+{
+    if (fd < 0 || fd >= 32)
+        return -1;
 
-    file_t* file=current->fd_table[fd];
+    file_t *file = current->fd_table[fd];
 
-    if(!file) return -1;
+    if (!file)
+        return -1;
 
-    inode_t* inode=file->inode;
+    inode_t *inode = file->inode;
 
-    if(inode){
-        if(inode->ref_count>0)
-        inode->ref_count--;
+    if (inode)
+    {
+        if (inode->ref_count > 0)
+            inode->ref_count--;
     }
     kfree(file);
-    current->fd_table[fd]=0;
+    current->fd_table[fd] = 0;
 
     return 0;
 }

@@ -69,40 +69,36 @@ dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
     dentry->inode = inode;
     dentry->parent = parent;
 
+    dentry->next = parent->children;
+    dentry->children = dentry;
+
     return dentry;
 }
 
-const char *basename(const char *path)
+int ramfs_expand(ramfs_inode_t *ram, uint32_t needed)
 {
-    const char *last = path;
 
-    while (*path)
+    if (!ram)
+        return -1;
+    if (needed <= ram->capacity)
     {
-        if (path == '/')
-            last = path + 1;
-        path++;
+        return 0;
     }
-    return last;
-}
+    uint32_t new_cap = ram->capacity;
 
-void parent_dirname(const char *path, char *parent)
-{
-    int last = -1;
-    for (int i = 0; path[i]; i++)
-    {
-        if (path == '/')
-            last = i;
-    }
-    if (last <= 0)
-    {
-        parent[0] = '/';
-        parent[1] = '\0';
-        return;
-    }
+    while (new_cap < needed)
+        new_cap *= 2;
 
-    for (int i = 0; i < last; i++)
-    {
-        parent[i] = path[i];
-    }
-    parent[last] = '\0';
+    uint32_t *new_data = kmalloc(new_cap);
+
+    if (!new_data)
+        return -1;
+
+    memcpy(new_data, ram->data, ram->capacity);
+    kfree(ram->data);
+
+    ram->data = new_data;
+    ram->capacity = new_cap;
+
+    return 0;
 }

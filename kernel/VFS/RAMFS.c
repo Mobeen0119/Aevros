@@ -3,6 +3,7 @@
 #include "..\..\Include\vfs.h"
 #include "..\Memory\pmm.h"
 #include "..\Memory\kheap.c"
+#include "..\..\Lib\string.c"
 
 vfs_ops_t ramfs_ops = {
     .read = ramfs_read,

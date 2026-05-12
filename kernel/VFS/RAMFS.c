@@ -4,6 +4,10 @@
 #include "..\Memory\pmm.h"
 #include "..\Memory\kheap.c"
 
+vfs_ops_t ramfs_ops = {
+    .read = ramfs_read,
+    .write = ramfs_write};
+
 int ramfs_read(inode_t *inode, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
     ramfs_inode_t *ram = inode->fs_private;
@@ -66,4 +70,39 @@ dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
     dentry->parent = parent;
 
     return dentry;
+}
+
+const char *basename(const char *path)
+{
+    const char *last = path;
+
+    while (*path)
+    {
+        if (path == '/')
+            last = path + 1;
+        path++;
+    }
+    return last;
+}
+
+void parent_dirname(const char *path, char *parent)
+{
+    int last = -1;
+    for (int i = 0; path[i]; i++)
+    {
+        if (path == '/')
+            last = i;
+    }
+    if (last <= 0)
+    {
+        parent[0] = '/';
+        parent[1] = '\0';
+        return;
+    }
+
+    for (int i = 0; i < last; i++)
+    {
+        parent[i] = path[i];
+    }
+    parent[last] = '\0';
 }

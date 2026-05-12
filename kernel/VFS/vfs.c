@@ -247,3 +247,33 @@ int sys_close(int fd)
 
     return 0;
 }
+
+int sys_mkdir(const char *path)
+{
+    if (!path)
+        return -1;
+
+    char parent_path[256];
+    parent_dirname(path, parent_path);
+
+    char *name = basename(path);
+
+    dentry_t *parent = vfs_lookup(vfs_root, parent_path);
+
+    if (!parent)
+        return 0;
+
+    if (!(parent->inode->flags & VFS_DIR))
+        return -1;
+
+    dentry_t *exist = vfs_lookup(vfs_root, path);
+    if (exist)
+        return -1;
+
+    dentry_t *dir = ramfs_mkdir(parent, name);
+
+    if (!dir)
+        return -1;
+
+    return 0;
+}

@@ -35,7 +35,8 @@ int ramfs_write(inode_t *inode, uint32_t offset, uint32_t size, uint8_t *buffer)
     memcpy(ram->data + offset, buffer, size);
 
     if (offset + size > inode->size)
-        inode->size = offset + size;
+        if (ramfs_expand(ram, offset + size) < 0)
+            return -1;
 
     return size;
 }
@@ -101,4 +102,33 @@ int ramfs_expand(ramfs_inode_t *ram, uint32_t needed)
     ram->capacity = new_cap;
 
     return 0;
+}
+
+dentry_t *ramfs_mkdir(dentry_t *parent, const char *name)
+{
+    if (!parent || !name)
+        return 0;
+
+    dentry_t *dentry = kmalloc(sizeof(dentry_t));
+    inode_t *inode = kmalloc(sizeof(inode_t));
+
+    if (!dentry || !inode)
+        return 0;
+
+    memset(dentry, 0, sizeof(dentry_t));
+    memset(inode, 0, sizeof(inode_t));
+
+    inode->flags = VFS_DIR;
+    inode->fs_private = inode->ops = inode->size = 0;
+
+    dentry->name = strdup(name);
+    dentry->inode = inode;
+    dentry->parent = parent;
+
+    dentry->children = 0;
+    dentry->next = parent->children;
+
+    parent->children = dentry;
+
+    return dentry;
 }

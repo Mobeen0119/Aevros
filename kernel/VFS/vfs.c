@@ -35,7 +35,7 @@ static const char *skip_slash(const char *p)
     return p;
 }
 
-//-----------------------a=>what exist ---b=>what asked for
+//-----------------------a => what exist ---b => what asked for
 
 static int match_seg(const char *name, const char *start, uint32_t len)
 {
@@ -91,17 +91,16 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
         return 0;
 
     const char *p = path;
-    dentry_t *current;
+    dentry_t *dir;
 
     if (p[0] == '/')
-        current = root;
+        dir = root;
     else
-        current = current_task->cwd;
+        dir = current_task->cwd;
 
     while (*p)
     {
-        while (*p == '/')
-            p++;
+       p=skip_slash(*p);
 
         if (!*p)
             break;
@@ -112,36 +111,42 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
             p++;
 
         uint32_t len = p - start;
-        dentry_t *child = current->children;
+        dentry_t *child = dir->children;
         int found = 0;
 
-        if (match_seg('.', start, len))
+        if (match_seg(".", start, len))
+        {
             continue;
+        }
         if (match_seg("..", start, len))
         {
-            if (current->parent)
-                current = current->parent;
+            if (dir->parent)
+                current_task = dir->parent;
             continue;
         }
 
-        if (!(current->inode->flags & VFS_DIR))
+        if (!(dir->inode->flags & VFS_DIR))
             return 0;
 
         while (child)
         {
             if (match_seg(child->name, start, len))
             {
-                current = child;
+                dir = child;
+                if (child->mount)
+                    dir = dir->mount->root;
+
                 found = 1;
                 break;
             }
+
             child = child->next;
         }
         if (!found)
             return 0;
     }
 
-    return current;
+    return current_task;
 }
 
 int sys_open(const char *path, uint32_t flags)
@@ -183,9 +188,9 @@ int sys_open(const char *path, uint32_t flags)
 
     for (int i = 0; i < 32; i++)
     {
-        if (!current->fd_table[i])
+        if (!current_task->fd_table[i])
         {
-            current->fd_table[i] = file;
+            current_task->fd_table[i] = file;
             inode->ref_count++;
             return i;
         }
@@ -196,19 +201,19 @@ int sys_open(const char *path, uint32_t flags)
 
 int sys_read(int fd, uint8_t *buf, uint32_t size)
 {
-    if (fd < 0 || fd >= 32 || !current->fd_table[fd])
+    if (fd < 0 || fd >= 32 || !current_task->fd_table[fd])
     {
         return -1;
     }
 
-    file_t *file = current->fd_table[fd];
+    file_t *file = current_task->fd_table[fd];
 
     if (!file || !file->inode || !file->inode->ops || !file->inode->ops->read)
     {
         return -1;
     }
 
-    if (!(file->flags & READ_ONLY) && !(file->flags & READ_WRITE))
+    if (!(file->flags & READ_ONLY))
         return -1;
 
     int bytes_read = file->inode->ops->read(file->inode, file->offset, size, buf);
@@ -220,17 +225,17 @@ int sys_read(int fd, uint8_t *buf, uint32_t size)
 
 int sys_write(int fd, uint8_t *buf, uint32_t size)
 {
-    if (fd < 0 || fd >= 32 || !current->fd_table[fd])
+    if (fd < 0 || fd >= 32 || !current_task->fd_table[fd])
         return -1;
 
-    file_t *file = current->fd_table[fd];
+    file_t *file = current_task->fd_table[fd];
 
     if (!file || !file->inode || !file->inode->ops || !file->inode->ops->write)
     {
         return -1;
     }
 
-    if (!(file->flags & WRITE_ONLY) && !(file->flags & READ_WRITE))
+    if (!(file->flags & WRITE_ONLY))
     {
         return -1;
     }
@@ -247,7 +252,7 @@ int sys_close(int fd)
     if (fd < 0 || fd >= 32)
         return -1;
 
-    file_t *file = current->fd_table[fd];
+    file_t *file = current_task->fd_table[fd];
 
     if (!file)
         return -1;
@@ -260,7 +265,7 @@ int sys_close(int fd)
             inode->ref_count--;
     }
     kfree(file);
-    current->fd_table[fd] = 0;
+    current_task->fd_table[fd] = 0;
 
     return 0;
 }
@@ -308,31 +313,30 @@ int sys_unlink(const char *path)
         return -1;
 
     dentry_t *parent = target->parent;
+    inode_t *inode = target->inode;
 
-    if (!parent)
+    if (!parent || !inode)
         return -1;
 
-    dentry_t *prev = 0, *current = parent->children;
-
-    while (current)
-    {
-        if (current == target)
-        {
-            if (!prev)
-            {
-                parent->children = current->next;
-            }
-            else
-                prev->next = current->next;
-            break;
-        }
-        prev = current;
-        current = current->next;
-    }
-    inode_t *inode = target->inode;
+    dentry_t *prev = 0, *current_task = parent->children;
 
     if ((inode->flags & VFS_DIR) && target->children)
         return -1;
+    while (current_task)
+    {
+        if (current_task == target)
+        {
+            if (!prev)
+            {
+                parent->children = current_task->next;
+            }
+            else
+                prev->next = current_task->next;
+            break;
+        }
+        prev = current_task;
+        current_task = current_task->next;
+    }
 
     if (inode)
     {
@@ -358,6 +362,40 @@ int sys_unlink(const char *path)
     if (target->name)
         kfree(target->name);
     kfree(target);
+
+    return 0;
+}
+
+int sys_chdir(const char *path) 
+{
+    if (!path)
+        return -1;
+
+    dentry_t *dir = vfs_lookup(vfs_root, path);
+    if (!dir)
+        return -1;
+
+    if (!(dir->inode->flags & VFS_DIR))
+        return -1;
+
+    current_task->cwd = dir;
+
+    return 0;
+}
+
+int vfs_mount(dentry_t *mount_point, dentry_t *root)
+{
+    if (!mount_point || !root)
+        return -1;
+
+    vfs_mount_t *mnt = kmalloc(sizeof(vfs_mount_t));
+
+    if (!mnt)
+        return -1;
+    mnt->root = root;
+    mnt->flags = 0;
+
+    mount_point->mount = mnt;
 
     return 0;
 }

@@ -8,6 +8,7 @@
 
 task_t *current = 0, *ready_queue = 0;
 int next_pid = 0;
+
 extern void switch_current_task(task_t *prev, task_t *next);
 extern void read_eip();
 
@@ -17,7 +18,6 @@ static inline uint32_t read_cr3()
     asm volatile("mov %%cr3, %0" : "=r"(cr3));
     return cr3;
 }
-
 
 void init_tasking()
 {

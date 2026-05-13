@@ -38,12 +38,18 @@ typedef struct inode
     
 } inode_t;
 
+typedef struct vfs_mount{
+    dentry_t* root;
+    uint32_t flags;
+}vfs_mount_t;
+
 typedef struct dentry
 {                             // name Cache layer
     char *name;
     inode_t *inode;
     dentry_t *parent;
     dentry_t *children;
+    struct vfs_mount *mount; 
     struct dentry *next; // hash bucket
 } dentry_t;
 

@@ -27,6 +27,7 @@ void init_tasking()
 
     current->pid = next_pid++;
     current->state = TASK_RUNNING;
+    current->cwd=vfs_root;
     memset(current->fd_table,0,sizeof(current->fd_table));
 
     asm volatile("mov %%esp, %0" : "=r"(current->esp));

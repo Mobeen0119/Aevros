@@ -55,7 +55,7 @@ const char *basename(const char *path)
 
     while (*path)
     {
-        if (path == '/')
+        if (*path == '/')
             last = path + 1;
         path++;
     }
@@ -67,7 +67,7 @@ void parent_dirname(const char *path, char *parent)
     int last = -1;
     for (int i = 0; path[i]; i++)
     {
-        if (path == '/')
+        if (path[i] == '/')
             last = i;
     }
     if (last <= 0)
@@ -91,7 +91,12 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
         return 0;
 
     const char *p = path;
-    dentry_t *current = root;
+    dentry_t *current;
+
+    if (p[0] == '/')
+        current = root;
+    else
+        current = current_task->cwd;
 
     while (*p)
     {
@@ -109,6 +114,18 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
         uint32_t len = p - start;
         dentry_t *child = current->children;
         int found = 0;
+
+        if (match_seg('.', start, len))
+            continue;
+        if (match_seg("..", start, len))
+        {
+            if (current->parent)
+                current = current->parent;
+            continue;
+        }
+
+        if (!(current->inode->flags & VFS_DIR))
+            return 0;
 
         while (child)
         {
@@ -274,6 +291,73 @@ int sys_mkdir(const char *path)
 
     if (!dir)
         return -1;
+
+    return 0;
+}
+
+int sys_unlink(const char *path)
+{
+    if (!path)
+        return -1;
+
+    dentry_t *target = vfs_lookup(vfs_root, path);
+    if (!target)
+        return -1;
+
+    if (target == vfs_root)
+        return -1;
+
+    dentry_t *parent = target->parent;
+
+    if (!parent)
+        return -1;
+
+    dentry_t *prev = 0, *current = parent->children;
+
+    while (current)
+    {
+        if (current == target)
+        {
+            if (!prev)
+            {
+                parent->children = current->next;
+            }
+            else
+                prev->next = current->next;
+            break;
+        }
+        prev = current;
+        current = current->next;
+    }
+    inode_t *inode = target->inode;
+
+    if ((inode->flags & VFS_DIR) && target->children)
+        return -1;
+
+    if (inode)
+    {
+        if (inode->ref_count > 0)
+            inode->ref_count--;
+        if (inode->ref_count == 0)
+        {
+            if (inode->flags & VFS_FILE)
+            {
+                ramfs_inode_t *ram = (ramfs_inode_t *)inode->fs_private;
+                if (ram)
+                {
+                    if (ram->data)
+                        kfree(ram->data);
+
+                    kfree(ram);
+                }
+            }
+            kfree(inode);
+        }
+    }
+
+    if (target->name)
+        kfree(target->name);
+    kfree(target);
 
     return 0;
 }

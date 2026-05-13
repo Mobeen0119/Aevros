@@ -24,6 +24,7 @@ typedef struct task
     uint32_t cr3;
 
     uint32_t kernel_stack;
+    dentry_t* cwd;
 
     task_state_t state;
 
@@ -31,12 +32,12 @@ typedef struct task
 
 } task_t;
 
-extern task_t *current;
+extern task_t *current_task;
 extern task_t *ready_queue;
 
 void init_tasking();
 
-task_t *create_process(void (*entry)());
+task_t *create_process(void (*entry)(),uint32_t flags, uint32_t page_dir);
 
 void schedule();
 

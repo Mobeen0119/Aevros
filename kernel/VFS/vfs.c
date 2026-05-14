@@ -3,12 +3,15 @@
 #include "../Process/task.h"
 #include "..\include\vfs.h"
 #include "../include/RAMFS.h"
+#include "../LIB/string.c"
 #define READ_ONLY 0x01
 #define WRITE_ONLY 0x02
-#define READ_WRITE (READ_ONLY | WRITE_ONLY)
+#define READ_WRITE 3
 #define CREAT 0x04
 
 dentry_t *vfs_root = 0;
+static devfs_device_t devfs_table[MAX_DEVICES];
+static int devfs_count = 0;
 
 uint32_t vfs_read(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
@@ -100,7 +103,7 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
 
     while (*p)
     {
-       p=skip_slash(*p);
+        p = skip_slash(p);
 
         if (!*p)
             break;
@@ -121,7 +124,7 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
         if (match_seg("..", start, len))
         {
             if (dir->parent)
-                current_task = dir->parent;
+                dir = dir->parent;
             continue;
         }
 
@@ -133,9 +136,6 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
             if (match_seg(child->name, start, len))
             {
                 dir = child;
-                if (child->mount)
-                    dir = dir->mount->root;
-
                 found = 1;
                 break;
             }
@@ -144,9 +144,13 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
         }
         if (!found)
             return 0;
+
+        dir = found;
+        if (child->mount)
+            dir = dir->mount->root;
     }
 
-    return current_task;
+    return dir;
 }
 
 int sys_open(const char *path, uint32_t flags)
@@ -166,10 +170,12 @@ int sys_open(const char *path, uint32_t flags)
             char *name = basename(path);
             dentry_t *parent = vfs_lookup(vfs_root, parent_path);
 
-            if (!parent)
+            if (!parent || !(parent->inode->flags & VFS_DIR))
                 return -1;
 
             dentry = ramfs_create_files(parent, name);
+            if (!dentry)
+                return -1;
         }
         else
             return -1;
@@ -213,7 +219,7 @@ int sys_read(int fd, uint8_t *buf, uint32_t size)
         return -1;
     }
 
-    if (!(file->flags & READ_ONLY))
+    if (!(file->flags & READ_ONLY) && !(file->flags & READ_WRITE))
         return -1;
 
     int bytes_read = file->inode->ops->read(file->inode, file->offset, size, buf);
@@ -235,10 +241,8 @@ int sys_write(int fd, uint8_t *buf, uint32_t size)
         return -1;
     }
 
-    if (!(file->flags & WRITE_ONLY))
-    {
+    if (!(file->flags & WRITE_ONLY) && !(file->flags & READ_WRITE))
         return -1;
-    }
 
     int byte_write = file->inode->ops->write(file->inode, file->offset, size, buf);
 
@@ -318,24 +322,24 @@ int sys_unlink(const char *path)
     if (!parent || !inode)
         return -1;
 
-    dentry_t *prev = 0, *current_task = parent->children;
+    dentry_t *prev = 0, *current = parent->children;
 
     if ((inode->flags & VFS_DIR) && target->children)
         return -1;
-    while (current_task)
+    while (current)
     {
-        if (current_task == target)
+        if (current == target)
         {
             if (!prev)
             {
-                parent->children = current_task->next;
+                parent->children = current->next;
             }
             else
-                prev->next = current_task->next;
+                prev->next = current->next;
             break;
         }
-        prev = current_task;
-        current_task = current_task->next;
+        prev = current;
+        current = current->next;
     }
 
     if (inode)
@@ -366,7 +370,7 @@ int sys_unlink(const char *path)
     return 0;
 }
 
-int sys_chdir(const char *path) 
+int sys_chdir(const char *path)
 {
     if (!path)
         return -1;
@@ -388,6 +392,9 @@ int vfs_mount(dentry_t *mount_point, dentry_t *root)
     if (!mount_point || !root)
         return -1;
 
+    if (!(mount_point->inode->flags & VFS_DIR))
+        return -1;
+
     vfs_mount_t *mnt = kmalloc(sizeof(vfs_mount_t));
 
     if (!mnt)
@@ -397,5 +404,39 @@ int vfs_mount(dentry_t *mount_point, dentry_t *root)
 
     mount_point->mount = mnt;
 
+    return 0;
+}
+
+int devfs_register(const char *name, inode_t *inode)
+{
+    if (!name || !inode)
+        return -1;
+
+    if (devfs_count >= MAX_DEVICES)
+        return -1;
+
+    for (int i = 0; i < devfs_count; i++)
+    {
+        if (match_seg(devfs_table[i].name, name, strlen(name)))
+            return -1;
+    }
+    devfs_table[devfs_count].name = name;
+    devfs_table[devfs_count].inode = inode;
+
+    devfs_count++;
+
+    return 0;
+}
+
+inode_t *devfs_get(const char *name)
+{
+    if (!name)
+        return -1;
+
+    for (int i = 0; i < devfs_count; i++)
+    {
+        if (devfs_table[devfs_count].name, name, strlen(name))
+            return devfs_table[devfs_count].inode;
+    }
     return 0;
 }

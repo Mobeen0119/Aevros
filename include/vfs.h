@@ -5,6 +5,7 @@
 #define VFS_FILE 1
 #define VFS_DIR 2
 #define VFS_DEVICE 4
+#define MAX_DEVICES 64
 
 typedef struct dentry dentry_t;
 
@@ -57,5 +58,8 @@ typedef struct{
     char* name;
     inode_t* inode;
 }devfs_device_t;
+
+int devfs_register(const char* name,inode_t* inode);
+inode_t* devfs_get(const char* name);
 
 #endif

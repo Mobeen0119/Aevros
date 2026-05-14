@@ -113,7 +113,7 @@ Core goals:
 
 ---
 
-## 🗺️ Roadmap
+## 🗺️ Goals
 
 - [ ] Preemptive multitasking
 - [ ] User-mode / ring transitions
@@ -124,20 +124,14 @@ Core goals:
 
 ---
 
-## 📌 Note
-
-This is a **learning-driven OS project**. Expect instability, refactors, and architectural changes as understanding evolves.
-
----
-
 ## ⭐ Status
 
-> Actively under development — core systems are being continuously rewritten and improved.
+> Actively under development  core systems are being continuously rewritten and improved.
 
 ---
 
 ## 🤝 Contributing
 
-Currently not open for external contributions (early-stage architecture work), but feedback and discussion are welcome.
+Currently not open for external contributions (early-stage architecture work).
 
 ---

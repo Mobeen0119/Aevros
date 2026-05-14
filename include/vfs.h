@@ -6,6 +6,12 @@
 #define VFS_DIR 2
 #define VFS_DEVICE 4
 #define MAX_DEVICES 64
+#define VFS_OK        0
+#define VFS_ENOENT   -2
+#define VFS_EACCES   -3
+#define VFS_ENOTDIR  -4
+#define VFS_ENOMEM   -5
+#define VFS_EEXIST   -6
 
 typedef struct dentry dentry_t;
 

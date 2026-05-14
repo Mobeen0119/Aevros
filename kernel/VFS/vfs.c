@@ -19,7 +19,7 @@ uint32_t vfs_read(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffe
     {
         return node->inode->ops->read(node->inode, offset, size, buffer);
     }
-    return 0;
+    return VFS_OK;
 }
 
 uint32_t vfs_write(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
@@ -28,7 +28,7 @@ uint32_t vfs_write(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buff
     {
         return node->inode->ops->write(node->inode, offset, size, buffer);
     }
-    return 0;
+    return VFS_OK;
 }
 
 static const char *skip_slash(const char *p)
@@ -46,7 +46,7 @@ static int match_seg(const char *name, const char *start, uint32_t len)
     while (name[i] && i < len)
     {
         if (name[i] != start[i])
-            return 0;
+            return VFS_OK;
         i++;
     }
     return (name[i] == '\0' && i == len);
@@ -87,11 +87,11 @@ void parent_dirname(const char *path, char *parent)
     parent[last] = '\0';
 }
 
-dentry_t *vfs_lookup(dentry_t *root, const char *path)
+dentry_t *vfs_resolve_path(dentry_t *root, const char *path)
 {
 
     if (!root || !path)
-        return 0;
+        return VFS_OK;
 
     const char *p = path;
     dentry_t *dir;
@@ -129,7 +129,7 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
         }
 
         if (!(dir->inode->flags & VFS_DIR))
-            return 0;
+            return VFS_OK;
 
         while (child)
         {
@@ -139,20 +139,31 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
                 found = 1;
                 break;
             }
-
             child = child->next;
         }
         if (!found)
-            return 0;
+            return VFS_OK;
 
         dir = found;
-        if (child->mount)
-            dir = dir->mount->root;
     }
 
     return dir;
 }
 
+dentry_t *vfs_follow_mount(dentry_t *dentry)
+{
+    if (!dentry)
+        return VFS_OK;
+    if (dentry->mount)
+        return dentry->mount->root;
+
+    return dentry;
+}
+dentry_t *vfs_lookup(dentry_t *root, const char *path)
+{
+    dentry_t *node = vfs_resolve(root, path);
+    return vfs_follow_mount(node);
+}
 int sys_open(const char *path, uint32_t flags)
 {
     if (!path)
@@ -271,7 +282,7 @@ int sys_close(int fd)
     kfree(file);
     current_task->fd_table[fd] = 0;
 
-    return 0;
+    return VFS_OK;
 }
 
 int sys_mkdir(const char *path)
@@ -287,7 +298,7 @@ int sys_mkdir(const char *path)
     dentry_t *parent = vfs_lookup(vfs_root, parent_path);
 
     if (!parent)
-        return 0;
+        return VFS_OK;
 
     if (!(parent->inode->flags & VFS_DIR))
         return -1;
@@ -301,7 +312,7 @@ int sys_mkdir(const char *path)
     if (!dir)
         return -1;
 
-    return 0;
+    return VFS_OK;
 }
 
 int sys_unlink(const char *path)
@@ -367,7 +378,7 @@ int sys_unlink(const char *path)
         kfree(target->name);
     kfree(target);
 
-    return 0;
+    return VFS_OK;
 }
 
 int sys_chdir(const char *path)
@@ -384,7 +395,7 @@ int sys_chdir(const char *path)
 
     current_task->cwd = dir;
 
-    return 0;
+    return VFS_OK;
 }
 
 int vfs_mount(dentry_t *mount_point, dentry_t *root)
@@ -404,7 +415,7 @@ int vfs_mount(dentry_t *mount_point, dentry_t *root)
 
     mount_point->mount = mnt;
 
-    return 0;
+    return VFS_OK;
 }
 
 int devfs_register(const char *name, inode_t *inode)
@@ -425,7 +436,7 @@ int devfs_register(const char *name, inode_t *inode)
 
     devfs_count++;
 
-    return 0;
+    return VFS_OK;
 }
 
 inode_t *devfs_get(const char *name)
@@ -438,5 +449,5 @@ inode_t *devfs_get(const char *name)
         if (devfs_table[devfs_count].name, name, strlen(name))
             return devfs_table[devfs_count].inode;
     }
-    return 0;
+    return VFS_OK;
 }

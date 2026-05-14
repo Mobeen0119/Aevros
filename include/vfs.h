@@ -53,4 +53,9 @@ typedef struct dentry
     struct dentry *next; // hash bucket
 } dentry_t;
 
+typedef struct{
+    char* name;
+    inode_t* inode;
+}devfs_device_t;
+
 #endif

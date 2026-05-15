@@ -47,7 +47,7 @@ static int match_seg(const char *name, const char *start, uint32_t len)
     while (name[i] && i < len)
     {
         if (name[i] != start[i])
-            return VFS_OK;
+            return 0;
         i++;
     }
     return (name[i] == '\0' && i == len);
@@ -63,6 +63,7 @@ uint32_t dentry_hash(const char *name)
     }
     return hash % DENTRY_HASH;
 }
+
 const char *basename(const char *path)
 {
     const char *last = path;
@@ -78,7 +79,7 @@ const char *basename(const char *path)
 
 void parent_dirname(const char *path, char *parent)
 {
-    int last = -1;
+    int last = VFS_ERR;
     for (int i = 0; path[i]; i++)
     {
         if (path[i] == '/')
@@ -183,7 +184,7 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
 int sys_open(const char *path, uint32_t flags)
 {
     if (!path)
-        return -1;
+        return VFS_ERR;
     dentry_t *dentry = vfs_lookup(vfs_root, path);
 
     if (!dentry)
@@ -198,14 +199,14 @@ int sys_open(const char *path, uint32_t flags)
             dentry_t *parent = vfs_lookup(vfs_root, parent_path);
 
             if (!parent || !(parent->inode->flags & VFS_DIR))
-                return -1;
+                return VFS_ERR;
 
             dentry = ramfs_create_files(parent, name);
             if (!dentry)
-                return -1;
+                return VFS_ERR;
         }
         else
-            return -1;
+            return VFS_ERR;
     }
 
     inode_t *inode = dentry->inode;
@@ -213,7 +214,7 @@ int sys_open(const char *path, uint32_t flags)
     file_t *file = kmalloc(sizeof(file_t));
 
     if (!file)
-        return -1;
+        return VFS_ERR;
 
     file->inode = inode;
     file->offset = 0;
@@ -229,25 +230,25 @@ int sys_open(const char *path, uint32_t flags)
         }
     }
     kfree(file);
-    return -1;
+    return VFS_ERR;
 }
 
 int sys_read(int fd, uint8_t *buf, uint32_t size)
 {
     if (fd < 0 || fd >= 32 || !current_task->fd_table[fd])
     {
-        return -1;
+        return VFS_ERR;
     }
 
     file_t *file = current_task->fd_table[fd];
 
     if (!file || !file->inode || !file->inode->ops || !file->inode->ops->read)
     {
-        return -1;
+        return VFS_ERR;
     }
 
     if (!(file->flags & READ_ONLY) && !(file->flags & READ_WRITE))
-        return -1;
+        return VFS_ERR;
 
     int bytes_read = file->inode->ops->read(file->inode, file->offset, size, buf);
     if (bytes_read > 0)
@@ -259,17 +260,17 @@ int sys_read(int fd, uint8_t *buf, uint32_t size)
 int sys_write(int fd, uint8_t *buf, uint32_t size)
 {
     if (fd < 0 || fd >= 32 || !current_task->fd_table[fd])
-        return -1;
+        return VFS_ERR;
 
     file_t *file = current_task->fd_table[fd];
 
     if (!file || !file->inode || !file->inode->ops || !file->inode->ops->write)
     {
-        return -1;
+        return VFS_ERR;
     }
 
     if (!(file->flags & WRITE_ONLY) && !(file->flags & READ_WRITE))
-        return -1;
+        return VFS_ERR;
 
     int byte_write = file->inode->ops->write(file->inode, file->offset, size, buf);
 
@@ -281,12 +282,12 @@ int sys_write(int fd, uint8_t *buf, uint32_t size)
 int sys_close(int fd)
 {
     if (fd < 0 || fd >= 32)
-        return -1;
+        return VFS_ERR;
 
     file_t *file = current_task->fd_table[fd];
 
     if (!file)
-        return -1;
+        return VFS_ERR;
 
     inode_t *inode = file->inode;
 
@@ -304,7 +305,7 @@ int sys_close(int fd)
 int sys_mkdir(const char *path)
 {
     if (!path)
-        return -1;
+        return VFS_ERR;
 
     char parent_path[256];
     parent_dirname(path, parent_path);
@@ -317,16 +318,16 @@ int sys_mkdir(const char *path)
         return VFS_OK;
 
     if (!(parent->inode->flags & VFS_DIR))
-        return -1;
+        return VFS_ERR;
 
     dentry_t *exist = vfs_lookup(vfs_root, path);
     if (exist)
-        return -1;
+        return VFS_ERR;
 
     dentry_t *dir = ramfs_mkdir(parent, name);
 
     if (!dir)
-        return -1;
+        return VFS_ERR;
 
     return VFS_OK;
 }
@@ -334,25 +335,25 @@ int sys_mkdir(const char *path)
 int sys_unlink(const char *path)
 {
     if (!path)
-        return -1;
+        return VFS_ERR;
 
     dentry_t *target = vfs_lookup(vfs_root, path);
     if (!target)
-        return -1;
+        return VFS_ERR;
 
     if (target == vfs_root)
-        return -1;
+        return VFS_ERR;
 
     dentry_t *parent = target->parent;
     inode_t *inode = target->inode;
 
     if (!parent || !inode)
-        return -1;
+        return VFS_ERR;
 
     dentry_t *prev = 0, *current = parent->children;
 
     if ((inode->flags & VFS_DIR) && target->children)
-        return -1;
+        return VFS_ERR;
     while (current)
     {
         if (current == target)
@@ -400,14 +401,14 @@ int sys_unlink(const char *path)
 int sys_chdir(const char *path)
 {
     if (!path)
-        return -1;
+        return VFS_ERR;
 
     dentry_t *dir = vfs_lookup(vfs_root, path);
     if (!dir)
-        return -1;
+        return VFS_ERR;
 
     if (!(dir->inode->flags & VFS_DIR))
-        return -1;
+        return VFS_ERR;
 
     current_task->cwd = dir;
 
@@ -417,15 +418,15 @@ int sys_chdir(const char *path)
 int vfs_mount(dentry_t *mount_point, dentry_t *root)
 {
     if (!mount_point || !root)
-        return -1;
+        return VFS_ERR;
 
     if (!(mount_point->inode->flags & VFS_DIR))
-        return -1;
+        return VFS_ERR;
 
     vfs_mount_t *mnt = kmalloc(sizeof(vfs_mount_t));
 
     if (!mnt)
-        return -1;
+        return VFS_ERR;
     mnt->root = root;
     mnt->flags = 0;
 
@@ -437,15 +438,15 @@ int vfs_mount(dentry_t *mount_point, dentry_t *root)
 int devfs_register(const char *name, inode_t *inode)
 {
     if (!name || !inode)
-        return -1;
+        return VFS_ERR;
 
     if (devfs_count >= MAX_DEVICES)
-        return -1;
+        return VFS_ERR;
 
     for (int i = 0; i < devfs_count; i++)
     {
         if (match_seg(devfs_table[i].name, name, strlen(name)))
-            return -1;
+            return VFS_ERR;
     }
     devfs_table[devfs_count].name = strdup(name);
     devfs_table[devfs_count].inode = inode;
@@ -458,7 +459,7 @@ int devfs_register(const char *name, inode_t *inode)
 inode_t *devfs_get(const char *name)
 {
     if (!name)
-        return -1;
+        return VFS_ERR;
 
     for (int i = 0; i < devfs_count; i++)
     {
@@ -471,22 +472,22 @@ inode_t *devfs_get(const char *name)
 int sys_readdir(int fd, dirent_t *dirent)
 {
     if (fd < 0 || fd >= 32)
-        return -1;
+        return VFS_ERR;
 
     file_t *file = current_task->fd_table[fd];
 
     if (!file || !file->inode)
     {
-        return -1;
+        return VFS_ERR;
     }
 
     if (!(file->inode->flags & VFS_DIR))
-        return -1;
+        return VFS_ERR;
 
     dentry_t *dir = file->inode->dentry;
 
     if (!dir)
-        return -1;
+        return VFS_ERR;
 
     dentry_t *child = dir->children;
     uint32_t index = 0;

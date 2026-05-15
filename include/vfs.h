@@ -7,6 +7,7 @@
 #define VFS_DEVICE 4
 #define MAX_DEVICES 64
 #define VFS_OK 0
+#define VFS_ERR -1
 #define VFS_ENOENT -2
 #define VFS_EACCES -3
 #define VFS_ENOTDIR -4
@@ -58,8 +59,8 @@ typedef struct vfs_mount
     uint32_t flags;
 } vfs_mount_t;
 
-typedef struct dentry
-{ // name Cache layer
+typedef struct dentry // name Cache layer
+{
     char *name;
     inode_t *inode;
     struct dentry *parent;

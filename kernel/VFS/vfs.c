@@ -6,10 +6,11 @@
 #include "../LIB/string.c"
 #define READ_ONLY 0x01
 #define WRITE_ONLY 0x02
-#define READ_WRITE 3
+#define READ_WRITE 0x03
 #define CREAT 0x04
 
 dentry_t *vfs_root = 0;
+
 static devfs_device_t devfs_table[MAX_DEVICES];
 static int devfs_count = 0;
 
@@ -52,6 +53,16 @@ static int match_seg(const char *name, const char *start, uint32_t len)
     return (name[i] == '\0' && i == len);
 }
 
+uint32_t dentry_hash(const char *name)
+{
+    uint32_t hash = 0;
+    while (*name)
+    {
+        hash = hash * 31 + *name;
+        name++;
+    }
+    return hash % DENTRY_HASH;
+}
 const char *basename(const char *path)
 {
     const char *last = path;
@@ -114,7 +125,12 @@ dentry_t *vfs_resolve_path(dentry_t *root, const char *path)
             p++;
 
         uint32_t len = p - start;
-        dentry_t *child = dir->children;
+        char temp[256];
+        memcpy(temp, start, len);
+        temp[len] = '\0';
+
+        uint32_t bucket = dentry_hash(temp);
+        dentry_t *child = dir->hash_bucket[bucket];
         int found = 0;
 
         if (match_seg(".", start, len))
@@ -139,12 +155,10 @@ dentry_t *vfs_resolve_path(dentry_t *root, const char *path)
                 found = 1;
                 break;
             }
-            child = child->next;
+            child = child->hash_next;
         }
         if (!found)
             return VFS_OK;
-
-        dir = found;
     }
 
     return dir;
@@ -159,11 +173,13 @@ dentry_t *vfs_follow_mount(dentry_t *dentry)
 
     return dentry;
 }
+
 dentry_t *vfs_lookup(dentry_t *root, const char *path)
 {
-    dentry_t *node = vfs_resolve(root, path);
+    dentry_t *node = vfs_resolve_path(root, path);
     return vfs_follow_mount(node);
 }
+
 int sys_open(const char *path, uint32_t flags)
 {
     if (!path)
@@ -431,7 +447,7 @@ int devfs_register(const char *name, inode_t *inode)
         if (match_seg(devfs_table[i].name, name, strlen(name)))
             return -1;
     }
-    devfs_table[devfs_count].name = name;
+    devfs_table[devfs_count].name = strdup(name);
     devfs_table[devfs_count].inode = inode;
 
     devfs_count++;
@@ -446,8 +462,48 @@ inode_t *devfs_get(const char *name)
 
     for (int i = 0; i < devfs_count; i++)
     {
-        if (devfs_table[devfs_count].name, name, strlen(name))
-            return devfs_table[devfs_count].inode;
+        if (match_seg(devfs_table[i].name, name, strlen(name)))
+            return devfs_table[i].inode;
     }
     return VFS_OK;
+}
+
+int sys_readdir(int fd, dirent_t *dirent)
+{
+    if (fd < 0 || fd >= 32)
+        return -1;
+
+    file_t *file = current_task->fd_table[fd];
+
+    if (!file || !file->inode)
+    {
+        return -1;
+    }
+
+    if (!(file->inode->flags & VFS_DIR))
+        return -1;
+
+    dentry_t *dir = file->inode->dentry;
+
+    if (!dir)
+        return -1;
+
+    dentry_t *child = dir->children;
+    uint32_t index = 0;
+
+    while (child && index < file->offset)
+    {
+        child = child->next;
+        index++;
+    }
+
+    if (!child)
+        return 0;
+
+    strcpy(dirent->name, child->name);
+    dirent->type = child->inode->flags;
+
+    file->offset++;
+
+    return 1;
 }

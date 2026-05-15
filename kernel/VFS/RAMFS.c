@@ -45,14 +45,14 @@ int ramfs_write(inode_t *inode, uint32_t offset, uint32_t size, uint8_t *buffer)
 dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
 {
 
-    dentry_t *dentry = kmalloc(sizeof(dentry_t));
+    dentry_t *child = kmalloc(sizeof(dentry_t));
     inode_t *inode = kmalloc(sizeof(inode_t));
     ramfs_inode_t *ram = kmalloc(sizeof(ramfs_inode_t));
 
-    if (!ram || !dentry || !inode)
+    if (!ram || !child || !inode)
         return 0;
 
-    memset(dentry, 0, sizeof(dentry_t));
+    memset(child, 0, sizeof(dentry_t));
     memset(inode, 0, sizeof(inode_t));
     memset(ram, 0, sizeof(ramfs_inode_t));
 
@@ -67,14 +67,15 @@ dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
     inode->fs_private = ram;
     inode->ref_count = 0;
 
-    dentry->name = strdup(name);
-    dentry->inode = inode;
-    dentry->parent = parent;
+    child->name = strdup(name);
+    child->inode = inode;
+    child->parent = parent;
 
-    dentry->next = parent->children;
-    dentry->children = dentry;
-
-    return dentry;
+   uint32_t bucket=dentry_hash(child->name);
+    child->next=parent->hash_bucket[bucket];
+    parent->hash_bucket[bucket]=child;
+    
+    return child;
 }
 
 int ramfs_expand(ramfs_inode_t *ram, uint32_t needed)

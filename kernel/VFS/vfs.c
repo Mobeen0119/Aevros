@@ -4,6 +4,7 @@
 #include "..\include\vfs.h"
 #include "../include/RAMFS.h"
 #include "../LIB/string.c"
+#include "../Dev/dev.h"
 #define READ_ONLY 0x01
 #define WRITE_ONLY 0x02
 #define READ_WRITE 0x03
@@ -11,8 +12,6 @@
 
 dentry_t *vfs_root = 0;
 
-static devfs_device_t devfs_table[MAX_DEVICES];
-static int devfs_count = 0;
 
 uint32_t vfs_read(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
@@ -432,40 +431,6 @@ int vfs_mount(dentry_t *mount_point, dentry_t *root)
 
     mount_point->mount = mnt;
 
-    return VFS_OK;
-}
-
-int devfs_register(const char *name, inode_t *inode)
-{
-    if (!name || !inode)
-        return VFS_ERR;
-
-    if (devfs_count >= MAX_DEVICES)
-        return VFS_ERR;
-
-    for (int i = 0; i < devfs_count; i++)
-    {
-        if (match_seg(devfs_table[i].name, name, strlen(name)))
-            return VFS_ERR;
-    }
-    devfs_table[devfs_count].name = strdup(name);
-    devfs_table[devfs_count].inode = inode;
-
-    devfs_count++;
-
-    return VFS_OK;
-}
-
-inode_t *devfs_get(const char *name)
-{
-    if (!name)
-        return VFS_ERR;
-
-    for (int i = 0; i < devfs_count; i++)
-    {
-        if (match_seg(devfs_table[i].name, name, strlen(name)))
-            return devfs_table[i].inode;
-    }
     return VFS_OK;
 }
 

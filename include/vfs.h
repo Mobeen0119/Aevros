@@ -72,14 +72,7 @@ typedef struct dentry // name Cache layer
 
 } dentry_t;
 
-typedef struct
-{
-    char *name;
-    inode_t *inode;
-} devfs_device_t;
 
-int devfs_register(const char *name, inode_t *inode);
-inode_t *devfs_get(const char *name);
 uint32_t dentry_hash(const char *name);
 int sys_readdir(int fd, dirent_t *dirent);
 

@@ -1,8 +1,22 @@
 #include <stdint.h>
-#include "../../Lib/string.c"
-#include "../../Include/vfs.h"
-#include "../Process/task.h"
+#include "../Include/shell.h"
+#include "../Include/terminal.h"
+#include "../Include/vfs.h"
+#include "../LIB/string.c"
+#include "../Inlcude/screen.h"
 
-#define MAX_CMD 128
 
-static char cmd_buffer[MAX_CMD];
+
+void shell_prompt(){
+    kprint("FORGE_OS > ")
+    
+}
+void shell_start(){
+    char input[MAX_INPUT];
+
+    while(1){
+        shell_prompt();
+        terminal_readline(input_line);
+        shell_execute(input_line);
+    }
+}

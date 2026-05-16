@@ -18,3 +18,5 @@ int input_length = 0; // Columns
 int cursor_y = 0;     // Logical line
 int scroll_top = 0;   // first line
 int cursor_x = 0;     // Input position in the current line
+
+void terminal_readline(char* out);

@@ -27,6 +27,8 @@ void kprint_at(const char *str, int row, int col)
 
     for (int i = 0; str[i] != '\0'; i++)
     {
+        if (col + i >= COL) break;
+        
         vga_buffer[ind + i] = (unsigned short)VGA_COLOR << 8 | str[i];
     }
 }
@@ -36,8 +38,8 @@ void kput_char(char c)
 
     if (c == '\n')
     {
-        cursor_y = 0;
         cursor_x++;
+        cursor_y = 0;
         return;
     }
 
@@ -51,10 +53,13 @@ void kput_char(char c)
         cursor_x = 0;
     }
 
-    int ind = (cursor_x * ROW) + COL;
+   int ind = cursor_x * COL + cursor_y;
+
     vga_buffer[ind] = ((unsigned short)VGA_COLOR << 8) | c;
 
     cursor_y++;
+
+    if(cursor_x>=ROW) cursor_x=0;
 }
 
 void kprint(const char *str)

@@ -75,5 +75,18 @@ typedef struct dentry // name Cache layer
 
 uint32_t dentry_hash(const char *name);
 int sys_readdir(int fd, dirent_t *dirent);
+uint32_t vfs_read(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer);
+uint32_t vfs_write(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer);
+void parent_dirname(const char *path, char *parent);
+dentry_t *vfs_lookup(dentry_t *root, const char *path);
+int sys_open(const char *path, uint32_t flags);
+int sys_read(int fd, uint8_t *buf, uint32_t size);
+int sys_write(int fd, uint8_t *buf, uint32_t size);
+int sys_close(int fd);
+int sys_mkdir(const char *path);
+int sys_unlink(const char *path);
+int sys_chdir(const char *path);
+int vfs_mount(dentry_t *mount_point, dentry_t *root);
+
 
 #endif

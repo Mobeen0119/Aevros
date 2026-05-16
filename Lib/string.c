@@ -24,6 +24,38 @@ void strcpy(char *dest, const char *src)
     dest[i] = '\0';
 }
 
+int strcmp(const char *str1, const char *str2)
+{
+    while (*str1 == *str2)
+    {
+        if (*str1 == '\0')
+            return 0;
+        str1++;
+        str2++;
+    }
+
+    return *(const unsigned char *)str1 - *(const unsigned char *)str2;
+}
+
+int strncmp(const char *str1, const char *str2, size_t n)
+{
+    while (n > 0)
+    {
+        unsigned char c1 = (unsigned char)*str1++;
+        unsigned char c2 = (unsigned char)*str2++;
+
+        if (c1 != c2)
+        {
+            return c1 - c2;
+        }
+        if (c1 == '\0')
+            return 0;
+
+        n--;
+    }
+    return 0;
+}
+
 char *strdup(const char *str)
 {
     if (!str)

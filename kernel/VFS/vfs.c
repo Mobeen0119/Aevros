@@ -12,7 +12,6 @@
 
 dentry_t *vfs_root = 0;
 
-
 uint32_t vfs_read(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
     if (node && node->inode && node->inode->ops && node->inode->ops->read)
@@ -102,7 +101,7 @@ dentry_t *vfs_resolve_path(dentry_t *root, const char *path)
 {
 
     if (!root || !path)
-        return VFS_OK;
+        return NULL;
 
     const char *p = path;
     dentry_t *dir;
@@ -145,7 +144,7 @@ dentry_t *vfs_resolve_path(dentry_t *root, const char *path)
         }
 
         if (!(dir->inode->flags & VFS_DIR))
-            return VFS_OK;
+            return NULL;
 
         while (child)
         {
@@ -158,7 +157,7 @@ dentry_t *vfs_resolve_path(dentry_t *root, const char *path)
             child = child->hash_next;
         }
         if (!found)
-            return VFS_OK;
+            return NULL;
     }
 
     return dir;
@@ -167,7 +166,7 @@ dentry_t *vfs_resolve_path(dentry_t *root, const char *path)
 dentry_t *vfs_follow_mount(dentry_t *dentry)
 {
     if (!dentry)
-        return VFS_OK;
+        return NULL;
     if (dentry->mount)
         return dentry->mount->root;
 
@@ -216,6 +215,7 @@ int sys_open(const char *path, uint32_t flags)
         return VFS_ERR;
 
     file->inode = inode;
+    file->dentry = vfs_follow_mount(dentry);
     file->offset = 0;
     file->flags = flags;
 
@@ -314,7 +314,7 @@ int sys_mkdir(const char *path)
     dentry_t *parent = vfs_lookup(vfs_root, parent_path);
 
     if (!parent)
-        return VFS_OK;
+        return VFS_ERR;
 
     if (!(parent->inode->flags & VFS_DIR))
         return VFS_ERR;
@@ -349,24 +349,27 @@ int sys_unlink(const char *path)
     if (!parent || !inode)
         return VFS_ERR;
 
-    dentry_t *prev = 0, *current = parent->children;
+    uint32_t bucket = dentry_hash(target->name);
+    dentry_t *current = parent->hash_bucket[bucket];
+    dentry_t *prev = NULL;
 
     if ((inode->flags & VFS_DIR) && target->children)
         return VFS_ERR;
+
     while (current)
     {
         if (current == target)
         {
             if (!prev)
             {
-                parent->children = current->next;
+                parent->hash_bucket[bucket] = current->hash_next;
             }
             else
-                prev->next = current->next;
+                prev->hash_next = current->hash_next;
             break;
         }
         prev = current;
-        current = current->next;
+        current = current->hash_next;
     }
 
     if (inode)
@@ -449,27 +452,31 @@ int sys_readdir(int fd, dirent_t *dirent)
     if (!(file->inode->flags & VFS_DIR))
         return VFS_ERR;
 
-    dentry_t *dir = file->inode->dentry;
+    dentry_t *dir = file->dentry;
 
     if (!dir)
         return VFS_ERR;
 
-    dentry_t *child = dir->children;
-    uint32_t index = 0;
+    uint32_t count = 0;
 
-    while (child && index < file->offset)
+    for (uint32_t b = 0; b < DENTRY_HASH; b++)
     {
-        child = child->next;
-        index++;
+        dentry_t *child = dir->hash_bucket[b];
+
+        while (child)
+        {
+            if (count == file->offset)
+            {
+                strcpy(dirent->name, child->name);
+                dirent->type = child->inode->flags;
+
+                file->offset++;
+                return 1;
+            }
+            count++;
+            child = child->hash_next;
+        }
     }
 
-    if (!child)
-        return 0;
-
-    strcpy(dirent->name, child->name);
-    dirent->type = child->inode->flags;
-
-    file->offset++;
-
-    return 1;
+    return 0;
 }

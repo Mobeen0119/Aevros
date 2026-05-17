@@ -41,6 +41,7 @@ struct inode;
 typedef struct file_descriptor // Open file state
 {
     struct inode *inode;
+    dentry_t *dentry;   
     uint32_t position, flags, offset;
 
 } file_t;

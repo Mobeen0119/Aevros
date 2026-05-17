@@ -3,6 +3,11 @@
 
 void cmd_cd(char *path)
 {
+    if (!path)
+    {
+        kprint("cd: missing argument\n");
+        return;
+    }
     if (sys_chdir(path) == VFS_ERR)
     {
         kprint("No such Directory\n");
@@ -56,3 +61,4 @@ void cmd_echo(char *text)
     kprint(text);
     kprint("\n");
 }
+

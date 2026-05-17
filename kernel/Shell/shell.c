@@ -77,12 +77,12 @@ void shell_execute(char *cmd)
 
 void shell_start()
 {
-    char input[MAX_INPUT];
+    char input_l[MAX_INPUT];
 
     while (1)
     {
         shell_prompt();
-        terminal_readline(input);
-        shell_execute(input);
+        terminal_readline(input_l);
+        shell_execute(input_l);
     }
 }

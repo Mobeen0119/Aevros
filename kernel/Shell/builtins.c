@@ -62,3 +62,19 @@ void cmd_echo(char *text)
     kprint("\n");
 }
 
+void cmd_touch(char *path)
+{
+    if (!path)
+    {
+        kprint("touch: missing file");
+        return;
+    }
+    int fd = sys_open(path, CREAT);
+
+    if (fd < 0)
+    {
+        kprint("touch failed");
+        return;
+    }
+    sys_close(fd);
+}

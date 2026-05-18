@@ -67,9 +67,11 @@ void shell_execute(char *input)
     }
     else if (strcmp(argv[0], "touch ") == 0)
     {
-        sys_open(argv[1], CREAT);
-    }
+        if (argc < 2)
+            kprint("touch: missing file\n");
 
+        cmd_touch(argv[1]);
+    }
     else
     {
         kprint("unknown command\n");

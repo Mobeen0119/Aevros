@@ -1,3 +1,4 @@
+#include "../../Include/shell.h"
 
 static int strcmp_cmd(char *a, char *b)
 {
@@ -28,4 +29,32 @@ static void parse(char *input, char **cmd, char **arg)
         }
         input++;
     }
+}
+
+int tokenize(char *input, char *argv[])
+{
+    int argc = 0;
+    while (*input)
+    {
+
+        if (*input == ' ')
+            input++;
+        if (*input == '\0')
+            break;
+
+        argv[argc++] = input;
+
+        while (*input && *input == ' ')
+            input++;
+
+        if (*input)
+        {
+            *input = '\0';
+            input++;
+        }
+        if (argc >= MAX_ARG)
+            break;
+    }
+    argv[argc] = 0;
+    return argc;
 }

@@ -5,41 +5,69 @@
 #include "../LIB/string.c"
 #include "../Include/vfs.h"
 #include "builtins.c"
+#include "parser.c"
 
 void shell_prompt()
 {
     kprint("FORGE_OS > ");
 }
 
-void shell_execute(char *cmd)
+void shell_execute(char *input)
 {
-    if (strcmp(cmd, "clear") == 0)
+
+    char *argv[MAX_ARG];
+    int argc = tokenize(input, argv);
+
+    if (argc == 0)
+        return;
+
+    if (strcmp(argv[0], "clear") == 0)
         kclear_screen();
 
-    else if (strcmp(cmd, "ls") == 0)
+    else if (strcmp(argv[0], "ls") == 0)
     {
         cmd_ls();
     }
 
-    else if (strncmp(cmd, "cat ", 4) == 0)
+    else if (strcmp(argv[0], "cat ") == 0)
     {
-        cmd_cat(cmd + 4);
+        if (argc < 2)
+            kprint("cat: missing file\n");
+        else
+            cmd_cat(argv[1]);
     }
 
-    else if (strncmp(cmd, "echo ", 5) == 0)
+    else if (strcmp(argv[0], "echo ") == 0)
     {
-        cmd_echo();
+        if (argc < 2)
+            kprint("\n");
+        else
+        {
+            for (int i = 1; i < argc; i++)
+            {
+                kprint(argv[i]);
+                if (i != argc - 1)
+                    kprint(" ");
+            }
+            kprint("\n");
+        }
     }
 
-    else if (strncmp(cmd, "mkdir ", 6) == 0)
+    else if (strcmp(argv[0], "mkdir ") == 0)
     {
-        sys_mkdir(cmd + 6);
+        sys_mkdir(argv[1]);
     }
 
-    else if (strncmp(cmd, "cd ", 3) == 0)
+    else if (strcmp(argv[0], "cd ") == 0)
     {
-
-        cmd_cd(cmd + 3);
+        if (argc < 2)
+            kprint("cd: missing arg\n");
+        else
+            cmd_cd(argv[1]);
+    }
+    else if (strcmp(argv[0], "touch ") == 0)
+    {
+        sys_open(argv[1], CREAT);
     }
 
     else

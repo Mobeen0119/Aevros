@@ -1,7 +1,7 @@
 
 #define SHELL_H
 
-#define MAX_INPUT 256
+#define MAX_INPUT 128
 #define MAX_ARG 16
 
 void shell_start();

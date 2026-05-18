@@ -20,7 +20,7 @@ static void parse(char *input, char **cmd, char **arg)
     {
         if (*input == ' ')
         {
-            *input = "\0";
+            *input = '\0';
             input++;
             if (*input)
                 *arg = input;

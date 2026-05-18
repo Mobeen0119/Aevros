@@ -4,6 +4,7 @@
 #include "../Include/terminal.h"
 #include "../LIB/string.c"
 #include "../Include/vfs.h"
+#include "builtins.c"
 
 void shell_prompt()
 {
@@ -17,45 +18,17 @@ void shell_execute(char *cmd)
 
     else if (strcmp(cmd, "ls") == 0)
     {
-        int fd = sys_open(".", 0);
-        dirent_t d;
-
-        while (sys_readdir(fd, &d) > 0)
-        {
-            kprint(d.name);
-            kprint('\n');
-        }
-        sys_close(fd);
+        cmd_ls();
     }
 
     else if (strncmp(cmd, "cat ", 4) == 0)
     {
-        char *path = cmd + 4;
-
-        int fd = sys_open(path, 0);
-
-        if (fd < 0)
-        {
-            kprint("File Not Found\n");
-            return;
-        }
-        char buf[64];
-        int n;
-
-        while ((n = sys_read(fd, buf, 64)) > 0)
-        {
-            for (int i = 0; i < n; i++)
-            {
-                kput_char(buf[i]);
-            }
-        }
-        sys_close(fd);
+        cmd_cat(cmd + 4);
     }
 
     else if (strncmp(cmd, "echo ", 5) == 0)
     {
-        kprint(cmd + 5);
-        kprint("\n");
+        cmd_echo();
     }
 
     else if (strncmp(cmd, "mkdir ", 6) == 0)
@@ -65,10 +38,10 @@ void shell_execute(char *cmd)
 
     else if (strncmp(cmd, "cd ", 3) == 0)
     {
-        sys_chdir(cmd + 3);
-        kprint("\n");
+
+        cmd_cd(cmd + 3);
     }
-    
+
     else
     {
         kprint("unknown command\n");

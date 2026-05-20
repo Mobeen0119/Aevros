@@ -65,6 +65,7 @@ void shell_execute(char *input)
         else
             cmd_cd(argv[1]);
     }
+  
     else if (strcmp(argv[0], "touch ") == 0)
     {
         if (argc < 2)
@@ -72,6 +73,7 @@ void shell_execute(char *input)
 
         cmd_touch(argv[1]);
     }
+  
     else if (strcmp(argv[0], "write ") == 0)
     {
         if (argc < 3)
@@ -80,6 +82,7 @@ void shell_execute(char *input)
         }
         cmd_write(argv[1], argv[2]);
     }
+  
     else if (strcmp(argv[0], "rm") == 0)
     {
         if (argc < 2)
@@ -88,14 +91,17 @@ void shell_execute(char *input)
         }
         cmd_rm(argv[1]);
     }
+   
     else if (strcmp(argv[0], "pwd") == 0)
     {
         cmd_pwd();
     }
+ 
     else if (strcmp(argv[0], "tree") == 0)
     {
         tree_walk(vfs_read,0);
     }
+  
     else
     {
         kprint("unknown command\n");

@@ -26,12 +26,12 @@ int devfs_register(const char *name, inode_t *inode)
 inode_t *devfs_get(const char *name)
 {
     if (!name)
-        return VFS_ERR;
+        return NULL;
 
     for (int i = 0; i < devfs_count; i++)
     {
-        if (match_seg(devfs_table[i].name, name, strlen(name)))
+        if (strcmp(devfs_table[i].name,name)==0)
             return devfs_table[i].inode;
     }
-    return VFS_OK;
+    return NULL;
 }

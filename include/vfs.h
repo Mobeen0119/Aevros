@@ -1,4 +1,3 @@
-
 #ifndef VFS_H
 #define VFS_H
 #include <stdint.h>
@@ -92,6 +91,7 @@ int sys_mkdir(const char *path);
 int sys_unlink(const char *path);
 int sys_chdir(const char *path);
 int vfs_mount(dentry_t *mount_point, dentry_t *root);
+
 
 
 #endif

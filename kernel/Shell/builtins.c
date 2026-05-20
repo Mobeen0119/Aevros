@@ -1,5 +1,7 @@
 #include "../../Include/vfs.h"
 #include "../../Include/screen.h"
+#include "../../Lib/string.c"
+#include "../Process/task.h"
 
 void cmd_cd(char *path)
 {
@@ -77,4 +79,64 @@ void cmd_touch(char *path)
         return;
     }
     sys_close(fd);
+}
+
+void cmd_write(const char *path, char *txt)
+{
+    int fd = sys_open(path, WRITE_ONLY | CREAT);
+
+    if (fd < 0)
+    {
+        kprint("\nWrite Failed\n");
+        return;
+    }
+
+    sys_write(fd, (uint8_t *)txt, strlen(txt));
+    sys_close(fd);
+}
+
+void cmd_rm(char *path)
+{
+
+    if (sys_unlink(path) == VFS_ERR)
+    {
+        kprint("rm: failed\n");
+    }
+}
+
+void cmd_pwd()
+{
+    kprint(current_task->cwd);
+    kprint("\n");
+}
+
+void tree_walk(dentry_t *dir, int depth)
+{
+    if (!dir)
+        return;
+
+    for (int i = 0; i < depth; i++)
+        kprint("  ");
+
+    kprint(dir->name);
+    kprint("\n");
+
+    for (int c = 0; c < DENTRY_HASH; c++)
+    {
+        dentry_t *child = dir->hash_bucket[c];
+
+        while (child)
+        {
+            if (child->inode->flags & VFS_DIR)
+                tree_walk(child, depth + 1);
+            else
+            {
+                for (int m = 0; m < depth + 1; m++)
+                    kprint("  ");
+                kprint(child->name);
+                kprint("  ");
+            }
+            child = child->hash_next;
+        }
+    }
 }

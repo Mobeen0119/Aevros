@@ -413,6 +413,7 @@ int sys_chdir(const char *path)
         return VFS_ERR;
 
     current_task->cwd = dir;
+    strcpy(current_task->cwd, path);
 
     return VFS_OK;
 }

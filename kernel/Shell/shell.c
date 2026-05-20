@@ -72,6 +72,30 @@ void shell_execute(char *input)
 
         cmd_touch(argv[1]);
     }
+    else if (strcmp(argv[0], "write ") == 0)
+    {
+        if (argc < 3)
+        {
+            kprint("Use : write <file> <text>\n");
+        }
+        cmd_write(argv[1], argv[2]);
+    }
+    else if (strcmp(argv[0], "rm") == 0)
+    {
+        if (argc < 2)
+        {
+            kprint("rm:failed\n");
+        }
+        cmd_rm(argv[1]);
+    }
+    else if (strcmp(argv[0], "pwd") == 0)
+    {
+        cmd_pwd();
+    }
+    else if (strcmp(argv[0], "tree") == 0)
+    {
+        tree_walk(vfs_read,0);
+    }
     else
     {
         kprint("unknown command\n");
@@ -80,12 +104,12 @@ void shell_execute(char *input)
 
 void shell_start()
 {
-    char input_l[MAX_INPUT];
+    char input[MAX_INPUT];
 
     while (1)
     {
         shell_prompt();
-        terminal_readline(input_l);
-        shell_execute(input_l);
+        terminal_readline(input);
+        shell_execute(input);
     }
 }

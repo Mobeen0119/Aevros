@@ -64,7 +64,7 @@ void cmd_echo(char *text)
 
 void cmd_touch(char *path)
 {
-    if (!pa)
+    if (!path)
     {
         kprint("touch: missing file");
         return;

@@ -121,6 +121,7 @@ void print_path(dentry_t* dir){
 
     kprint(dir->name);
 }
+
 void cmd_pwd()
 { 
     print_path(current_task->cwd);

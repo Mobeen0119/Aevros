@@ -2,12 +2,13 @@
 #include "../../Include/vfs.h"
 #include "../Process/task.h"
 #include "../../Include/idt.h"
-
+#include "../Paging/isr.h"
 
 extern void isr128();
 
-void init_syscalls(){
-    idt_gate_set(128,(uint32_t)isr128,0xEE);
+void init_syscalls()
+{
+    idt_gate_set(128, (uint32_t)isr128, 0xEE);
 }
 
 static inline int syscall(int num, int arg1, int arg2, int arg3)
@@ -40,7 +41,7 @@ int syscall_dispatcher(int num, int arg1, int arg2, int arg3)
         return sys_close(arg1);
 
     case SYS_EXIT:
-        return sys_exit();
+        __attribute__((noreturn)) void sys_exit();
         return 0;
 
     default:
@@ -48,4 +49,41 @@ int syscall_dispatcher(int num, int arg1, int arg2, int arg3)
     }
 }
 
-int syscall
+void syscall_handler(register_t *regs)
+{
+    uint32_t num = regs->eax;
+    uint32_t a1 = regs->ebx;
+    uint32_t a2 = regs->ecx;
+    uint32_t a3 = regs->edx;
+
+    uint32_t res = -1;
+
+    switch (num)
+    {
+    case SYS_WRITE:
+        res = sys_write(a1, (uint8_t *)a2, a3);
+        break;
+
+    case SYS_READ:
+        res = sys_read(, (uint8_t *)a2, a3);
+        break;
+
+    case SYS_OPEN:
+        res = sys_open((char *)a1, a2);
+        break;
+
+    case SYS_CLOSE:
+        res = sys_close(a1);
+        break;
+
+    case SYS_EXIT:
+        sys_exit();
+        res = 0;
+        break;
+
+    default:
+        res = (uint32_t)-1;
+        break;
+    }
+    regs->eax = res;
+}

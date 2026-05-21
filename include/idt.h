@@ -18,6 +18,6 @@ struct IDT_ptr
 } __attribute__((packed));
 
 void idt_init();
-void idt_gate_set(int n, unsigned int handler);
+void idt_gate_set(int n, unsigned int handler,unsigned char type);
 
 #endif

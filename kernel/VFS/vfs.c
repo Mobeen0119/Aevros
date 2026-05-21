@@ -5,12 +5,7 @@
 #include "../include/RAMFS.h"
 #include "../LIB/string.c"
 #include "../Dev/dev.h"
-#define READ_ONLY 0x01
-#define WRITE_ONLY 0x02
-#define READ_WRITE 0x03
-#define CREAT 0x04
 
-dentry_t *vfs_root = 0;
 
 uint32_t vfs_read(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
 {

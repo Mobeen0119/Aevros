@@ -18,6 +18,8 @@
 #define READ_WRITE 0x03
 #define CREAT 0x04
 
+dentry_t *vfs_root = 0;
+
 typedef struct dentry dentry_t;
 
 //--------ptr to fnc-->ptr to file_node-->offset(start)-->size-->buffer

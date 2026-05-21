@@ -1,12 +1,15 @@
 #include "task.h"
 #include "pmm.h"
 #include "Paging/paging.c"
-#include "../VFS/vfs.c"
+#include "../Include/vfs.h"
 #include "../io.c"
 #include "../include/screen.h"
+#include "../Dev/dev.h"
+#include "../Memory/kheap.c"
 #define Temp_p_vir_addr 0xFFC00000
 
 task_t *current = 0, *ready_queue = 0;
+
 int next_pid = 0;
 
 extern void switch_current_task(task_t *prev, task_t *next);
@@ -25,10 +28,27 @@ void init_tasking()
     if (!current)
         return;
 
+    memset(current, 0, sizeof(task_t));
+
     current->pid = next_pid++;
     current->state = TASK_RUNNING;
-    current->cwd=vfs_root;
-    memset(current->fd_table,0,sizeof(current->fd_table));
+    current->cwd = vfs_root;
+
+    memset(current->fd_table, 0, sizeof(current->fd_table));
+
+    inode_t *tty = devfs_get("tty");
+
+    file_t *stdin = kmalloc(sizeof(file_t));
+
+    stdin->inode = tty;
+    stdin->flags = READ_ONLY;
+
+    file_t *stdout = kmalloc(sizeof(task_t));
+    stdout->inode = tty;
+    stdout->flags = WRITE_ONLY;
+
+    current->fd_table[0] = stdin;
+    current->fd_table[1] = stdout;
 
     asm volatile("mov %%esp, %0" : "=r"(current->esp));
     asm volatile("mov %%ebp, %0" : "=r"(current->ebp));
@@ -36,6 +56,7 @@ void init_tasking()
     current->cr3 = read_cr3();
     current->eip = read_eip();
     current->kernel_stack = current->esp;
+
     current->next = current;
     ready_queue = current;
 }
@@ -101,8 +122,8 @@ void schedule()
     task_t *prev = current;
     current = current->next;
     current->state = TASK_RUNNING;
-    if(prev->state==TASK_RUNNING)
-        prev->state=TASK_READY;
+    if (prev->state == TASK_RUNNING)
+        prev->state = TASK_READY;
 
     switch_current_task(prev, current);
 }
@@ -123,12 +144,9 @@ void sys_print(char *user_string)
     if (!user_string)
         return;
 
-    for (int i = 0; i < 1024; i++)
+    for (int i = 0; user_string[i]; i++)
     {
-        char c = user_string[i];
-        if (c == '\0')
-            break;
-        kput_char(c);
+        kput_char(user_string[i]);
     }
 }
 
@@ -137,8 +155,10 @@ void sys_exit()
     if (!current)
         return;
 
-    for(int i=0;i<32;i++){
-        if(current->fd_table[i]){
+    for (int i = 0; i < 32; i++)
+    {
+        if (current->fd_table[i])
+        {
             sys_close(i);
         }
     }
@@ -155,5 +175,5 @@ void sys_exit()
 
     switch_current_task(dead, current);
 
-    __buitin_unreachable();
+    __builtin_unreachable();
 }

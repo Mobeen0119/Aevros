@@ -5,7 +5,7 @@
 
 
 int tty_write(inode_t* inode,uint32_t offset,uint32_t size,uint8_t* buffer);
-
+int tty_read(inode_t *inode, uint32_t offset, uint32_t size, uint8_t *buffer);
 
 
 #endif

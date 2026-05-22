@@ -34,6 +34,7 @@ typedef struct task
 
 extern task_t *current_task;
 extern task_t *ready_queue;
+extern int next_pid = 0;
 
 void init_tasking();
 

@@ -3,6 +3,7 @@
 #include "../Process/task.h"
 #include "../../Include/idt.h"
 #include "../Paging/isr.h"
+#include "../Process/fork.c"
 
 extern void isr128();
 
@@ -86,4 +87,9 @@ void syscall_handler(register_t *regs)
         break;
     }
     regs->eax = res;
+}
+
+int sys_fork()
+{
+    do_fork();
 }

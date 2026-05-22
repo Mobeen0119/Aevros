@@ -1,7 +1,9 @@
 [GLOBAL jump_user_mode]
+
 jump_user_mode:
 
     cli
+
 
     mov eax,[esp+4] ; Load the address of the user function into eax
     mov ebx,[esp+8] ; Load the user stack top into ebx

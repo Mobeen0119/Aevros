@@ -1,15 +1,13 @@
-
-
 [GLOBAL syscall_asm_handler]
 extern syscall_handler
 
 syscall_asm_handler:
-    cli
     push 0
     push 0x80
 
     pusha
 
+    xor eax,eax ; Clear eax to use it for storing the segment selector for the user data segment
     mov ax, ds 
     push eax ; Push the segment selector for the user data segment
 
@@ -19,7 +17,7 @@ syscall_asm_handler:
     mov fs,ax
     mov gs,ax
 
-    push esp ; Push the user stack pointer
+    push esp ; ptr to Saved register
     call syscall_handler
     add esp, 4 ; Clean up stack after the call
 
@@ -32,4 +30,4 @@ syscall_asm_handler:
     popa
     add esp, 8 ; Clean up the two values we pushed at the start
     
-    iret
+    iretd

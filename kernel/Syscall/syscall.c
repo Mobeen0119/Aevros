@@ -41,7 +41,7 @@ int syscall_dispatcher(int num, int arg1, int arg2, int arg3)
         return sys_close(arg1);
 
     case SYS_EXIT:
-        __attribute__((noreturn)) void sys_exit();
+        void sys_exit();
         return 0;
 
     default:
@@ -65,7 +65,7 @@ void syscall_handler(register_t *regs)
         break;
 
     case SYS_READ:
-        res = sys_read(, (uint8_t *)a2, a3);
+        res = sys_read(a1, (uint8_t *)a2, a3);
         break;
 
     case SYS_OPEN:

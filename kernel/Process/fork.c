@@ -25,9 +25,11 @@ int do_fork()
     child->next = NULL;
 
     uint8_t *new_stack = (uint8_t *)kmalloc(4096);
-    if (!new_stack)
+   
+    if (!new_stack){
         kfree(child);
-    return VFS_ERR;
+        return VFS_ERR;
+    }
 
     uint32_t stack_top = (uint32_t)new_stack + 4096;
     child->kernel_stack = stack_top;
@@ -39,7 +41,7 @@ int do_fork()
     memcpy((void *)child->esp, (void *)parent->esp, stack_used);
 
     if (parent->cr3 != read_cr3())
-        child->cr3 = clone_page_directory(parent->cr3);
+        child->cr3 = clone_page_directory();
 
     for (int i = 0; i < 32; i++)
     {
@@ -62,6 +64,6 @@ int do_fork()
         child->next = ready_queue;
     }
 
-    return child->pid; // Parent ko child PID return hoga
+    return child->pid; 
 
 }

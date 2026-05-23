@@ -53,9 +53,6 @@ void gdt_init()
     load_tss();
 }
 
-
-
-
 void update_tss(uint32_t stack)
 {
     tss.esp0 = stack;

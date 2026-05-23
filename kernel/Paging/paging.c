@@ -3,7 +3,7 @@
 #include "pmm.h"
 #include "../Process/task.h"
 
-uint32_t *kernel_directory = (uint32_t*)0xFFFFF000;
+uint32_t *kernel_directory = (uint32_t *)0xFFFFF000;
 
 uint32_t *get_virtual_table_address(uint32_t pd)
 {
@@ -52,15 +52,16 @@ void unmap(uint32_t vir_addr)
     asm volatile("invlpg (%0)" ::"r"(vir_addr) : "memory");
 }
 
-uint32_t clone_page_direcroy(){
+uint32_t clone_page_direcroy()
+{
+    uint32_t *current_dir = (uint32_t *)0xFFFFF000;
+    uint32_t *new_dir = kmalloc(4096);
 
-    uint32_t *current_dir=(uint32_t*)0xFFFFF000;
-    uint32_t* new_dir=kmalloc(4096);
+    memset(new_dir, 0, 4096);
 
-    memset(new_dir,0,4096);
-
-    for(int i=786;i<1024;i++){
-        new_dir[i]=current_dir[i];
+    for (int i = 786; i < 1024; i++)
+    {
+        new_dir[i] = current_dir[i];
     }
 
     return new_dir;

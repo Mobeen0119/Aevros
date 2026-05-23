@@ -6,6 +6,7 @@
 #include "../include/screen.h"
 #include "../Dev/dev.h"
 #include "../Memory/kheap.c"
+#include "../TSS/tss.h"
 #define Temp_p_vir_addr 0xFFC00000
 
 task_t *current = 0, *ready_queue = 0;
@@ -42,13 +43,23 @@ void init_tasking()
 
     stdin->inode = tty;
     stdin->flags = READ_ONLY;
+    stdin->dentry=NULL;
+    stdin->offset=0;
 
-    file_t *stdout = kmalloc(sizeof(task_t));
+    file_t *stdout = kmalloc(sizeof(file_t));
     stdout->inode = tty;
     stdout->flags = WRITE_ONLY;
+    stdout->offset=0;
+    stdout->dentry=NULL;
+
+    file_t* stderr=kmalloc(sizeof(file_t));
+    stderr->offset=0;
+    stderr->inode=tty;
+    stderr->flags=WRITE_ONLY;
 
     current->fd_table[0] = stdin;
     current->fd_table[1] = stdout;
+    current->fd_table[2]= stderr;
 
     asm volatile("mov %%esp, %0" : "=r"(current->esp));
     asm volatile("mov %%ebp, %0" : "=r"(current->ebp));
@@ -121,9 +132,13 @@ void schedule()
 
     task_t *prev = current;
     current = current->next;
+
     current->state = TASK_RUNNING;
+
     if (prev->state == TASK_RUNNING)
         prev->state = TASK_READY;
+
+    tss.esp0=current->kernel_stack;
 
     switch_current_task(prev, current);
 }
@@ -177,3 +192,4 @@ void sys_exit()
 
     __builtin_unreachable();
 }
+

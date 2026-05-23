@@ -1,7 +1,6 @@
-
 #include "task.h"
 #include "../Memory/pmm.h"
-#include "../Paging/paging.h" // assume yahan paging functions hain
+#include "../Paging/paging.h" 
 #include "../Memory/kheap.c"
 #include "../../Include/vfs.h"
 
@@ -45,7 +44,7 @@ int do_fork()
     for (int i = 0; i < 32; i++)
     {
         if (parent->fd_table[i] != NULL)
-            parent->fd_table[i]->ref_count++;
+            parent->fd_table[i]->inode->ref_count++;
     }
 
     if (!ready_queue)
@@ -64,5 +63,5 @@ int do_fork()
     }
 
     return child->pid; // Parent ko child PID return hoga
-}
+
 }

@@ -7,7 +7,7 @@ uint32_t *kernel_directory = (uint32_t *)0xFFFFF000;
 
 uint32_t *get_virtual_table_address(uint32_t pd)
 {
-    return (uint32_t *)RECURSIVE_PT_BASE + (pd * 4096);
+    return (uint32_t *)RECURSIVE_PT_BASE + (pd * 0x1000);
 }
 
 void map_page(uint32_t vir_addr, uint32_t phy_addr, uint32_t flags)
@@ -21,7 +21,7 @@ void map_page(uint32_t vir_addr, uint32_t phy_addr, uint32_t flags)
     {
 
         uint32_t new_page = pmm_alloc();
-        page_dir[page_dir_index] = new_page | flags | PAGE_PRESENT; // Present + Read/Write
+        page_dir[page_dir_index] = new_page | PAGE_WRITE | PAGE_PRESENT; // Present + Read/Write
 
         memset(get_virtual_table_address(page_dir_index), 0, 4096);
     }
@@ -57,7 +57,7 @@ void *alloc_page_aligned()
     uint32_t phy = pmm_alloc();
 
     if (!phy)
-        return VFS_ERR;
+        return VFS_OK;
 
     return (void *)(phy + 0xC0000000);
 }
@@ -73,8 +73,11 @@ void memcpy_page_physical(uint32_t dst, uint32_t src)
     unmap(TEMP_DST_PAGE);
 }
 
-uint32_t clone_page_direcroy(uint32_t src_cr3)
+uint32_t clone_page_directory(uint32_t src_cr3)
 {
+
+    (void*)src_cr3;
+
     uint32_t *current_pd = (uint32_t *)PAGE_RECURSIVE;
 
     uint32_t *new_pd = (uint32_t *)alloc_page_aligned();
@@ -84,14 +87,14 @@ uint32_t clone_page_direcroy(uint32_t src_cr3)
 
     memset(new_pd, 0, 4096);
 
-    for (int i = 786; i < 1024; i++)
+    for (int i = 768; i < 1024; i++)
     {
         new_pd[i] = current_pd[i];
     }
 
-    for (int pd = 0; pd < 786; pd++)
+    for (int pd = 0; pd < 768; pd++)
     {
-        if (!current_pd[pd] & PAGE_PRESENT)
+        if (!(current_pd[pd] & PAGE_PRESENT))
             continue;
 
         uint32_t *src_pt = (uint32_t *)(RECURSIVE_PT_BASE + (pd * 0x1000));
@@ -122,7 +125,7 @@ uint32_t clone_page_direcroy(uint32_t src_cr3)
 
             memcpy_page_physical(new_phy, src_phy);
 
-            new_pt[pt] = new_phy | PAGE_PRESENT | PAGE_PRESENT | PAGE_USER;
+            new_pt[pt] = new_phy | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
         }
     }
     uint32_t new_pd_phys = ((uint32_t)new_pd - 0xC0000000);

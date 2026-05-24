@@ -1,6 +1,6 @@
 #include "task.h"
 #include "../Memory/pmm.h"
-#include "../Paging/paging.h" 
+#include "../Paging/paging.h"
 #include "../Memory/kheap.c"
 #include "../../Include/vfs.h"
 
@@ -18,15 +18,18 @@ int do_fork()
     if (!child)
         return VFS_ERR;
 
-    memcpy(child, parent, sizeof(task_t));
+    memcpy(child, 0, sizeof(task_t));
 
     child->pid = next_pid++;
     child->state = TASK_READY;
     child->next = NULL;
+    child->cwd = parent->cwd;
+    child->eip = parent->eip;
 
     uint8_t *new_stack = (uint8_t *)kmalloc(4096);
-   
-    if (!new_stack){
+
+    if (!new_stack)
+    {
         kfree(child);
         return VFS_ERR;
     }
@@ -40,13 +43,13 @@ int do_fork()
 
     memcpy((void *)child->esp, (void *)parent->esp, stack_used);
 
-    if (parent->cr3 != read_cr3())
-        child->cr3 = clone_page_directory();
+    child->cr3 = clone_page_directory(parent->cr3);
 
     for (int i = 0; i < 32; i++)
     {
-        if (parent->fd_table[i] != NULL)
-            parent->fd_table[i]->inode->ref_count++;
+        child->fd_table[i]=parent->fd_table[i];
+        if(child->fd_table[i])
+            child->fd_table[i]->ref_count++;
     }
 
     if (!ready_queue)
@@ -64,6 +67,5 @@ int do_fork()
         child->next = ready_queue;
     }
 
-    return child->pid; 
-
+    return child->pid;
 }

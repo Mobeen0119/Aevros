@@ -1,0 +1,9 @@
+{
+    "workbench.colorTheme": "Omenlight - Frostflame",
+    "workbench.colorCustomizations": {
+        "contrastBorder": "#00BFFF",
+        "sideBar.border": "#00BFFF",
+        "focusBorder": "#FFF176",
+        "notebook.cellBorderColor": "#1A74D4"
+    }
+}

@@ -192,4 +192,3 @@ void sys_exit()
 
     __builtin_unreachable();
 }
-

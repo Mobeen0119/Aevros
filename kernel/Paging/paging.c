@@ -76,7 +76,7 @@ void memcpy_page_physical(uint32_t dst, uint32_t src)
 uint32_t clone_page_directory(uint32_t src_cr3)
 {
 
-    (void*);
+    (void*)src_cr3;
 
     uint32_t *current_pd = (uint32_t *)PAGE_RECURSIVE;
 

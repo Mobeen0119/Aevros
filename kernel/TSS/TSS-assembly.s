@@ -4,7 +4,6 @@ jump_user_mode:
 
     cli
 
-
     mov eax,[esp+4] ; Load the address of the user function into eax
     mov ebx,[esp+8] ; Load the user stack top into ebx
 
@@ -17,9 +16,13 @@ jump_user_mode:
     push 0x23  ; data segment for user
     push ebx ; Push the user stack top onto the stack
 
-    push 0x200 ; EFLAGS with interrupts enabled
+    push ebx
+    pop ecx
+    or ecx,0x200 ; Set the interrupt flag in EFLAGS to enable interrupts in user mode
+    push ecx
+   
 
     push 0x1B  ; code segment for user
     push eax
 
-    iret
+    iretd 

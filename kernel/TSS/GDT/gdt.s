@@ -19,6 +19,7 @@ gdt_flush:
     ret
 
 [GLOBAL load] ; Load Task reg with TSS selector
+
 load_tss:
     mov ax,0x28 ; Load the TSS segment selector (0x28) into ax
     ltr ax ; Load the TSS into the task register

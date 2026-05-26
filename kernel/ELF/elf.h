@@ -13,13 +13,24 @@ typedef struct
 
 } __attribute__((packed)) ELF32_Phdr;
 
-typedef struct {
-    uint8_t ident[16];
-    uint16_t type, machine;
+typedef struct
+{
+    uint8_t identity[16];
 
-    uint32_t version,entry,phoff,shoff,flags;
+    uint16_t file_type,architecture;
 
-    uint16_t flags,ehsize,phentsize,phnum,
-    shentsize,shnum,shstrndx;
+    uint32_t elf_version,entry_point;
 
-}__attribute__((packed)) Elf32_Ehdir;
+    uint32_t program_header_offset,section_header_offset;
+
+    uint32_t flags;
+
+    uint16_t elf_header_size;
+
+    uint16_t program_header_entry_size,program_header_count;
+
+    uint16_t section_header_entry_size,section_header_count;
+
+    uint16_t section_string_table_index;
+
+} __attribute__((packed)) Elf32_Header;

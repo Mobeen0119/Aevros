@@ -10,3 +10,11 @@ int elf_validate(Elf32_Header *hdr){
 
     return 1;
 }
+
+Elf32_Header*  elf_prog_header(Elf32_Header* hdr){
+    if(!hdr) return NULL;
+
+    return (Elf32_Header*) ((uint8_t*) hdr+hdr->program_header_offset);
+}
+
+

@@ -34,3 +34,6 @@ typedef struct
     uint16_t section_string_table_index;
 
 } __attribute__((packed)) Elf32_Header;
+
+Elf32_Header*  elf_prog_header(Elf32_Header* hdr);
+int elf_load_seg(Elf32_Header* hdr);

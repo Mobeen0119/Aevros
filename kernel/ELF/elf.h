@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+
 #define ELF_MAGIC_NUMBER 0x464C457F
 #define PT_LOAD 1
 #define PT_NULL 0
@@ -13,7 +14,7 @@
 #define PAGE_ALIGN_DOWN(x) \
 ((x) & ~(PAGE_SIZE - 1))
 
-#define PAGE_ALIGN_DOWN(y) \
+#define PAGE_ALIGN_UP(y) \
 ((x) + (PAGE_SIZE - 1)  &  ~(PAGE_SIZE - 1))
 
 typedef struct

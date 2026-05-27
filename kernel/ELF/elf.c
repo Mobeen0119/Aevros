@@ -1,4 +1,6 @@
 #include "elf.h"
+#include "../Memory/pmm.h"
+#include "../Paging/paging.h"
 
 
 int elf_validate(Elf32_Header *hdr){
@@ -28,7 +30,7 @@ int elf_load_segs(Elf32_Header* hdr){
         ELF32_Phdr *ph=&phdrs[i];
 
        uint32_t start=PAGE_ALIGN_DOWN(ph->vir_address);
-       uin32_t end=PAGE_ALIGN_UP(ph->mem_size);
+       uint32_t end=PAGE_ALIGN_UP(ph->mem_size);
 
        for(uint32_t addr=start;addr<end;addr+=PAGE_SIZE){
         uint32_t phy=pmm_alloc();

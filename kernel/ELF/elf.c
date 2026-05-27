@@ -1,5 +1,6 @@
 #include "elf.h"
 
+
 int elf_validate(Elf32_Header *hdr){
 
     if(!hdr) return 0;
@@ -11,10 +12,45 @@ int elf_validate(Elf32_Header *hdr){
     return 1;
 }
 
-Elf32_Header*  elf_prog_header(Elf32_Header* hdr){
+ELF32_Phdr*  elf_prog_headers(Elf32_Header* hdr){
     if(!hdr) return NULL;
 
-    return (Elf32_Header*) ((uint8_t*) hdr+hdr->program_header_offset);
+    return (ELF32_Phdr*) ((uint8_t*) hdr+hdr->program_header_offset);
 }
 
+int elf_load_segs(Elf32_Header* hdr){
+    if(!hdr) return 0;
+
+    ELF32_Phdr *phdrs=elf_prog_headers(hdr);
+
+    for (int i = 0; i < hdr->program_header_count; i++)
+    {
+        ELF32_Phdr *ph=&phdrs[i];
+
+       uint32_t start=PAGE_ALIGN_DOWN(ph->vir_address);
+       uin32_t end=PAGE_ALIGN_UP(ph->mem_size);
+
+       for(uint32_t addr=start;addr<end;addr+=PAGE_SIZE){
+        uint32_t phy=pmm_alloc();
+
+            if(!phy) return 0;
+
+            map_page(addr,phys,
+                PAGE_PRESENT | PAGE_WRITE | PAGE_USER);
+
+            memcpy((void*) ph->vir_address,(uint8_t*)hdr + ph->offset,
+                    ph->file_size);
+
+            if(ph->mem_size>ph->file_size){
+                memset((void*)(ph->vir_address + ph->file_size),
+                    0, ph->mem_size - ph->file_size);
+            }
+       }
+    }
+
+    return 1;
+
+
+    
+}
 

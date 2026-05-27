@@ -4,12 +4,23 @@
 
 #define ELF_MAGIC_NUMBER 0x464C457F
 #define PT_LOAD 1
+#define PT_NULL 0
+#define PT_DYNAMIC 2
+#define PT_INTERP 3
+
+#define PAGE_SIZE 4096
+
+#define PAGE_ALIGN_DOWN(x) \
+((x) & ~(PAGE_SIZE - 1))
+
+#define PAGE_ALIGN_DOWN(y) \
+((x) + (PAGE_SIZE - 1)  &  ~(PAGE_SIZE - 1))
 
 typedef struct
 {
 
-    uint32_t type, offset, paddr, 
-    vaddr, filesz, memsz, flags, align;
+    uint32_t type, offset, phy_address, 
+    vir_address, file_size, mem_size, flags, align;
 
 } __attribute__((packed)) ELF32_Phdr;
 
@@ -35,5 +46,5 @@ typedef struct
 
 } __attribute__((packed)) Elf32_Header;
 
-Elf32_Header*  elf_prog_header(Elf32_Header* hdr);
-int elf_load_seg(Elf32_Header* hdr);
+ELF32_Phdr*  elf_prog_headers(Elf32_Header* hdr);
+int elf_load_segs(Elf32_Header* hdr);

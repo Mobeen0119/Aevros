@@ -4,6 +4,7 @@
 #include "../Paging/paging.h"
 #include "../Memory/pmm.h"
 #include "../Memory/kheap.c"
+#include "../ELF/elf.h"
 
 #include "../../Include/vfs.h"
 
@@ -17,13 +18,16 @@ int exec_user(void *binary, uint32_t size)
 
     uint32_t new_cr3 = clone_page_directory(read_cr3());
 
-    asm volatile("mov %0,%%cr3" ::"a"(new_cr3));
-
     uint32_t code_phy = pmm_alloc();
 
     map_page(USER_CODE, code_phy, PAGE_PRESENT | PAGE_USER | PAGE_WRITE);
 
-    memcpy((void *)USER_CODE, binary, size);
+    Elf32_Header* hdr=(Elf32_Header*)binary;
+
+    if(!elf_validate(hdr)) return VFS_ERR;
+
+    if(!elf_load_segs(hdr,new_cr3)) return VFS_ERR;
+
 
     uint32_t stack_phy = pmm_alloc();
 
@@ -39,19 +43,23 @@ int exec_user(void *binary, uint32_t size)
     task->pid = next_pid++;
     task->state = TASK_READY;
     task->cr3 = new_cr3;
-    task->eip = USER_CODE;
+    task->eip = hdr->entry_point;
 
     task->esp = USER_STACK;
     task->ebp = USER_STACK;
 
-    task->kernel_stack = (uint32_t)kmalloc(4096) + 4096;
+
+    void* kstack=kmalloc(4096);
+    if(!kstack) return VFS_ERR;
+
+    task->kernel_stack = (uint32_t)kstack + (4096);
 
     for (int i = 0; i < 32; i++)
     {
         task->fd_table[i] = current_task->fd_table[i];
 
         if (task->fd_table[i])
-            task->fd_table[i]->ref_count++;
+            task->fd_table[i]->inode->ref_count++;
     }
 
     if (!ready_queue)

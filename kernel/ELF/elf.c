@@ -24,7 +24,7 @@ ELF32_Phdr *elf_prog_headers(Elf32_Header *hdr)
     return (ELF32_Phdr *)((uint8_t *)hdr + hdr->program_header_offset);
 }
 
-int elf_load_segs(Elf32_Header *hdr)
+int elf_load_segs(Elf32_Header *hdr,uint32_t target_cr3)
 {
     if (!hdr)
         return 0;

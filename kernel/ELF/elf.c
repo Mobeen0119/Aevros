@@ -48,7 +48,7 @@ int elf_load_segs(Elf32_Header *hdr,uint32_t target_cr3)
             if (!phys)
                 return 0;
 
-            map_page(addr, phys,
+            map_page_in_directory(target_cr3, ph->vir_address,phys,
                      PAGE_PRESENT | PAGE_WRITE | PAGE_USER);
         }
         memcpy((void *)ph->vir_address, (uint8_t *)hdr + ph->offset,

@@ -76,7 +76,7 @@ void memcpy_page_physical(uint32_t dst, uint32_t src)
 uint32_t clone_page_directory(uint32_t src_cr3)
 {
 
-    (void*)src_cr3;
+    (void *)src_cr3;
 
     uint32_t *current_pd = (uint32_t *)PAGE_RECURSIVE;
 
@@ -133,4 +133,41 @@ uint32_t clone_page_directory(uint32_t src_cr3)
     new_pd[1023] = new_pd_phys | PAGE_PRESENT | PAGE_WRITE;
 
     return new_pd_phys;
+}
+
+void map_page_in_directory(uint32_t tar_cr3, uint32_t vir,
+                           uint32_t phy, uint32_t flags)
+{
+
+    uint32_t pd_index = vir >> 22;
+    uint32_t pt_index = (vir >> 12) & 0x3FF;
+
+    map_page(TEMP_PD_VIRT, tar_cr3, PAGE_PRESENT | PAGE_WRITE);
+
+    uint32_t *tar_pd = (uint32_t *)TEMP_PD_VIRT;
+
+    if (!(tar_pd[pd_index] & PAGE_PRESENT))
+    {
+        uint32_t new_pt_phy = pmm_alloc();
+
+        if (!new_pt_phy)
+            return VFS_ERR;
+
+        map_page(TEMP_SRC_PAGE, new_pt_phy, PAGE_PRESENT | PAGE_WRITE);
+
+        memset((void *)TEMP_SRC_PAGE, 0, 4096);
+
+        tar_pd[pd_index] = new_pt_phy | flags | PAGE_PRESENT;
+
+        uint32_t pt_phy = tar_pd[pd_index] & 0xFFFFF000;
+
+        map_page(TEMP_SRC_PAGE, pt_phy, PAGE_PRESENT | PAGE_WRITE);
+
+        uint32_t *tar_pt = (uint32_t *)TEMP_SRC_PAGE;
+
+        tar_pt[pt_index] = phy | flags | PAGE_PRESENT;
+
+        unmap(TEMP_PD_VIRT);
+        unmap(TEMP_SRC_PAGE);
+    }
 }

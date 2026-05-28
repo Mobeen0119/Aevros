@@ -8,9 +8,6 @@
 
 #include "../../Include/vfs.h"
 
-#define USER_CODE 0x400000
-#define USER_STACK 0x800000
-
 int exec_user(void *binary, uint32_t size)
 {
     if (!binary || !size)
@@ -18,9 +15,6 @@ int exec_user(void *binary, uint32_t size)
 
     uint32_t new_cr3 = clone_page_directory(read_cr3());
 
-    uint32_t code_phy = pmm_alloc();
-
-    map_page(USER_CODE, code_phy, PAGE_PRESENT | PAGE_USER | PAGE_WRITE);
 
     Elf32_Header* hdr=(Elf32_Header*)binary;
 
@@ -31,7 +25,7 @@ int exec_user(void *binary, uint32_t size)
 
     uint32_t stack_phy = pmm_alloc();
 
-    map_page(USER_STACK - 0x1000, stack_phy, PAGE_PRESENT | PAGE_USER | PAGE_WRITE);
+    map_page_in_directory(new_cr3,USER_STACK_TOP - USER_STACK_SIZE, stack_phy, PAGE_PRESENT | PAGE_USER | PAGE_WRITE);
 
     task_t *task = kmalloc(sizeof(task_t));
 
@@ -45,8 +39,8 @@ int exec_user(void *binary, uint32_t size)
     task->cr3 = new_cr3;
     task->eip = hdr->entry_point;
 
-    task->esp = USER_STACK;
-    task->ebp = USER_STACK;
+    task->esp = USER_STACK_TOP;
+    task->ebp = USER_STACK_TOP;
 
 
     void* kstack=kmalloc(4096);

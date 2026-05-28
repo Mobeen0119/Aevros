@@ -15,7 +15,7 @@
 ((x) & ~(PAGE_SIZE - 1))
 
 #define PAGE_ALIGN_UP(y) \
-((x) + (PAGE_SIZE - 1)  &  ~(PAGE_SIZE - 1))
+((y) + (PAGE_SIZE - 1)  &  ~(PAGE_SIZE - 1))
 
 typedef struct
 {

@@ -6,7 +6,8 @@
 #include "../include/screen.h"
 #include "../Dev/dev.h"
 #include "../Memory/kheap.c"
-#include "../TSS/tss.h"
+#include "../CPU/tss.h"
+#include "userspace.h"
 #define Temp_p_vir_addr 0xFFC00000
 
 task_t *current = 0, *ready_queue = 0;
@@ -43,30 +44,30 @@ void init_tasking()
 
     stdin->inode = tty;
     stdin->flags = READ_ONLY;
-    stdin->dentry=NULL;
-    stdin->offset=0;
+    stdin->dentry = NULL;
+    stdin->offset = 0;
 
     file_t *stdout = kmalloc(sizeof(file_t));
     stdout->inode = tty;
     stdout->flags = WRITE_ONLY;
-    stdout->offset=0;
-    stdout->dentry=NULL;
+    stdout->offset = 0;
+    stdout->dentry = NULL;
 
-    file_t* stderr=kmalloc(sizeof(file_t));
-    stderr->offset=0;
-    stderr->inode=tty;
-    stderr->flags=WRITE_ONLY;
+    file_t *stderr = kmalloc(sizeof(file_t));
+    stderr->offset = 0;
+    stderr->inode = tty;
+    stderr->flags = WRITE_ONLY;
 
     current->fd_table[0] = stdin;
     current->fd_table[1] = stdout;
-    current->fd_table[2]= stderr;
+    current->fd_table[2] = stderr;
 
-    asm volatile("mov %%esp, %0" : "=r"(current->esp));
-    asm volatile("mov %%ebp, %0" : "=r"(current->ebp));
+    asm volatile("mov %%regs.esp, %0" : "=r"(current->regs.esp));
+    asm volatile("mov %%regs.ebp, %0" : "=r"(current->regs.ebp));
 
     current->cr3 = read_cr3();
-    current->eip = read_eip();
-    current->kernel_stack = current->esp;
+    current->regs.eip = read_eip();
+    current->kernel_stack = current->regs.esp;
 
     current->next = current;
     ready_queue = current;
@@ -105,8 +106,8 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     else
         new_task->cr3 = read_cr3();
 
-    new_task->ebp = new_task->esp = (uint32_t)sp;
-    new_task->eip = (uint32_t)entry_point;
+    new_task->regs.ebp = new_task->regs.esp = (uint32_t)sp;
+    new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;
 
     if (!ready_queue)
@@ -130,6 +131,15 @@ void schedule()
     if (!current)
         return;
 
+    if (!current_task->started)
+    {
+        current_task->started = 1;
+
+        asm volatile("mov %0,%%cr3" ::"r"(current_task->cr3));
+        enter_usermode(current_task->regs.regs.eip,
+                       current_task->regs.userregs.esp);
+    }
+
     task_t *prev = current;
     current = current->next;
 
@@ -138,7 +148,7 @@ void schedule()
     if (prev->state == TASK_RUNNING)
         prev->state = TASK_READY;
 
-    tss.esp0=current->kernel_stack;
+    tss.esp0 = current->kernel_stack;
 
     switch_current_task(prev, current);
 }

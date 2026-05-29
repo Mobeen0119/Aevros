@@ -1,6 +1,7 @@
 #ifndef TASK_H
 #define TASK_H
 #include "../include/vfs.h"
+#include "../Paging/isr.h"
 
 #include <stdint.h>
 
@@ -15,11 +16,9 @@ typedef enum
 
 typedef struct task
 {
+    int started;
     uint32_t pid;
 
-    uint32_t esp;
-    uint32_t ebp;
-    uint32_t eip;
     file_t* fd_table[32];
     uint32_t cr3;
 
@@ -29,6 +28,8 @@ typedef struct task
     task_state_t state;
 
     struct task *next;
+    register_t regs;
+    
 
 } task_t;
 

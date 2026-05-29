@@ -1,7 +1,7 @@
 #include "syscall.h"
 #include "../../Include/vfs.h"
 #include "../Process/task.h"
-#include "../../Include/idt.h"
+#include "../CPU/idt.h"
 #include "../Paging/isr.h"
 #include "../Process/fork.c"
 

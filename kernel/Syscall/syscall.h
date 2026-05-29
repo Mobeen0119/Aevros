@@ -1,6 +1,6 @@
 #ifndef SYSCALL_H
 #define SYSCALL_H
-#include "../../Include/idt.h"
+#include "../CPU/idt.h"
 #include "../Paging/isr.h"
 #define SYS_READ   0
 #define SYS_WRITE  1

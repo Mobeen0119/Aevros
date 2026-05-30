@@ -180,7 +180,7 @@ void sys_exit(int status)
     task_t *dead = current_task;
     if (!dead)
         return;
-   
+
     dead->exit_code = status;
 
     for (int i = 0; i < 32; i++)
@@ -218,4 +218,50 @@ void sys_exit(int status)
     switch_current_task(dead, current_task);
 
     __builtin_unreachable();
+}
+
+int sys_waitpid(int target_pid, int *status)
+{
+
+    task_t *parent = current_task;
+    if (!parent)
+        return VFS_ERR;
+
+    while (1)
+    {
+        int has_children = 0;
+        task_t *curr = ready_queue;
+
+        if (!curr)
+            return VFS_ERR;
+
+        do
+        {
+            if (curr->parent == parent && (target_pid == -1 || curr->pid == target_pid))
+            {
+                has_children = 1;
+
+                if (curr->state == TASK_ZOMBIE)
+                {
+                    if (status != NULL)
+                        *status = curr->exit_code;
+
+                    int dead_pid = curr->pid;
+
+                    if (curr->kernel_stack)
+                        kfree((void *)(curr->kernel_stack - 4096));
+                    kfree(curr);
+
+                    return dead_pid;
+                }
+            }
+            curr = curr->next;
+        } while (curr != ready_queue);
+
+        if (!has_children)
+            return VFS_ERR;
+
+        parent->state = TASK_BLOCKED;
+        schedule();
+    }
 }

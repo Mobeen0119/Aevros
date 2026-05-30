@@ -24,32 +24,6 @@ static inline int syscall(int num, int arg1, int arg2, int arg3)
     return ret;
 }
 
-int syscall_dispatcher(int num, int arg1, int arg2, int arg3)
-{
-
-    switch (num)
-    {
-    case SYS_READ:
-        return sys_read(arg1, (uint8_t *)arg2, arg3);
-
-    case SYS_WRITE:
-        return sys_write(arg1, (uint8_t *)arg2, arg3);
-
-    case SYS_OPEN:
-        return sys_open((char *)arg1, arg2);
-
-    case SYS_CLOSE:
-        return sys_close(arg1);
-
-    case SYS_EXIT:
-        void sys_exit();
-        return 0;
-
-    default:
-        return -1;
-    }
-}
-
 void syscall_handler(register_t *regs)
 {
     uint32_t num = regs->eax;
@@ -77,8 +51,12 @@ void syscall_handler(register_t *regs)
         res = sys_close(a1);
         break;
 
+    case SYS_FORK:
+        res = do_fork();
+        break;
+
     case SYS_EXIT:
-        sys_exit();
+        sys_exit(0);
         res = 0;
         break;
 
@@ -91,5 +69,5 @@ void syscall_handler(register_t *regs)
 
 int sys_fork()
 {
-    do_fork();
+    return do_fork();
 }

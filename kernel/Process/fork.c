@@ -15,6 +15,7 @@ int do_fork()
         return VFS_ERR;
 
     task_t *child = (task_t *)kmalloc(sizeof(task_t));
+    
     if (!child)
         return VFS_ERR;
 
@@ -24,7 +25,10 @@ int do_fork()
     child->state = TASK_READY;
     child->next = NULL;
     child->cwd = parent->cwd;
-    child->eip = parent->eip;
+    child->parent=parent;
+    child->regs.eip = parent->regs.eip;
+    child->exit_code=0;          
+
 
     uint8_t *new_stack = (uint8_t *)kmalloc(4096);
 

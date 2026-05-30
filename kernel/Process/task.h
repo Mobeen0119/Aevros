@@ -17,6 +17,8 @@ typedef enum
 typedef struct task
 {
     int started;
+    int exit_code;
+
     uint32_t pid;
 
     file_t* fd_table[32];
@@ -28,14 +30,16 @@ typedef struct task
     task_state_t state;
 
     struct task *next;
-    register_t regs;
+    struct task* parent;
     
+    register_t regs;
 
 } task_t;
 
 extern task_t *current_task;
 extern task_t *ready_queue;
-extern int next_pid = 0;
+extern int next_pid;
+
 
 void init_tasking();
 

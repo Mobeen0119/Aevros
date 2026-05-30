@@ -150,7 +150,7 @@ void schedule()
 
     tss.esp0 = current_task->kernel_stack;
 
-    switch_current_task_task(prev, current_task);
+    switch_current_task(prev, current_task);
 }
 
 void pit_init(uint32_t frequency)
@@ -175,30 +175,47 @@ void sys_print(char *user_string)
     }
 }
 
-void sys_exit()
+void sys_exit(int status)
 {
-    if (!current_task)
+    task_t *dead = current_task;
+    if (!dead)
         return;
+   
+    dead->exit_code = status;
 
     for (int i = 0; i < 32; i++)
     {
-        if (current_task->fd_table[i])
+        if (dead->fd_table[i])
         {
             sys_close(i);
         }
     }
 
-    task_t *dead = current_task;
+    if (dead->next == dead)
+    {
+        kprint("System Halted : All Processes exited\n");
+        while (1)
+            asm volatile("hlt");
+    }
 
-    task_t *temp = current_task;
-    while (temp->next != current_task)
+    task_t *temp = ready_queue;
+    while (temp->next != dead)
         temp = temp->next;
 
-    temp->next = current_task->next;
-    current_task = current_task->next;
+    temp->next = dead->next;
+
+    if (ready_queue == dead)
+        ready_queue = dead->next;
+
+    if (dead->parent && dead->parent->state == TASK_BLOCKED)
+        dead->parent->state = TASK_READY;
+
+    current_task = ready_queue;
+    tss.esp0 = current_task->kernel_stack;
+
     dead->state = TASK_ZOMBIE;
 
-    switch_current_task_task(dead, current_task);
+    switch_current_task(dead, current_task);
 
     __builtin_unreachable();
 }

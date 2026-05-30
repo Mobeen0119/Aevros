@@ -1,8 +1,11 @@
 global enter_usermode
 
 enter_usermode:
+    mov ecx,[esp + 4] 
+    mov ebx,[esp + 8]
 
     cli
+    
     mov ax,0x23  
     mov ds,ax
     mov es,ax

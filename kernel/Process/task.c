@@ -10,12 +10,12 @@
 #include "userspace.h"
 #define Temp_p_vir_addr 0xFFC00000
 
-task_t *current = 0, *ready_queue = 0;
+task_t *current_task = 0, *ready_queue = 0;
 
 int next_pid = 0;
 
 extern void switch_current_task(task_t *prev, task_t *next);
-extern void read_eip();
+extern uint32_t read_eip();
 
 static inline uint32_t read_cr3()
 {
@@ -26,17 +26,17 @@ static inline uint32_t read_cr3()
 
 void init_tasking()
 {
-    current = (task_t *)kmalloc(sizeof(task_t));
-    if (!current)
+    current_task = (task_t *)kmalloc(sizeof(task_t));
+    if (!current_task)
         return;
 
-    memset(current, 0, sizeof(task_t));
+    memset(current_task, 0, sizeof(task_t));
 
-    current->pid = next_pid++;
-    current->state = TASK_RUNNING;
-    current->cwd = vfs_root;
+    current_task->pid = next_pid++;
+    current_task->state = TASK_RUNNING;
+    current_task->cwd = vfs_root;
 
-    memset(current->fd_table, 0, sizeof(current->fd_table));
+    memset(current_task->fd_table, 0, sizeof(current_task->fd_table));
 
     inode_t *tty = devfs_get("tty");
 
@@ -58,19 +58,19 @@ void init_tasking()
     stderr->inode = tty;
     stderr->flags = WRITE_ONLY;
 
-    current->fd_table[0] = stdin;
-    current->fd_table[1] = stdout;
-    current->fd_table[2] = stderr;
+    current_task->fd_table[0] = stdin;
+    current_task->fd_table[1] = stdout;
+    current_task->fd_table[2] = stderr;
 
-    asm volatile("mov %%regs.esp, %0" : "=r"(current->regs.esp));
-    asm volatile("mov %%regs.ebp, %0" : "=r"(current->regs.ebp));
+    asm volatile("mov %%esp, %0" : "=r"(current_task->regs.esp));
+    asm volatile("mov %%ebp, %0" : "=r"(current_task->regs.ebp));
 
-    current->cr3 = read_cr3();
-    current->regs.eip = read_eip();
-    current->kernel_stack = current->regs.esp;
+    current_task->cr3 = read_cr3();
+    current_task->regs.eip = read_eip();
+    current_task->kernel_stack = current_task->regs.esp;
 
-    current->next = current;
-    ready_queue = current;
+    current_task->next = current_task;
+    ready_queue = current_task;
 }
 
 task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
@@ -128,7 +128,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
 
 void schedule()
 {
-    if (!current)
+    if (!current_task)
         return;
 
     if (!current_task->started)
@@ -136,21 +136,21 @@ void schedule()
         current_task->started = 1;
 
         asm volatile("mov %0,%%cr3" ::"r"(current_task->cr3));
-        enter_usermode(current_task->regs.regs.eip,
-                       current_task->regs.userregs.esp);
+        enter_usermode(current_task->regs.eip,
+                       current_task->regs.useresp);
     }
 
-    task_t *prev = current;
-    current = current->next;
+    task_t *prev = current_task;
+    current_task = current_task->next;
 
-    current->state = TASK_RUNNING;
+    current_task->state = TASK_RUNNING;
 
     if (prev->state == TASK_RUNNING)
         prev->state = TASK_READY;
 
-    tss.esp0 = current->kernel_stack;
+    tss.esp0 = current_task->kernel_stack;
 
-    switch_current_task(prev, current);
+    switch_current_task_task(prev, current_task);
 }
 
 void pit_init(uint32_t frequency)
@@ -177,28 +177,28 @@ void sys_print(char *user_string)
 
 void sys_exit()
 {
-    if (!current)
+    if (!current_task)
         return;
 
     for (int i = 0; i < 32; i++)
     {
-        if (current->fd_table[i])
+        if (current_task->fd_table[i])
         {
             sys_close(i);
         }
     }
 
-    task_t *dead = current;
+    task_t *dead = current_task;
 
-    task_t *temp = current;
-    while (temp->next != current)
+    task_t *temp = current_task;
+    while (temp->next != current_task)
         temp = temp->next;
 
-    temp->next = current->next;
-    current = current->next;
+    temp->next = current_task->next;
+    current_task = current_task->next;
     dead->state = TASK_ZOMBIE;
 
-    switch_current_task(dead, current);
+    switch_current_task_task(dead, current_task);
 
     __builtin_unreachable();
 }

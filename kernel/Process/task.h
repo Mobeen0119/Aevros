@@ -47,7 +47,7 @@ task_t *create_process(void (*entry)(),uint32_t flags, uint32_t page_dir);
 
 void schedule();
 
-void sys_exit();
+void sys_exit(int status);
 
 void sys_print(char *str);
 

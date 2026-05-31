@@ -2,9 +2,9 @@
 #include "../Include/shell.h"
 #include "../Include/screen.h"
 #include "../Include/terminal.h"
-#include "../LIB/string.c"
+#include "../../Lib/string.h"
 #include "../Include/vfs.h"
-#include "builtins.c"
+#include "builtins.h"
 #include "parser.c"
 
 void shell_prompt()
@@ -29,7 +29,7 @@ void shell_execute(char *input)
         cmd_ls();
     }
 
-    else if (strcmp(argv[0], "cat ") == 0)
+    else if (strcmp(argv[0], "cat") == 0)
     {
         if (argc < 2)
             kprint("cat: missing file\n");
@@ -37,7 +37,7 @@ void shell_execute(char *input)
             cmd_cat(argv[1]);
     }
 
-    else if (strcmp(argv[0], "echo ") == 0)
+    else if (strcmp(argv[0], "echo") == 0)
     {
         if (argc < 2)
             kprint("\n");
@@ -53,28 +53,31 @@ void shell_execute(char *input)
         }
     }
 
-    else if (strcmp(argv[0], "mkdir ") == 0)
+    else if (strcmp(argv[0], "mkdir") == 0)
     {
-        sys_mkdir(argv[1]);
+        if (argc < 2)
+            kprint("mkdir: missing directory name\n");
+        else
+            sys_mkdir(argv[1]);
     }
 
-    else if (strcmp(argv[0], "cd ") == 0)
+    else if (strcmp(argv[0], "cd") == 0)
     {
         if (argc < 2)
             kprint("cd: missing arg\n");
         else
             cmd_cd(argv[1]);
     }
-  
-    else if (strcmp(argv[0], "touch ") == 0)
+
+    else if (strcmp(argv[0], "touch") == 0)
     {
         if (argc < 2)
             kprint("touch: missing file\n");
 
         cmd_touch(argv[1]);
     }
-  
-    else if (strcmp(argv[0], "write ") == 0)
+
+    else if (strcmp(argv[0], "write") == 0)
     {
         if (argc < 3)
         {
@@ -82,7 +85,7 @@ void shell_execute(char *input)
         }
         cmd_write(argv[1], argv[2]);
     }
-  
+
     else if (strcmp(argv[0], "rm") == 0)
     {
         if (argc < 2)
@@ -91,17 +94,20 @@ void shell_execute(char *input)
         }
         cmd_rm(argv[1]);
     }
-   
+
     else if (strcmp(argv[0], "pwd") == 0)
     {
         cmd_pwd();
     }
- 
+
     else if (strcmp(argv[0], "tree") == 0)
     {
-        tree_walk(vfs_read,0);
+        if (vfs_root)
+            tree_walk(vfs_read, 0);
+        else
+            kprint("tree: VFS root not initialized\n");
     }
-  
+
     else
     {
         kprint("unknown command\n");

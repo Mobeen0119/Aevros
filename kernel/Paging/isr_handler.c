@@ -1,7 +1,7 @@
 #include "isr.h"
 #include <stdint.h>
 #include "../Memory/pmm.c"
-#include "../Process/task.c"
+#include "../Process/task.h"
 #include "page_fault.c"
 
 void isr_handler(struct registers* r)

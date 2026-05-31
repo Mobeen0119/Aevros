@@ -1,41 +1,53 @@
-#include "screen.h"
-#define RAM_SIZE 1024
+// kernel/main.c
+#include "../Include/screen.h"
+#include "../Include/vfs.h"
+#include "../Include/ramfs.h"
+#include "../Include/terminal.h"
+#include "CPU/GDT.h"
+#include "CPU/idt.h"
+#include "CPU/TSS.h"
+#include "Memory/pmm.h"
+#include "Paging/paging.h"
+#include "Process/task.h"
+#include "Process/exec.h"
 
-struct PCB
-{
-    int pid;
-    int ram;
-    int state;
-};
-
-struct PCB process_list[3];
-int used_ram=0;
-
-void forge_init(){
-    clear_screen();
-    print("ForgeOS Kernel v1.0",0,25);
-    print("Status: System Booted ",2,0);
-}
-
-void show_memory_status(){
-    print("RAM Usage : ",5,0);
-    print("Allocated 256MB to Process 1: ",7,0);
-}
-
-
-
-void main() {
-    clear_screen();
-
-    char* video_memory = (char*) 0xB8000;
-    char* message = "Welcome to ForgeOS!";
+void kernel_main(unsigned int magic, unsigned int mboot_ptr) {
     
-    for (int i = 0; message[i] != '\0'; i++) {
-        video_memory[i * 2] = message[i];
-        video_memory[i * 2 + 1] = 0x0F; 
+    
+    terminal_initialize(); 
+    kprint("Welcome to ForgeOS!\n");
+    kprint("-------------------\n");
+
+  
+    gdt_init();          
+    idt_init();          
+    tss_init();          
+    kprint("[OK] CPU Core Frameworks Online.\n");
+
+   
+    pmm_init(mboot_ptr,sizeof(mboot_ptr)); 
+    paging_init();       
+    kprint("[OK] Memory Management Sandboxing Active.\n");
+
+    vfs_root = vfs_init(); 
+ 
+    // ramfs_mkdir("/bin");
+    // ramfs_mkdir("/dev");
+    
+    devfs_init(); 
+    kprint("[OK] Filesystems mounted and hardware devices mapped.\n");
+
+    init_tasking();      
+    init_syscalls();     
+    kprint("[OK] Scheduler running. Multi-process loops ready.\n");
+
+    kprint("Booting into user environment...\n");
+    
+    sys_execve("/bin/test"); 
+
+    asm volatile("sti");
+
+    while(1) {
+        asm volatile("hlt");
     }
-
-    while(1); 
 }
-
-void __main() {}

@@ -59,6 +59,7 @@ void *buddy_alloc(int order)
     }
     return NULL;
 }
+
 void add_to_list(void *ptr, int order)
 {
     buddy_block_t *block = (buddy_block_t *)ptr;

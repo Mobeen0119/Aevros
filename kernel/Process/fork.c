@@ -15,20 +15,23 @@ int do_fork()
         return VFS_ERR;
 
     task_t *child = (task_t *)kmalloc(sizeof(task_t));
-    
+
     if (!child)
         return VFS_ERR;
 
-    memcpy(child, 0, sizeof(task_t));
+    memset(child, 0, sizeof(task_t));
+
+    uint32_t eip = read_eip();
 
     child->pid = next_pid++;
     child->state = TASK_READY;
     child->next = NULL;
     child->cwd = parent->cwd;
-    child->parent=parent;
-    child->regs.eip = parent->regs.eip;
-    child->exit_code=0;          
 
+    child->parent = parent;
+    child->regs.eip = eip;
+    child->regs.eax = 0;
+    child->exit_code = 0;
 
     uint8_t *new_stack = (uint8_t *)kmalloc(4096);
 
@@ -38,22 +41,30 @@ int do_fork()
         return VFS_ERR;
     }
 
+    if (!child->cr3)
+    {
+        kfree(new_stack);
+        kfree(child);
+        return VFS_ERR;
+    }
+
     uint32_t stack_top = (uint32_t)new_stack + 4096;
     child->kernel_stack = stack_top;
 
-    uint32_t stack_used = parent->kernel_stack - parent->esp;
-    child->esp = stack_top - stack_used;
-    child->ebp = parent->ebp + (child->esp - parent->esp);
+    uint32_t stack_used = parent->kernel_stack - parent->regs.esp;
+    child->regs.esp = stack_top - stack_used;
+    child->regs.ebp = parent->regs.ebp + (child->regs.esp - parent->regs.esp);
 
-    memcpy((void *)child->esp, (void *)parent->esp, stack_used);
+    memcpy((void *)child->regs.esp, (void *)parent->regs.esp, stack_used);
 
     child->cr3 = clone_page_directory(parent->cr3);
 
     for (int i = 0; i < 32; i++)
     {
-        child->fd_table[i]=parent->fd_table[i];
-        if(child->fd_table[i])
-            child->fd_table[i]->ref_count++;
+        child->fd_table[i] = parent->fd_table[i];
+
+        if (child->fd_table[i])
+            child->fd_table[i]->inode->ref_count++;
     }
 
     if (!ready_queue)

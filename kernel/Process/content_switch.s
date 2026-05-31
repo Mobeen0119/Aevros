@@ -1,14 +1,15 @@
 global switch_current_task
-extern current 
+extern current_task
 switch_current_task:
     pusha
 
-    mov eax, [current]
+    mov eax, [current_task]
     mov [eax+ESP_OFFSET], esp
     mov [eax+EBP_OFFSET], ebp
+    call read_e ip
 
     mov ecx, [esp+ARGS_OFFSET] 
-    mov [current], ecx 
+    mov [current_task], ecx 
 
     mov eax, [ecx+CR3_OFFSET]
     mov cr3, eax

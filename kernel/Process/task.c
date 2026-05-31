@@ -83,6 +83,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     memset(new_task, 0, sizeof(task_t));
     new_task->pid = next_pid++;
     new_task->state = TASK_READY;
+    new_task->parent = current_task;
 
     uint8_t *stack_base = kmalloc(4096);
     if (!stack_base)
@@ -245,6 +246,16 @@ int sys_waitpid(int target_pid, int *status)
                 {
                     if (status != NULL)
                         *status = curr->exit_code;
+
+                    task_t *linker = ready_queue;
+
+                    while (linker->next != curr)
+                        linker = linker->next;
+
+                    linker->next = curr->next;
+
+                    if (ready_queue == curr)
+                        ready_queue = curr->next;
 
                     int dead_pid = curr->pid;
 

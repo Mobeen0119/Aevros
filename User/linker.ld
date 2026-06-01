@@ -1,7 +1,7 @@
 ENTRY(_start)
 
 SECTIONS{
-    .= 0x400000;
+    .= 0x400000; 
 
     .text :{
         *(.text)
@@ -11,7 +11,7 @@ SECTIONS{
         *(.data)
     }
 
-    .bss :{
+    .bss :{  
         *(.bss)
     }
 }

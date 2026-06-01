@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include "GDT.h"
-#include "../../Memory/pmm.h"
-#include "../tss.h"
+#include "../Memory/pmm.h"
+#include "TSS.h"
 
 struct gdt_entry_struct gdt_entries[6];
 

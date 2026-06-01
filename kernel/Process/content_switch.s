@@ -11,18 +11,18 @@ ESP_OFFSET equ REGS_BASE + 16
 
 switch_current_task:
     pusha
- 
-    mov eax, [current_task]
+
+    mov eax, [esp+36] 
+    mov ecx, [esp+40] 
+
     test eax,eax ; Check if current_task is NULL
     jz .skip_save ; If it is, skip saving state
 
 
     mov [eax+ESP_OFFSET], esp
     mov [eax+EBP_OFFSET], ebp
-    call read_e ip
 
 .skip_save:
-    mov ecx, [esp+36] 
     mov [current_task], ecx 
 
     mov edx, [ecx+CR3_OFFSET]

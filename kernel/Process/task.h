@@ -16,34 +16,30 @@ typedef enum
 
 typedef struct task
 {
-    int started;
-    int exit_code;
-
-    uint32_t pid;
-
-    file_t* fd_table[32];
     uint32_t cr3;
-
-    uint32_t kernel_stack;
-    dentry_t* cwd;
-
+    uint32_t pid;
     task_state_t state;
 
-    struct task *next;
-    struct task* parent;
-    
-    register_t regs;
+    register_t *regs;
+    uint32_t kernel_stack;
+    file_t *fd_table[32];
 
+    dentry_t *cwd;
+
+    struct task *next;
+    struct task *parent;
+
+    int started;
+    int exit_code;
 } task_t;
 
 extern task_t *current_task;
 extern task_t *ready_queue;
 extern int next_pid;
 
-
 void init_tasking();
 
-task_t *create_process(void (*entry)(),uint32_t flags, uint32_t page_dir);
+task_t *create_process(void (*entry)(), uint32_t flags, uint32_t page_dir);
 
 void schedule();
 
@@ -55,6 +51,5 @@ int do_fork(register_t *state_at_interuppt);
 
 int sys_waitpid(int target_pid, int *status);
 
-
-int timer_callback(register_t* regs);
+int timer_callback(register_t *regs);
 #endif

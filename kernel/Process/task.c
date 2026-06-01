@@ -5,14 +5,14 @@
 #include "../io.c"
 #include "../include/screen.h"
 #include "../Dev/dev.h"
-#include "../Memory/kheap.c"
+#include "../Memory/kheap.h"
 #include "../CPU/tss.h"
 #include "userspace.h"
 #define Temp_p_vir_addr 0xFFC00000
 
 task_t *current_task = 0, *ready_queue = 0;
 
-int next_pid = 0;
+int next_pid = 0, timer_clicks = 0;
 
 extern void switch_current_task(task_t *prev, task_t *next);
 extern uint32_t read_eip();
@@ -132,18 +132,20 @@ void schedule()
     if (!current_task)
         return;
 
-    if (!current_task->started)
-    {
-        current_task->started = 1;
+    task_t *prev = current_task;
+    task_t *next_task = current_task->next;
 
-        asm volatile("mov %0,%%cr3" ::"r"(current_task->cr3));
-        enter_usermode(current_task->regs.eip,
-                       current_task->regs.useresp);
+    while (next_task->state != TASK_READY && next_task->state != TASK_RUNNING && next_task != current_task)
+        next_task = next_task->next;
+
+    if (next_task->state != TASK_READY && next_task->state != TASK_RUNNING)
+    {
+        kprint("KERNEL PANIC: No runnable tasks!\n");
+        while (1)
+            asm volatile("hlt");
     }
 
-    task_t *prev = current_task;
-    current_task = current_task->next;
-
+    current_task = next_task;
     current_task->state = TASK_RUNNING;
 
     if (prev->state == TASK_RUNNING)
@@ -183,6 +185,7 @@ void sys_exit(int status)
         return;
 
     dead->exit_code = status;
+    dead->state = TASK_ZOMBIE;
 
     for (int i = 0; i < 32; i++)
     {
@@ -214,9 +217,7 @@ void sys_exit(int status)
     current_task = ready_queue;
     tss.esp0 = current_task->kernel_stack;
 
-    dead->state = TASK_ZOMBIE;
-
-    switch_current_task(dead, current_task);
+    schedule();
 
     __builtin_unreachable();
 }
@@ -275,4 +276,12 @@ int sys_waitpid(int target_pid, int *status)
         parent->state = TASK_BLOCKED;
         schedule();
     }
+}
+
+int timer_callback(register_t *regs)
+{
+    timer_clicks++;
+
+    schedule();
+    return VFS_OK;
 }

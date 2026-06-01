@@ -54,4 +54,7 @@ void sys_print(char *str);
 int do_fork(register_t *state_at_interuppt);
 
 int sys_waitpid(int target_pid, int *status);
+
+
+int timer_callback(register_t* regs);
 #endif

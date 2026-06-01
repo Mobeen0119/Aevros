@@ -3,7 +3,6 @@
 #include "../Process/task.h"
 #include "../CPU/idt.h"
 #include "../Paging/isr.h"
-#include "../Process/fork.c"
 
 extern void isr128();
 
@@ -52,12 +51,15 @@ void syscall_handler(register_t *regs)
         break;
 
     case SYS_FORK:
-        res = do_fork();
+        res = do_fork(regs);
         break;
 
     case SYS_EXIT:
-        sys_exit(0);
-        res = 0;
+        sys_exit(a1);
+        break;
+
+    case SYS_WAITPID:
+        res = sys_waitpid(a1, (int *)a2);
         break;
 
     default:
@@ -67,7 +69,7 @@ void syscall_handler(register_t *regs)
     regs->eax = res;
 }
 
-int sys_fork()
+int sys_fork(register_t *regs)
 {
-    return do_fork();
+    return do_fork(regs);
 }

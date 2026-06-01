@@ -11,7 +11,7 @@ ESP_OFFSET equ REGS_BASE + 16
 
 switch_current_task:
     pusha
-
+ 
     mov eax, [current_task]
     test eax,eax ; Check if current_task is NULL
     jz .skip_save ; If it is, skip saving state

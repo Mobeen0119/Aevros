@@ -29,8 +29,6 @@ int do_fork(register_t *state_at_interuppt)
         return VFS_ERR;
     }
 
-    uint32_t eip = read_eip();
-
     child->pid = next_pid++;
     child->state = TASK_READY;
     child->next = NULL;

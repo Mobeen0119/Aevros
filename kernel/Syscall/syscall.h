@@ -8,6 +8,7 @@
 #define SYS_CLOSE  4
 #define SYS_FORK   5
 #define SYS_EXIT   6
+#define SYS_WAITPID 7
 
 
 static inline int syscall(int num,int arg1,int arg2,int arg3);

@@ -76,7 +76,6 @@ int exec_user(void *binary, uint32_t size)
 
 int sys_exec(const char *path)
 {
-
     if (!path)
         return VFS_ERR;
 

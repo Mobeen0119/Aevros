@@ -4,6 +4,7 @@
 #include "../CPU/idt.h"
 #include "../Paging/isr.h"
 
+
 extern void isr128();
 
 void init_syscalls()
@@ -60,6 +61,10 @@ void syscall_handler(register_t *regs)
 
     case SYS_WAITPID:
         res = sys_waitpid(a1, (int *)a2);
+        break;
+    
+    case SYS_EXEC:
+        res=sys_exec((const char*)a1);
         break;
 
     default:

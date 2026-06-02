@@ -20,7 +20,7 @@ typedef struct task
     uint32_t pid;
     task_state_t state;
 
-    register_t *regs;
+    register_t regs;
     uint32_t kernel_stack;
     file_t *fd_table[32];
 

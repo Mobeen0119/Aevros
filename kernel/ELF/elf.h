@@ -49,3 +49,5 @@ typedef struct
 
 ELF32_Phdr*  elf_prog_headers(Elf32_Header* hdr);
 int elf_load_segs(Elf32_Header* hdr,uint32_t target_cr3);
+
+int elf_validate(Elf32_Header *hdr);

@@ -4,32 +4,42 @@
 
 void destroy_user_space(uint32_t cr3)
 {
-    uint32_t *pd = get_virtual_table_address(cr3);
+    if (!cr3)
+        return;
 
-    for (uint32_t i = 0; i < 768; i++)
+    map_page(TEMP_PD_VIRT, cr3, PAGE_PRESENT | PAGE_WRITE);
+
+    uint32_t *pd = (uint32_t *)TEMP_PD_VIRT;
+
+    for (uint32_t pd_index = 0; pd_index < 768; pd_index++)
     {
-        if (pd[i] & PAGE_PRESENT)
+        if (!(pd[pd_index] & PAGE_PRESENT))
+            continue;
+
+        uint32_t *pt_phy = pd[pd_index] & 0xFFFFF000;
+
+        map_page(TEMP_PT_VIRT, pt_phy, PAGE_PRESENT | PAGE_WRITE);
+
+        uint32_t *pt = (uint32_t *)TEMP_PT_VIRT;
+
+        for (uint32_t pt_index = 0; pt_index < 1024; pt_index++)
         {
+            if (!(pt[pt_index] & PAGE_PRESENT))
+                continue;
 
-            uint32_t *page_physical = pd[i] & 0xFFFFF000;
+            uint32_t *phy_frame = pt[pt_index] & 0xFFFFF000;
 
-            uint32_t *page_table = get_virtual_table_address(page_physical);
+            pmm_free(phy_frame);
 
-            for (uint32_t j = 0; j < 1024; j++)
-            {
-                if (page_table[j] & PAGE_PRESENT)
-                {
-                    uint32_t *phy_frame = page_table[j] & 0xFFFFF000;
-
-                    pmm_free(phy_frame);
-                }
-            }
-
-            pmm_free(page_physical);
-
-            pd[i] = 0;
+            pt[pt_index] = 0;
         }
+        unmape(TEMP_PT_VIRT);
+        pmm_free(pt_phy);
+
+        pd[pd_index] = 0;
     }
+    unmap(TEMP_PD_VIRT);
 
     pmm_free(cr3);
 }
+

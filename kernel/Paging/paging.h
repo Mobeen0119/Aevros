@@ -7,7 +7,7 @@
 #define TEMP_SRC_PAGE 0xFF800000
 #define TEMP_DST_PAGE 0xFF801000
 #define TEMP_PD_VIRT 0xFFBFF000
-
+#define TEMP_PT_VIRT 0xFFBFE000
 
 
 uint32_t* get_virtual_table_address(uint32_t pd_in);

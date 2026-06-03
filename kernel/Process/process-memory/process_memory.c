@@ -2,6 +2,33 @@
 #include "../../Paging/paging.h"
 #include "../../Memory/pmm.h"
 
+uint32_t create_user_space(void)
+{
+    uint32_t pd_phy = pmm_alloc();
+
+    if (!pd_phy)
+        return 0;
+
+    map_page(TEMP_PD_VIRT, pd_phy, PAGE_PRESENT | PAGE_WRITE);
+
+    uint32_t *new_pd = (uint32_t *)TEMP_PD_VIRT;
+
+    for (uint32_t i = 0; i < 768; i++)
+    {
+        new_pd[i] = 0;
+    }
+
+    uint32_t *kernel_pd = (uint32_t *)(pmm_alloc() + 0xC0000000);
+
+    for (uint32_t i = 768; i < 1024; i++)
+    {
+        new_pd[i] = kernel_pd[i];
+    }
+    unmap(TEMP_PD_VIRT);
+
+    return pd_phy;
+}
+
 void destroy_user_space(uint32_t cr3)
 {
     if (!cr3)
@@ -42,4 +69,3 @@ void destroy_user_space(uint32_t cr3)
 
     pmm_free(cr3);
 }
-

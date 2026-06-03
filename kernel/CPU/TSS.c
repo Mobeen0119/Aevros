@@ -1,6 +1,6 @@
 #include "TSS.h"
-#include "../../Include/GDT.h"
-#include "../../LIB/string.c"
+#include "GDT.h"
+#include "../../Lib/string.h"
 
 tss_entry_t tss;
 

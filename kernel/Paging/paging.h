@@ -17,6 +17,8 @@ uint32_t clone_page_directory(uint32_t src_cr3);
 
 void *alloc_page_aligned();
 
+void unmap(uint32_t vir_addr);
+
 void memcpy_page_physical(uint32_t dst, uint32_t src);
 
 void map_page_in_directory(uint32_t tar_cr3, uint32_t vir,

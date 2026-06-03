@@ -33,7 +33,7 @@ void destroy_user_space(uint32_t cr3)
 
             pt[pt_index] = 0;
         }
-        unmape(TEMP_PT_VIRT);
+        unmap(TEMP_PT_VIRT);
         pmm_free(pt_phy);
 
         pd[pd_index] = 0;

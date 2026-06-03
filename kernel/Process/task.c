@@ -1,6 +1,6 @@
 #include "task.h"
 #include "pmm.h"
-#include "Paging/paging.c"
+#include "Paging/paging.h"
 #include "../Include/vfs.h"
 #include "../io.c"
 #include "../include/screen.h"
@@ -8,6 +8,7 @@
 #include "../Memory/kheap.h"
 #include "../CPU/tss.h"
 #include "userspace.h"
+#include "process-memory/process_memory.h"
 
 #define Temp_p_vir_addr 0xFFC00000
 
@@ -217,6 +218,8 @@ void sys_exit(int status)
 
     current_task = ready_queue;
     tss.esp0 = current_task->kernel_stack;
+    
+    destroy_user_space(dead->cr3);
 
     schedule();
 

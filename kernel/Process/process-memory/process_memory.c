@@ -13,17 +13,17 @@ uint32_t create_user_space(void)
 
     uint32_t *new_pd = (uint32_t *)TEMP_PD_VIRT;
 
-    for (uint32_t i = 0; i < 768; i++)
-    {
-        new_pd[i] = 0;
-    }
+    memset(new_pd, 0, 4096);
 
-    uint32_t *kernel_pd = (uint32_t *)(pmm_alloc() + 0xC0000000);
+    uint32_t *kernel_pd = (uint32_t *)(PAGE_RECURSIVE);
 
-    for (uint32_t i = 768; i < 1024; i++)
+    for (uint32_t i = 768; i < 1023; i++)
     {
         new_pd[i] = kernel_pd[i];
     }
+
+    new_pd[1023] = pd_phy | PAGE_PRESENT | PAGE_WRITE;
+
     unmap(TEMP_PD_VIRT);
 
     return pd_phy;
@@ -43,7 +43,7 @@ void destroy_user_space(uint32_t cr3)
         if (!(pd[pd_index] & PAGE_PRESENT))
             continue;
 
-        uint32_t *pt_phy = pd[pd_index] & 0xFFFFF000;
+        uint32_t pt_phy = pd[pd_index] & 0xFFFFF000;
 
         map_page(TEMP_PT_VIRT, pt_phy, PAGE_PRESENT | PAGE_WRITE);
 
@@ -54,7 +54,7 @@ void destroy_user_space(uint32_t cr3)
             if (!(pt[pt_index] & PAGE_PRESENT))
                 continue;
 
-            uint32_t *phy_frame = pt[pt_index] & 0xFFFFF000;
+            uint32_t phy_frame = pt[pt_index] & 0xFFFFF000;
 
             pmm_free(phy_frame);
 

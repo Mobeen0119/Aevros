@@ -1,10 +1,11 @@
 #include "exec.h"
-                                                              
+
 #include "task.h"
 #include "../Paging/paging.h"
 #include "../Memory/pmm.h"
 #include "../Memory/kheap.h"
 #include "../ELF/elf.h"
+#include "process-memory/process_memory.h"
 
 #include "../../Include/vfs.h"
 
@@ -13,7 +14,10 @@ int exec_user(void *binary, uint32_t size)
     if (!binary || !size)
         return VFS_ERR;
 
-    uint32_t new_cr3 = clone_page_directory(read_cr3());
+    uint32_t new_cr3 = create_user_space();
+
+    if (!new_cr3)
+        return VFS_ERR;
 
     Elf32_Header *hdr = (Elf32_Header *)binary;
 
@@ -25,14 +29,33 @@ int exec_user(void *binary, uint32_t size)
 
     uint32_t stack_phy = pmm_alloc();
 
-    map_page_in_directory(new_cr3, USER_STACK_TOP - USER_STACK_SIZE, stack_phy, PAGE_PRESENT | PAGE_USER | PAGE_WRITE);
-
+    if (!(map_page_in_directory(
+            new_cr3,
+            USER_STACK_TOP - USER_STACK_SIZE,
+            stack_phy,
+            PAGE_PRESENT | PAGE_USER | PAGE_WRITE)))
+    {
+        pmm_free(stack_phy);
+        destroy_user_space(new_cr3);
+        return VFS_ERR;
+    }
     task_t *task = kmalloc(sizeof(task_t));
 
     if (!task)
-        return VFS_ERR;
+        kfree(task);
+    destroy_user_space(new_cr3);
+    return VFS_ERR;
 
     memset(task, 0, sizeof(task_t));
+
+    void *kstack = kmalloc(4096);
+
+    if (!kstack)
+    {
+        kfree(task);
+        destroy_user_space(new_cr3);
+        return VFS_ERR;
+    }
 
     task->pid = next_pid++;
     task->state = TASK_READY;
@@ -41,10 +64,8 @@ int exec_user(void *binary, uint32_t size)
 
     task->regs.esp = USER_STACK_TOP;
     task->regs.ebp = USER_STACK_TOP;
-
-    void *kstack = kmalloc(4096);
-    if (!kstack)
-        return VFS_ERR;
+    task->cwd = current_task->cwd;
+    task->parent = current_task;
 
     task->kernel_stack = (uint32_t)kstack + (4096);
 
@@ -87,7 +108,8 @@ int sys_exec(const char *path)
     file_t *file = current_task->fd_table[fd];
 
     if (!file)
-        return VFS_ERR;
+        sys_close(fd);
+    return VFS_ERR;
 
     uint32_t size = file->inode->size;
 
@@ -95,7 +117,7 @@ int sys_exec(const char *path)
 
     if (!buffer)
     {
-        kfree(buffer);
+
         sys_close(fd);
 
         return VFS_ERR;
@@ -119,10 +141,17 @@ int sys_exec(const char *path)
         return VFS_ERR;
     }
 
-    destory_user_space(current_task->cr3);
+    uint32_t new_cr3 = create_user_space();
 
-    if (!elf_load_segs(hdr, current_task->cr3))
+    if (!new_cr3)
     {
+        kfree(buffer);
+        return VFS_ERR;
+    }
+
+    if (!elf_load_segs(hdr, new_cr3))
+    {
+        destroy_user_space(new_cr3);
         kfree(buffer);
 
         return VFS_ERR;
@@ -132,15 +161,31 @@ int sys_exec(const char *path)
 
     if (!stack_phy)
     {
+        destroy_user_space(new_cr3);
         kfree(buffer);
         return VFS_ERR;
     }
 
-    map_page_in_directory(current_task->cr3, USER_STACK_TOP - USER_STACK_SIZE,
-                          stack_phy, PAGE_PRESENT | PAGE_USER | PAGE_WRITE);
+    if (!(map_page_in_directory(new_cr3, USER_STACK_TOP - USER_STACK_SIZE,
+                                stack_phy, PAGE_PRESENT | PAGE_USER | PAGE_WRITE)))
+    {
+        pmm_free(stack_phy);
+        destroy_user_space(new_cr3);
+        kfree(buffer);
+        return VFS_ERR;
+    }
+
+    uint32_t old_cr3 = current_task->cr3;
+    current_task->cr3 = new_cr3;
+    asm volatile("mov %0, %%cr3" ::"r"(new_cr3) : "memory");
 
     current_task->regs.eip = hdr->entry_point;
     current_task->regs.useresp = USER_STACK_TOP;
+
+    current_task->regs.esp = USER_STACK_TOP;
+    current_task->regs.ebp = USER_STACK_TOP;
+
+    destroy_user_space(old_cr3);
 
     kfree(buffer);
 

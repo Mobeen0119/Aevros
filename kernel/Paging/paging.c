@@ -135,8 +135,8 @@ uint32_t clone_page_directory(uint32_t src_cr3)
     return new_pd_phys;
 }
 
-void map_page_in_directory(uint32_t tar_cr3, uint32_t vir,
-                           uint32_t phy, uint32_t flags)
+int map_page_in_directory(uint32_t tar_cr3, uint32_t vir,
+                          uint32_t phy, uint32_t flags)
 {
 
     uint32_t pd_index = vir >> 22;
@@ -151,7 +151,7 @@ void map_page_in_directory(uint32_t tar_cr3, uint32_t vir,
         uint32_t new_pt_phy = pmm_alloc();
 
         if (!new_pt_phy)
-            return VFS_ERR;
+            return 1;
 
         map_page(TEMP_SRC_PAGE, new_pt_phy, PAGE_PRESENT | PAGE_WRITE);
 
@@ -170,4 +170,5 @@ void map_page_in_directory(uint32_t tar_cr3, uint32_t vir,
         unmap(TEMP_PD_VIRT);
         unmap(TEMP_SRC_PAGE);
     }
+    return 1;
 }

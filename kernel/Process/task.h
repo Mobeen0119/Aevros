@@ -41,15 +41,15 @@ void init_tasking();
 
 task_t *create_process(void (*entry)(), uint32_t flags, uint32_t page_dir);
 
+task_t *task_create_kernel(void (*entry_point)());
+task_t *task_create_user(void (*entry_point)());
+
 void schedule();
 
 void sys_exit(int status);
-
-void sys_print(char *str);
 
 int do_fork(register_t *state_at_interuppt);
 
 int sys_waitpid(int target_pid, int *status);
 
-int timer_callback(register_t *regs);
 #endif

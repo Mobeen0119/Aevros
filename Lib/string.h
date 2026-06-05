@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "../kernel/Memory/kheap.c"
+#include "../kernel/Memory/kheap.h"
 
 uint32_t strlen(const char *str)
 {

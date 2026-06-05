@@ -2,20 +2,19 @@
 #include "pmm.h"
 #include "Paging/paging.h"
 #include "../Include/vfs.h"
-#include "../io.c"
+#include "../io.h"
 #include "../include/screen.h"
 #include "../Dev/dev.h"
 #include "../Memory/kheap.h"
 #include "../CPU/tss.h"
 #include "userspace.h"
 #include "process-memory/process_memory.h"
-#define TIME_SLICE 60
 
 #define Temp_p_vir_addr 0xFFC00000
 
 task_t *current_task = 0, *ready_queue = 0;
 
-int next_pid = 0, timer_clicks = 0;
+int next_pid = 0;
 
 extern void switch_current_task(task_t *prev, task_t *next);
 extern uint32_t read_eip();
@@ -76,6 +75,20 @@ void init_tasking()
     ready_queue = current_task;
 }
 
+task_t *task_create_kernel(void (*entry_point)())
+{
+    return create_process(entry_point, 0, 0);
+}
+
+task_t *task_create_user(void (*entry_point)())
+{
+    uint32_t page_dir = create_user_space();
+    if (!page_dir)
+        return 0;
+
+    return create_process(entry_point, 0, page_dir);
+}
+
 task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
 {
 
@@ -130,36 +143,23 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     return new_task;
 }
 
-void schedule()
+void schedule(register_t *regs)
 {
     if (!current_task)
         return;
 
-    task_t *prev = current_task;
-    task_t *next_task = current_task->next;
+    current_task->regs = *regs;
 
-    while (next_task->state != TASK_READY && next_task->state != TASK_RUNNING && next_task != current_task)
-        next_task = next_task->next;
+    task_t *next = pick_next_task();
 
-    if (next_task->state != TASK_READY && next_task->state != TASK_RUNNING)
-    {
-        kprint("KERNEL PANIC: No runnable tasks!\n");
-        while (1)
-            asm volatile("hlt");
-    }
+    if (next == current_task)
+        return;
 
-    current_task = next_task;
-    current_task->state = TASK_RUNNING;
+    current_task = next;
+    tss.esp0 = next->kernel_stack;
 
-    if (prev->state == TASK_RUNNING)
-        prev->state = TASK_READY;
-
-    tss.esp0 = current_task->kernel_stack;
-
-    switch_current_task(prev, current_task);
+    switch_current_task(prev, next);
 }
-
-
 
 void sys_exit(int status)
 {
@@ -258,9 +258,60 @@ int sys_waitpid(int target_pid, int *status)
     }
 }
 
-int timer_callback(register_t *regs)
+void task_add_ready(task_t *task)
 {
-    if (++timer_clicks % TIME_SLICE == 0)
-        schedule();
-    return VFS_OK;
+    if (!task)
+        return;
+
+    task->state = TASK_READY;
+    if (ready_queue == NULL)
+    {
+        ready_queue = task;
+        task->next = task;
+    }
+    else
+    {
+        task_t *temp = ready_queue;
+        while (temp->next != ready_queue)
+            temp = temp->next;
+        temp->next = task;
+        task->next = ready_queue;
+    }
 }
+
+void task_remove_ready(task_t *task)
+{
+    if (!task || !ready_queue)
+        return;
+
+    task->state = TASK_BLOCKED;
+
+    if (ready_queue == task && ready_queue->next == ready_queue)
+    {
+        ready_queue = NULL;
+        return;
+    }
+
+    task_t *temp = ready_queue;
+    while (temp->next != task)
+        temp = temp->next;
+
+    temp->next = task->next;
+
+    if (ready_queue == task)
+        ready_queue = task->next;
+}
+
+task_t *pick_next_task()
+{
+    task_t *temp = ready_queue;
+    do
+    {
+        if (temp->state == TASK_READY)
+            return temp;
+        temp = temp->next;
+    } while (temp != ready_queue);
+
+    return ready_queue;
+}
+

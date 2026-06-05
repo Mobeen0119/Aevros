@@ -3,6 +3,7 @@
 #include "../Paging/paging.h"
 #include "../Memory/kheap.h"
 #include "../../Include/vfs.h"
+#include "process-memory/process_memory.h"
 
 extern uint32_t read_cr3(void);
 extern uint32_t read_eip(void);
@@ -25,6 +26,7 @@ int do_fork(register_t *state_at_interuppt)
 
     if (!child->cr3)
     {
+        destroy_user_space(child->cr3);
         kfree(child);
         return VFS_ERR;
     }
@@ -45,6 +47,7 @@ int do_fork(register_t *state_at_interuppt)
 
     if (!new_stack)
     {
+
         kfree(child);
         return VFS_ERR;
     }
@@ -52,6 +55,14 @@ int do_fork(register_t *state_at_interuppt)
     uint32_t stack_top = (uint32_t)new_stack + 4096;
     child->kernel_stack = stack_top;
 
+    if (state_at_interuppt->esp > parent->kernel_stack)
+    {
+        destroy_user_space(child->cr3);
+        kfree(child);
+        kfree(new_stack);
+
+        return VFS_ERR;
+    }
     uint32_t stack_used = parent->kernel_stack - state_at_interuppt->esp;
     child->regs.esp = stack_top - stack_used;
     child->regs.ebp = state_at_interuppt->ebp + (child->regs.esp - state_at_interuppt->esp);

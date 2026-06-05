@@ -10,8 +10,6 @@
 #include "userspace.h"
 #include "process-memory/process_memory.h"
 
-#define Temp_p_vir_addr 0xFFC00000
-
 task_t *current_task = 0, *ready_queue = 0;
 
 int next_pid = 0;
@@ -83,10 +81,18 @@ task_t *task_create_kernel(void (*entry_point)())
 task_t *task_create_user(void (*entry_point)())
 {
     uint32_t page_dir = create_user_space();
+    task_t *task = create_process(entry_point, 0, page_dir);
+
+    if (!task)
+    {
+        destroy_user_space(page_dir);
+        return;
+    }
+
     if (!page_dir)
         return 0;
 
-    return create_process(entry_point, 0, page_dir);
+    return task;
 }
 
 task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
@@ -143,13 +149,14 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     return new_task;
 }
 
-void schedule(register_t *regs)
+void schedule()
 {
     if (!current_task)
         return;
 
     current_task->regs = *regs;
 
+    task_t *prev = current_task;
     task_t *next = pick_next_task();
 
     if (next == current_task)
@@ -293,9 +300,15 @@ void task_remove_ready(task_t *task)
     }
 
     task_t *temp = ready_queue;
-    while (temp->next != task)
+    do
+    {
+        if (temp->next == task)
+            break;
         temp = temp->next;
+    } while (temp->next != ready_queue);
 
+    if (temp->next != task)
+        return;
     temp->next = task->next;
 
     if (ready_queue == task)
@@ -314,4 +327,3 @@ task_t *pick_next_task()
 
     return ready_queue;
 }
-

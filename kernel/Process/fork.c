@@ -3,6 +3,7 @@
 #include "../Paging/paging.h"
 #include "../Memory/kheap.h"
 #include "../../Include/vfs.h"
+#include "task.h"
 #include "process-memory/process_memory.h"
 
 extern uint32_t read_cr3(void);
@@ -10,6 +11,8 @@ extern uint32_t read_eip(void);
 
 int do_fork(register_t *state_at_interuppt)
 {
+    if(!current_task || !state_at_interuppt) return VFS_ERR;
+
     task_t *parent = current_task;
 
     if (!parent)
@@ -18,6 +21,7 @@ int do_fork(register_t *state_at_interuppt)
     task_t *child = (task_t *)kmalloc(sizeof(task_t));
 
     if (!child)
+        kfree(child);
         return VFS_ERR;
 
     memset(child, 0, sizeof(task_t));
@@ -25,6 +29,14 @@ int do_fork(register_t *state_at_interuppt)
     child->cr3 = clone_page_directory(parent->cr3);
 
     if (!child->cr3)
+    {
+        kfree(child);
+        return VFS_ERR;
+    }
+    
+    uint8_t *new_stack = (uint8_t *)kmalloc(4096);
+
+    if (!new_stack)
     {
         destroy_user_space(child->cr3);
         kfree(child);
@@ -43,14 +55,7 @@ int do_fork(register_t *state_at_interuppt)
 
     child->regs.eax = 0;
 
-    uint8_t *new_stack = (uint8_t *)kmalloc(4096);
 
-    if (!new_stack)
-    {
-
-        kfree(child);
-        return VFS_ERR;
-    }
 
     uint32_t stack_top = (uint32_t)new_stack + 4096;
     child->kernel_stack = stack_top;
@@ -63,7 +68,16 @@ int do_fork(register_t *state_at_interuppt)
 
         return VFS_ERR;
     }
+
     uint32_t stack_used = parent->kernel_stack - state_at_interuppt->esp;
+
+    if(stack_used>4096){
+        destroy_user_space(child->cr3);
+        kfree(stack_used);
+        kfree(child);
+        
+        return VFS_ERR;
+    }
     child->regs.esp = stack_top - stack_used;
     child->regs.ebp = state_at_interuppt->ebp + (child->regs.esp - state_at_interuppt->esp);
 
@@ -77,20 +91,7 @@ int do_fork(register_t *state_at_interuppt)
             child->fd_table[i]->inode->ref_count++;
     }
 
-    if (!ready_queue)
-    {
-        ready_queue = child;
-        child->next = child;
-    }
-    else
-    {
-        task_t *temp = ready_queue;
-        while (temp->next != ready_queue)
-            temp = temp->next;
-
-        temp->next = child;
-        child->next = ready_queue;
-    }
+    task_add_ready(child);
 
     return child->pid;
 }

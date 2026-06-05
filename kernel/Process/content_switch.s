@@ -22,6 +22,9 @@ switch_current_task:
     mov [eax+ESP_OFFSET], esp
     mov [eax+EBP_OFFSET], ebp
 
+    mov eax, [next->cr3] 
+    mov cr3, eax
+
 .skip_save:
     mov [current_task], ecx 
 

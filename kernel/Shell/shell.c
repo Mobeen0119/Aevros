@@ -73,6 +73,7 @@ void shell_execute(char *input)
     {
         if (argc < 2)
             kprint("touch: missing file\n");
+            return;
 
         cmd_touch(argv[1]);
     }
@@ -106,6 +107,34 @@ void shell_execute(char *input)
             tree_walk(vfs_read, 0);
         else
             kprint("tree: VFS root not initialized\n");
+    }
+
+    else if (strcmp(argv[0], "meminfo") == 0)
+    {
+        if (argc == 1)
+        {
+            meminfo_all();
+        }
+        else if (strcmp(argv[1], "pmm") == 0)
+        {
+            meminfo_pmm();
+        }
+        else if (strcmp(argv[1], "heap") == 0)
+        {
+            meminfo_heap();
+        }
+        else if (strcmp(argv[1], "paging") == 0)
+        {
+            meminfo_paging();
+        }
+        else if (strcmp(argv[1], "task") == 0)
+        {
+            meminfo_task();
+        }
+        else
+        {
+            kprint("usage: meminfo [pmm|heap|paging|task]\n");
+        }
     }
 
     else

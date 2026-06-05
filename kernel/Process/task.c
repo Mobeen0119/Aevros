@@ -9,6 +9,7 @@
 #include "../CPU/tss.h"
 #include "userspace.h"
 #include "process-memory/process_memory.h"
+#define TIME_SLICE 60
 
 #define Temp_p_vir_addr 0xFFC00000
 
@@ -216,11 +217,6 @@ void sys_exit(int status)
     if (dead->parent && dead->parent->state == TASK_BLOCKED)
         dead->parent->state = TASK_READY;
 
-    current_task = ready_queue;
-    tss.esp0 = current_task->kernel_stack;
-    
-    destroy_user_space(dead->cr3);
-
     schedule();
 
     __builtin_unreachable();
@@ -284,8 +280,7 @@ int sys_waitpid(int target_pid, int *status)
 
 int timer_callback(register_t *regs)
 {
-    timer_clicks++;
-
-    schedule();
+    if (++timer_clicks % TIME_SLICE == 0)
+        schedule();
     return VFS_OK;
 }

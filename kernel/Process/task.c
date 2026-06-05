@@ -159,27 +159,7 @@ void schedule()
     switch_current_task(prev, current_task);
 }
 
-void pit_init(uint32_t frequency)
-{
 
-    uint32_t divisor = 1193182 / frequency;
-
-    outb(0x43, 0x36);
-
-    outb(0x40, (uint8_t)(divisor & 0xFF));
-    outb(0x40, (uint8_t)(divisor >> 8) & 0xFF);
-}
-
-void sys_print(char *user_string)
-{
-    if (!user_string)
-        return;
-
-    for (int i = 0; user_string[i]; i++)
-    {
-        kput_char(user_string[i]);
-    }
-}
 
 void sys_exit(int status)
 {

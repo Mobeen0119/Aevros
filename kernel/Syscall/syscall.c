@@ -3,6 +3,7 @@
 #include "../Process/task.h"
 #include "../CPU/idt.h"
 #include "../Paging/isr.h"
+#include "../../Include/screen.h"
 
 
 extern void isr128();
@@ -77,4 +78,15 @@ void syscall_handler(register_t *regs)
 int sys_fork(register_t *regs)
 {
     return do_fork(regs);
+}
+
+void sys_print(char *user_string)
+{
+    if (!user_string)
+        return;
+
+    for (int i = 0; user_string[i]; i++)
+    {
+        kput_char(user_string[i]);
+    }
 }

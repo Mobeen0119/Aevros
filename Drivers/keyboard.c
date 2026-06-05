@@ -1,5 +1,5 @@
 #include "keyboard.h"
-#include "../kernel/io.c"
+#include "../kernel/io.h"
 #define KEY_RELEASE 0x80
 
 char keyboard_buffer[128];

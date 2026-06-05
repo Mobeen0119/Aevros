@@ -20,4 +20,6 @@ void init_syscalls();
 
 int sys_fork();
 
+void sys_print(char *user_string);
+
 #endif

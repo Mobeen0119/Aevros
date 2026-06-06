@@ -154,16 +154,18 @@ void schedule()
     if (!current_task)
         return;
 
-    current_task->regs = *regs;
-
     task_t *prev = current_task;
     task_t *next = pick_next_task();
 
-    if (next == current_task)
+    if (!next || next == current_task)
         return;
 
     current_task = next;
+
+    asm volatile("mov %0,%%cr3" :: "r"(next->cr3));
+
     tss.esp0 = next->kernel_stack;
+    tss.ss0=0x10;
 
     switch_current_task(prev, next);
 }
@@ -320,7 +322,7 @@ task_t *pick_next_task()
     task_t *temp = ready_queue;
     do
     {
-        if (temp->state == TASK_READY)
+        if (temp->state == TASK_READY && temp->state != TASK_ZOMBIE)
             return temp;
         temp = temp->next;
     } while (temp != ready_queue);

@@ -20,8 +20,6 @@ switch_current_task:
 	mov     [eax + ESP_OFFSET], esp
 	mov     [eax + EBP_OFFSET], ebp
 
-
-
 .load_next:
 
 	mov     [current_task], ecx					; Update current_task to the new task
@@ -30,11 +28,7 @@ switch_current_task:
 	mov     cr3, edx
 
 	mov     edx, [ecx + KERNEL_STACK_OFFSET]
-	mov     ebp, [ecx + EBP_OFFSET]
-
-	mov     edx, [ecx + KERNEL_STACK]
-	mov     [tss_entry + 4], edx				; Update TSS esp0
-
+	mov     [tss_entry + 4], edx				; Update the TSS's esp0 to the new task's kernel stack
 
 	mov     esp, [ecx + ESP_OFFSET]
 	mov     ebp, [ecx + EBP_OFFSET]

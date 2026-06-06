@@ -13,10 +13,10 @@ jump_user_mode:
     mov es,ax
     mov gs,ax
 
-    push 0x23  ; data segment for user
+    push 0x23  ; stack segment for user
     push ebx ; Push the user stack top onto the stack
 
-    push ebx
+    pushfd 
     pop ecx
     or ecx,0x200 ; Set the interrupt flag in EFLAGS to enable interrupts in user mode
     push ecx

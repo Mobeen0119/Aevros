@@ -33,7 +33,7 @@ switch_current_task:
 	mov     esp, [ecx + ESP_OFFSET]
 	mov     ebp, [ecx + EBP_OFFSET]
 
-	ret
+	iret
 
 
 global read_eip

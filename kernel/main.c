@@ -11,43 +11,22 @@
 #include "Process/task.h"
 #include "Process/exec.h"
 
-void kernel_main(unsigned int magic, unsigned int mboot_ptr) {
-    
-    
-    terminal_initialize(); 
-    kprint("Welcome to ForgeOS!\n");
-    kprint("-------------------\n");
-
-  
-    gdt_init();          
-    idt_init();          
-    tss_init();          
-    kprint("[OK] CPU Core Frameworks Online.\n");
-
-   
-    pmm_init(mboot_ptr,sizeof(mboot_ptr)); 
-    paging_init();       
-    kprint("[OK] Memory Management Sandboxing Active.\n");
-
-    vfs_root = vfs_init(); 
- 
-    // ramfs_mkdir("/bin");
-    // ramfs_mkdir("/dev");
-    
-    devfs_init(); 
-    kprint("[OK] Filesystems mounted and hardware devices mapped.\n");
-
-    init_tasking();      
-    init_syscalls();     
-    kprint("[OK] Scheduler running. Multi-process loops ready.\n");
-
-    kprint("Booting into user environment...\n");
-    
-    sys_execve("/bin/test"); 
-
-    asm volatile("sti");
-
-    while(1) {
-        asm volatile("hlt");
+void user_program()
+{
+    while (1)
+    {
+        kprint("HELLO USER\n");
     }
+}
+
+void kernel_main() {
+    init_pmm();
+    init_paging();
+    init_tasking();
+    init_interrupts();
+
+    task_create_user(user_program);   
+
+    asm volatile("sti");              // enable interrupts
+    while(1);
 }

@@ -3,7 +3,7 @@
 #include "../../Kernel/Paging/isr.h"
 #define TIME_SLICE 60
 
- timer_clicks = 0;
+ volatile uint32_t timer_clicks = 0;
 
 void pit_init(uint32_t frequency)
 {

@@ -2,48 +2,48 @@ global switch_current_task
 extern current_task
 extern tss_entry
 
-CR3_OFFSET equ 140
-KERNEL STACK equ 144
-REGS_BASE equ 164
-EBP_OFFSET equ REGS_BASE + 12
-ESP_OFFSET equ REGS_BASE + 16
+CR3_OFFSET      equ     0
+KERNEL_STACK_OFFSET equ     88
+ESP_OFFSET      equ     36
+EBP_OFFSET      equ     40
 
 
 switch_current_task:
-    pusha
 
-    mov eax, [esp+36] 
-    mov ecx, [esp+40] 
+	mov     eax, [esp+4]
+	mov     ecx, [esp+8]
 
-    test eax,eax ; Check if current_task is NULL
-    jz .skip_save ; If it is, skip saving state
+	test    eax, eax							; Check if current_task is NULL
+	jz      .load_next							; If it is, skip saving state
 
 
-    mov [eax+ESP_OFFSET], esp
-    mov [eax+EBP_OFFSET], ebp
+	mov     [eax + ESP_OFFSET], esp
+	mov     [eax + EBP_OFFSET], ebp
 
-    mov eax, [next->cr3] 
-    mov cr3, eax
 
-.skip_save:
-    mov [current_task], ecx 
 
-    mov edx, [ecx+CR3_OFFSET]
-    mov cr3, edx
+.load_next:
 
-    mov esp, [ecx + ESP_OFFSET]
-    mov ebp, [ecx + EBP_OFFSET]
+	mov     [current_task], ecx					; Update current_task to the new task
 
-    mov edx, [ecx + KERNEL_STACK]
-    mov [tss_entry + 4], edx ; Update TSS esp0
+	mov     edx, [ecx+CR3_OFFSET]
+	mov     cr3, edx
 
-    popa
-    
-    ret
+	mov     edx, [ecx + KERNEL_STACK_OFFSET]
+	mov     ebp, [ecx + EBP_OFFSET]
+
+	mov     edx, [ecx + KERNEL_STACK]
+	mov     [tss_entry + 4], edx				; Update TSS esp0
+
+
+	mov     esp, [ecx + ESP_OFFSET]
+	mov     ebp, [ecx + EBP_OFFSET]
+
+	ret
 
 
 global read_eip
 
 read_eip:
-    mov eax,[esp]
-    jmp eax
+	mov     eax, [esp]
+	jmp     eax

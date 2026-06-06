@@ -2,7 +2,7 @@ ENTRY(kernel_main)
 
 SECTIONS
 {
-    . = 0xC0100000;  //Virtual address where the kernel will be loaded
+   . = 0xC0100000;  //Virtual address where the kernel will be loaded
 
     .text : AT(ADDR(.text)-0xC0000000) {  //load at physical 1MB
         *(.multiboot)

@@ -18,7 +18,6 @@
 #define READ_WRITE 0x03
 #define CREAT 0x04
 
-dentry_t *vfs_root = 0;
 
 typedef struct dentry dentry_t;
 
@@ -31,7 +30,7 @@ typedef struct vfs_ops
 {
     read_fn read;
     write_fn write;
-
+    
 } vfs_ops_t;
 
 typedef struct dirent
@@ -49,7 +48,7 @@ typedef struct file_descriptor // Open file state
     dentry_t *dentry;
     int ref_count;
     uint32_t position, flags, offset;
-
+    
 } file_t;
 
 typedef struct inode
@@ -76,8 +75,10 @@ typedef struct dentry // name Cache layer
     struct dentry *next; // bucket chain
     struct dentry *hash_bucket[DENTRY_HASH];
     struct dentry *hash_next;
+    
+}dentry_t;
 
-} dentry_t;
+dentry_t *vfs_root = 0;
 
 uint32_t dentry_hash(const char *name);
 

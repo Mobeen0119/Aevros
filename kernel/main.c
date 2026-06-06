@@ -19,14 +19,21 @@ void user_program()
     }
 }
 
-void kernel_main() {
+void kernel_main()
+{
+
+    volatile char *vga = (volatile char *)0xB8000;
+    vga[0] = 'X';
+    vga[1] = 0x0F;
+
     init_pmm();
     init_paging();
     init_tasking();
     init_interrupts();
 
-    task_create_user(user_program);   
+    task_create_user(user_program);
 
-    asm volatile("sti");              // enable interrupts
-    while(1);
+    asm volatile("sti"); // enable interrupts
+    while (1)
+        ;
 }

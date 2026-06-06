@@ -1,1 +1,35 @@
-CFLAGS= -g -fstack-protecter-strong  //add guard to only those who need 
+CC=gcc
+ASM=nasm
+LD=ld
+
+
+CFLAGS=-m32 -ffreestanding -fno-builtin -fo-stack-protector -nostdlib
+ASMFLAGS=-f elf32
+
+LDFLAGS=-m elf_i386 -T linker.ld
+
+
+KERNEL_OBJS=kernel/main.o \boot/boot.o
+
+
+all: kernel.elf iso
+
+
+kernel.elf: $(KERNEL_OBJS)
+	$(LD) $(LDFLAGS) -o kernel.elf $(KERNEL_OBJS)
+
+
+%.o: %.c 
+	$(CC) $(CFLAGS) -c $< -o $@
+
+%.o: %.asm
+	$(ASM) $(ASMFLAGS) $< -o $@
+
+iso: kernel.elf
+	mkdir -p iso/boot/grub
+	cp kernel.elf iso/boot/kernel.elf
+	cp boot/grub.cfg iso/boot/grub/grub.cfg
+	grub-mkrescue -o forgeos.iso iso/
+
+clean:s
+	rm -rf *.o kernel.elf iso forgeos.iso

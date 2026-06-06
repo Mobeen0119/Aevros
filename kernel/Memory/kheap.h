@@ -1,7 +1,10 @@
 #include <stddef.h>
-#include "slab.c"
+
 #include "buddy.c"
+#include "slab.c"
+
 #define MAX_ORDER 10
+
 
 int size_to_order(size_t size)
 {

@@ -18,7 +18,8 @@
 #define READ_WRITE 0x03
 #define CREAT 0x04
 
-
+struct task; 
+typedef struct task task_t;
 typedef struct dentry dentry_t;
 
 //--------ptr to fnc-->ptr to file_node-->offset(start)-->size-->buffer
@@ -65,7 +66,7 @@ typedef struct vfs_mount
     uint32_t flags;
 } vfs_mount_t;
 
-typedef struct dentry // name Cache layer
+struct dentry // name Cache layer
 {
     char *name;
     inode_t *inode;
@@ -76,9 +77,9 @@ typedef struct dentry // name Cache layer
     struct dentry *hash_bucket[DENTRY_HASH];
     struct dentry *hash_next;
     
-}dentry_t;
+};
 
-dentry_t *vfs_root = 0;
+extern dentry_t *vfs_root;
 
 uint32_t dentry_hash(const char *name);
 

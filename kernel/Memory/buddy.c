@@ -1,9 +1,16 @@
 #include <stdint.h>
 #include <stdbool.h>
-#include "pmm.c"
+#include "pmm.h"
 
 #define MAX_ORDER 10
 
+typedef enum
+{
+    SLAB = 1,
+    BUDDY = 2
+} alloc_type_t;
+
+struct slab_cache;
 typedef struct block_header
 {
     uint32_t size;
@@ -17,11 +24,6 @@ typedef struct block_header
     } infor;
 } block_header_t;
 
-typedef enum
-{
-    SLAB = 1,
-    BUDDY = 2
-} alloc_type_t;
 
 typedef struct _buddy_block
 {
@@ -29,6 +31,10 @@ typedef struct _buddy_block
 } buddy_block_t;
 
 buddy_block_t *free_lists[MAX_ORDER + 1];
+
+void add_to_list(void *ptr, int order);
+void remove_from_list(void *ptr, int order);
+
 
 void *buddy_alloc(int order)
 {

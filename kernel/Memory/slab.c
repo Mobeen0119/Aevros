@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-typedef struct
+typedef struct slab_cache
 {
     uint32_t bitmap;
     void *first_slot;

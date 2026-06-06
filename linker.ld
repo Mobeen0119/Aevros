@@ -2,23 +2,23 @@ ENTRY(kernel_main)
 
 SECTIONS
 {
-   . = 0xC0100000;  //Virtual address where the kernel will be loaded
+    . = 0x1M;
 
-    .text : AT(ADDR(.text)-0xC0000000) {  //load at physical 1MB
+    .text : {
         *(.multiboot)
-        *(.text)
+        *(.text*)
     }
 
     .rodata : {
-        *(.rodata)
+        *(.rodata*)
     }
 
     .data : {
-        *(.data)
+        *(.data*)
     }
 
-    .bss : AT(ADDR(.bss) - 0xC0000000){
+    .bss : {
         *(COMMON)
-        *(.bss)
+        *(.bss*)
     }
 }

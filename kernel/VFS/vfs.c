@@ -1,11 +1,12 @@
 #include <stdint.h>
-#include "../Memory/kheap.c"
+#include "../Memory/kheap.h"
 #include "../Process/task.h"
 #include "..\include\vfs.h"
 #include "../include/RAMFS.h"
 #include "../LIB/string.c"
 #include "../Dev/dev.h"
 
+dentry_t *vfs_root = 0;
 
 uint32_t vfs_read(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
 {

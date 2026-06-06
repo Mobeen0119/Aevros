@@ -1,6 +1,9 @@
 #include "pmm.h"
 
+
 #define FRAME_SIZE 4096
+
+uint32_t mem[1024];
 
 uint32_t frame_stack[MAX_FRAMES];
 static int32_t stack_top = -1;

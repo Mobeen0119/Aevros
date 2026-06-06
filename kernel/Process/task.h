@@ -1,5 +1,6 @@
 #ifndef TASK_H
 #define TASK_H
+
 #include "../../Include/vfs.h"
 #include "../Paging/isr.h"
 
@@ -44,6 +45,7 @@ task_t *create_process(void (*entry)(), uint32_t flags, uint32_t page_dir);
 task_t *task_create_kernel(void (*entry_point)());
 task_t *task_create_user(void (*entry_point)());
 
+task_t *pick_next_task(void);
 void schedule();
 
 void sys_exit(int status);

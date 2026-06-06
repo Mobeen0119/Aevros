@@ -1,4 +1,3 @@
-// kernel/main.c
 #include "../Include/screen.h"
 #include "../Include/vfs.h"
 #include "../Include/ramfs.h"
@@ -24,13 +23,10 @@ void kernel_main()
 
     volatile char *vga = (volatile char *)0xB8000;
     vga[0] = 'X';
-    vga[1] = 0x0F;
-
-    init_pmm();
-    init_paging();
+    vga[1] = 0x0F; 
+   
+pmm_init(0x100000, 0x4000000);
     init_tasking();
-    init_interrupts();
-
     task_create_user(user_program);
 
     asm volatile("sti"); // enable interrupts

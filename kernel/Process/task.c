@@ -1,9 +1,9 @@
 #include "task.h"
-#include "pmm.h"
-#include "Paging/paging.h"
-#include "../Include/vfs.h"
+#include "../Memory/pmm.h"
+#include "../Paging/paging.h"
+#include "../../Include/vfs.h"
 #include "../io.h"
-#include "../include/screen.h"
+#include "../../Include/screen.h"
 #include "../Dev/dev.h"
 #include "../Memory/kheap.h"
 #include "../CPU/tss.h"
@@ -86,7 +86,7 @@ task_t *task_create_user(void (*entry_point)())
     if (!task)
     {
         destroy_user_space(page_dir);
-        return;
+        return 0; 
     }
 
     if (!page_dir)
@@ -155,7 +155,7 @@ void schedule()
         return;
 
     task_t *prev = current_task;
-    task_t *next = pick_next_task();
+    task_t *next = pick_next_task(); 
 
     if (!next || next == current_task)
         return;
@@ -165,7 +165,7 @@ void schedule()
     asm volatile("mov %0,%%cr3" :: "r"(next->cr3));
 
     tss.esp0 = next->kernel_stack;
-    tss.ss0=0x10;
+    tss.ss0 = 0x10;
 
     switch_current_task(prev, next);
 }

@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include "../Memory/kheap.h"
 #include "../Process/task.h"
-#include "..\include\vfs.h"
+#include "../include/vfs.h"
 #include "../include/RAMFS.h"
 #include "../LIB/string.c"
 #include "../Dev/dev.h"

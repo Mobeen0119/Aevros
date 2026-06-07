@@ -1,6 +1,5 @@
 #include "idt.h"
-#include "TSS/syscall.s"
-#include "../boot/boot.s"
+
 
 struct IDT_entry idt[256];
 struct IDT_ptr idtp;

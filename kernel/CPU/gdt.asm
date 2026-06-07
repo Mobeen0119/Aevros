@@ -1,4 +1,3 @@
-	[BITS 32]
 global gdt_flush
 global load_tss
 

@@ -1,4 +1,6 @@
 #include <stdint.h>
+#include <stddef.h>
+#include "buddy.h"
 
 typedef struct slab_cache
 {

@@ -1,7 +1,7 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+shopt -s nullglob
 
-# 1. Clean up ALL previous build artifacts and binaries
 echo "🧹 Cleaning workspace..."
 rm -f boot.o *.c.o *.asm.o kernel.elf forgeos.iso main.exe kernel.exe
 rm -rf iso/
@@ -16,34 +16,37 @@ fi
 # 2. Assemble Low-Level CPU & Boot Routines
 echo "Assembling assembly source files..."
 
-# Assemble the main bootloader entry point
 if [ -f "./boot.s" ]; then
     nasm -f elf32 ./boot.s -o boot.o
 elif [ -f "./boot/boot.s" ]; then
     nasm -f elf32 ./boot/boot.s -o boot.o
+else
+    echo "❌ boot.s not found."
+    exit 1
 fi
 
-# Assemble all NASM-compatible assembly sources except the bootloader.
-find . -type f \( -name "*.asm" -o -name "*.s" \) ! -name "boot.s" | while read -r asm_file; do
+asm_objects=()
+while IFS= read -r asm_file; do
     obj_file=$(echo "$asm_file" | sed 's#^./##; s#/#_#g; s#\.[^.]*$#.asm.o#')
     echo "Assembling $asm_file -> $obj_file"
     nasm -f elf32 "$asm_file" -o "$obj_file"
-done
+    asm_objects+=("$obj_file")
+done < <(find . -type f \( -name "*.asm" -o -name "*.s" \) ! -name "boot.s")
 
-# 3. Compile ALL Kernel C Source Files Safely
-for c_file in $(find . -name "*.c" | grep -v "buddy.c" | grep -v "slab.c" | grep -v "iso/" | grep -v "./User/"); do
+c_objects=()
+while IFS= read -r c_file; do
     obj_file=$(echo "$c_file" | sed 's#^./##; s#/#_#g; s#\.c$#.c.o#')
     echo "Compiling Kernel File: $c_file -> $obj_file"
     gcc -m32 -ffreestanding -fno-stack-protector -c "$c_file" -o "$obj_file"
-done
+    c_objects+=("$obj_file")
+done < <(find . -name "*.c" | grep -v "buddy.c" | grep -v "slab.c" | grep -v "iso/" | grep -v "./User/")
 
 echo "Linking architecture files into kernel.elf using linker.ld..."
-ld -m elf_i386 -T linker.ld -o kernel.elf boot.o *.c.o *.asm.o
+ld -m elf_i386 -T linker.ld -o kernel.elf boot.o "${c_objects[@]}" "${asm_objects[@]}"
 
 if [ -f kernel.elf ]; then
     mkdir -p iso/boot/grub
     cp kernel.elf iso/boot/
-    
     cat << EOF > iso/boot/grub/grub.cfg
 set timeout=0
 set default=0
@@ -53,9 +56,8 @@ menuentry "ForgeOS" {
     boot
 }
 EOF
-
     grub-mkrescue -o forgeos.iso iso/
     echo "✨ ForgeOS successfully forged into forgeos.iso!"
 else
-    echo "❌ Linking failed. Check missing references above."
+    echo "❌ Linking failed. Check the symbol errors above."
 fi

@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include "paging.h"
-#include "pmm.h"
+#include "../Memory/pmm.h"
 #include "../Process/task.h"
 
 uint32_t *kernel_directory = (uint32_t *)0xFFFFF000;

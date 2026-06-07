@@ -1,4 +1,6 @@
-#define ISR
+#define ISR_H
+#include <stdint.h>
+
 
 typedef struct registers{
     uint32_t ds,gs,fs,es;  // Data segment selector

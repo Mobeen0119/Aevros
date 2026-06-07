@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #include "elf.h"
 #include "../Memory/pmm.h"
 #include "../Paging/paging.h"

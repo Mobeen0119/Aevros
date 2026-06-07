@@ -104,7 +104,7 @@ void shell_execute(char *input)
     else if (strcmp(argv[0], "tree") == 0)
     {
         if (vfs_root)
-            tree_walk(vfs_read, 0);
+            tree_walk(vfs_root, 0);
         else
             kprint("tree: VFS root not initialized\n");
     }

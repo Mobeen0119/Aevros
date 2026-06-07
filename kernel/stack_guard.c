@@ -10,6 +10,6 @@ __attribute__((noreturn)) void __stack_chk_fail()
     
     while (1)
     {
-        asm volatile("hlt");s
+        asm volatile("hlt");
     }
 }

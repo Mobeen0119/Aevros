@@ -1,8 +1,8 @@
 #include "isr.h"
 #include <stdint.h>
-#include "../Memory/pmm.c"
+#include "../Memory/pmm.h"
 #include "../Process/task.h"
-#include "page_fault.c"
+#include "page_fault.h"
 #include "../../Lib/kprintf.h"
 #include "../../Drivers/keyboard.h"
 #include "../io.h"

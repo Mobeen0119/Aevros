@@ -1,6 +1,6 @@
 #include <stdint.h>
-#include "..\..\Include\ramfs.h"
-#include "..\..\Include\vfs.h"
+#include "../../Include/ramfs.h"
+#include "../../Include/vfs.h"
 #include "../Memory/pmm.h"
 #include "../Memory/kheap.h"
 #include "../../Lib/string.c"

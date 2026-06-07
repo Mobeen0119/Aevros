@@ -1,5 +1,7 @@
 #!/bin/bash
 
+rm -f *.o kernel.elf forgeos.iso
+
 # Assemble files
 nasm -f elf32 ./kernel/CPU/idt.asm -o idt_asm.o
 # ... (include your other asm compilation lines here if you have them)

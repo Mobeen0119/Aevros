@@ -6,6 +6,7 @@
 #include "../../Lib/kprintf.h"
 #include "../../Drivers/keyboard.h"
 #include "../io.h"
+#include "../Paging/paging.h"
 
 void isr_handler(struct registers* r)
 {

@@ -121,7 +121,9 @@ dentry_t *ramfs_mkdir(dentry_t *parent, const char *name)
     memset(inode, 0, sizeof(inode_t));
 
     inode->flags = VFS_DIR;
-    inode->fs_private = inode->ops = inode->size = 0;
+    inode->size = 0;
+    inode->ops = NULL;
+    inode->fs_private = NULL;
 
     dentry->name = strdup(name);
     dentry->inode = inode;

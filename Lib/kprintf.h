@@ -1,4 +1,4 @@
-#include <stdint.h>
+s#include <stdint.h>
 #include <stdarg.h>
 #include "../include/screen.h"
 

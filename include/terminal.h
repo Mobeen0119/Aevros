@@ -11,12 +11,17 @@ struct Line
     uint8_t colors[80];
 } buffer[MAX_LINES];
 
-uint16_t *const vga_memory = (uint16_t *)0xB8000;
+extern int cursor_x;
+extern int cursor_y;
+extern uint8_t current_color;
 
-char input_line[WIDTH];
-int input_length = 0; // Columns
-int cursor_y = 0;     // Logical line
-int scroll_top = 0;   // first line
-int cursor_x = 0;     // Input position in the current line
+extern char input_line[];
+extern int input_length;
+
+extern int scroll_top;
+extern void *buffer;
+extern void *vga_memory;
+
+
 
 void terminal_readline(char* out);

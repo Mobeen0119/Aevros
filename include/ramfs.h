@@ -1,5 +1,6 @@
 #define RAMFS_H
 #include <stdint.h>
+#include "vfs.h"
 
 typedef struct
 {

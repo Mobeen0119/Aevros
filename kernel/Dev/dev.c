@@ -1,5 +1,5 @@
 #include "dev.h"
-#include "../../Lib/string.c"
+#include "../../Lib/string.h"
 #include "../../Include/vfs.h"
 
 

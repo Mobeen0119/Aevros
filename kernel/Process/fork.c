@@ -73,7 +73,7 @@ int do_fork(register_t *state_at_interuppt)
 
     if(stack_used>4096){
         destroy_user_space(child->cr3);
-        kfree(stack_used);
+        kfree(new_stack);
         kfree(child);
         
         return VFS_ERR;

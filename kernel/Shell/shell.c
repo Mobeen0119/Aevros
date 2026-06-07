@@ -7,6 +7,13 @@
 #include "builtins.h"
 #include "parser.c"
 
+
+extern void meminfo_all(void);
+extern void meminfo_pmm(void);
+extern void meminfo_heap(void);
+extern void meminfo_paging(void);
+extern void meminfo_task(void);
+
 void shell_prompt()
 {
     kprint("FORGE_OS > ");

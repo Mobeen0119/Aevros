@@ -14,7 +14,8 @@ uint32_t vfs_read(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffe
     {
         return node->inode->ops->read(node->inode, offset, size, buffer);
     }
-    return VFS_OK;
+    return node->inode->ops->read(node, offset, size, buffer);
+    
 }
 
 uint32_t vfs_write(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
@@ -23,7 +24,8 @@ uint32_t vfs_write(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buff
     {
         return node->inode->ops->write(node->inode, offset, size, buffer);
     }
-    return VFS_OK;
+    return node->inode->ops->write(node, offset, size, buffer);
+    
 }
 
 static const char *skip_slash(const char *p)
@@ -245,7 +247,7 @@ int sys_read(int fd, uint8_t *buf, uint32_t size)
     if (!(file->flags & READ_ONLY) && !(file->flags & READ_WRITE))
         return VFS_ERR;
 
-    int bytes_read = file->inode->ops->read(file->inode, file->offset, size, buf);
+    int bytes_read = file->inode->ops->read(file->dentry, file->offset, size, buf););
     if (bytes_read > 0)
         file->offset += bytes_read;
 
@@ -401,14 +403,16 @@ int sys_chdir(const char *path)
     if (!path)
         return VFS_ERR;
 
-    dentry_t *dir = vfs_lookup(vfs_root, path);
-    if (!dir)
+    dentry_t *target_dir = vfs_lookup(path); // Use your actual path lookup function name
+    if (target_dir)
+    {
+        current_task->cwd = target_dir;
+    }
+
+    if (!(target_dir->inode->flags & VFS_DIR))
         return VFS_ERR;
 
-    if (!(dir->inode->flags & VFS_DIR))
-        return VFS_ERR;
-
-    current_task->cwd = dir;
+    current_task->cwd = target_dir;
     strcpy(current_task->cwd, path);
 
     return VFS_OK;

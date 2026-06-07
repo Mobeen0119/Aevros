@@ -5,6 +5,7 @@
 
 struct gdt_entry_struct gdt_entries[6];
 
+extern void gdt_flush(uint32_t);
 struct gdt_ptr_s
 {
     uint16_t limit;

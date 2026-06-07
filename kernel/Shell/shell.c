@@ -1,9 +1,9 @@
 #include <stdint.h>
-#include "../Include/shell.h"
-#include "../Include/screen.h"
-#include "../Include/terminal.h"
+#include "../../Include/shell.h"
+#include "../../Include/screen.h"
+#include "../../Include/terminal.h"
 #include "../../Lib/string.h"
-#include "../Include/vfs.h"
+#include "../../Include/vfs.h"
 #include "builtins.h"
 #include "parser.c"
 

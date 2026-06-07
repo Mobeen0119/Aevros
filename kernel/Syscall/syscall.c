@@ -4,6 +4,7 @@
 #include "../CPU/idt.h"
 #include "../Paging/isr.h"
 #include "../../Include/screen.h"
+#include "../Process/exec.h"
 
 
 extern void isr128();

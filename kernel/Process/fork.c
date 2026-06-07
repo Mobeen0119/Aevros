@@ -69,7 +69,7 @@ int do_fork(register_t *state_at_interuppt)
         return VFS_ERR;
     }
 
-    uint32_t stack_used = parent->kernel_stack - state_at_interuppt->esp;
+    uint32_t *stack_used = parent->kernel_stack - state_at_interuppt->esp;
 
     if(stack_used>4096){
         destroy_user_space(child->cr3);
@@ -78,7 +78,7 @@ int do_fork(register_t *state_at_interuppt)
         
         return VFS_ERR;
     }
-    child->regs.esp = stack_top - stack_used;
+    child->regs.esp = stack_top - *stack_used;
     child->regs.ebp = state_at_interuppt->ebp + (child->regs.esp - state_at_interuppt->esp);
 
     memcpy((void *)child->regs.esp, (void *)state_at_interuppt->esp, stack_used);

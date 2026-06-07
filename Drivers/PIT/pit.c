@@ -1,6 +1,7 @@
 #include "pit.h"
 #include "../../Kernel/io.h"
 #include "../../Kernel/Paging/isr.h"
+#include "../../kernel/Process/task.h"
 #define TIME_SLICE 60
 
  volatile uint32_t timer_clicks = 0;

@@ -8,7 +8,7 @@ void kput_char(char c);
 void kclear_screen();
 
 void kprint_at(const char *str, int row, int col);
-s
+
 void kprint(const char* str);
 
 #endif

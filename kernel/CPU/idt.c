@@ -25,7 +25,7 @@ void idt_init()
     idtp.base = (unsigned int)&idt;
     for(int i = 0; i < 256; i++)
     {
-        idt_gate_set(i, 0);
+        idt_gate_set(i, 0, 0);
     }
     idt_gate_set(0x80,(unsigned int)syscall_asm_handler,0xEE);
 

@@ -1,5 +1,6 @@
 #include "dev.h"
 #include "../../Lib/string.c"
+#include "../../Include/vfs.h"
 
 
 int devfs_register(const char *name, inode_t *inode)

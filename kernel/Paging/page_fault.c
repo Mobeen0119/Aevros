@@ -2,6 +2,7 @@
 #include "paging.h"
 #include "../Process/task.h"
 #include "../Paging/isr.h"
+#include "../../Lib/kprintf.h"
 
 
 static inline uint32_t read_cr2()

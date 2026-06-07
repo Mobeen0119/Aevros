@@ -3,6 +3,9 @@
 #include "../Memory/pmm.c"
 #include "../Process/task.h"
 #include "page_fault.c"
+#include "../../Lib/kprintf.h"
+#include "../../Drivers/keyboard.h"
+#include "../io.h"
 
 void isr_handler(struct registers* r)
 {
@@ -19,7 +22,7 @@ void isr_handler(struct registers* r)
     }
     else if (r->int_no < 32)
     {
-        print_string("CPU HANDLES IT : ");
+        kprintf("CPU HANDLES IT : ");
         print_hex(r->int_no);
         asm volatile("hlt");
     }
@@ -46,7 +49,7 @@ void Paging_handler(struct registers r)
 
     if (write && !user_mode)
     {
-        print_string("SECURITY VIOLATION: KERNEL PROTECTION FAULT");
+       kprintf("SECURITY VIOLATION: KERNEL PROTECTION FAULT");
         asm volatile("hlt");
     }
 }

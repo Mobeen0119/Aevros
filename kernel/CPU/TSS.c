@@ -1,6 +1,8 @@
 #include "TSS.h"
 #include "GDT.h"
 #include "../../Lib/string.h"
+#include "../Memory/pmm.h"
+
 
 tss_entry_t tss;
 

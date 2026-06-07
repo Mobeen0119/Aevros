@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "../include/terminal.h"
-#include "../Drivers/keyboard.c"
+#include "../Drivers/keyboard.h"
+#include "../Include/screen.h"
 
 void buffer_init()
 {
@@ -156,7 +157,7 @@ void terminal_readline(char *out)
             break;
         }
         else if (c == '\b' && i > 0)
-        {
+    {
             i--;
             input_line[i] = '\0';
             handle_backspace();

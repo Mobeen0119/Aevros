@@ -18,8 +18,8 @@ void syscall_handler(register_t *regs);
 
 void init_syscalls();
 
-int sys_fork();
 
 void sys_print(char *user_string);
+int sys_fork(register_t *regs);
 
 #endif

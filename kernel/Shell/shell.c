@@ -5,7 +5,7 @@
 #include "../../Lib/string.h"
 #include "../../Include/vfs.h"
 #include "builtins.h"
-#include "parser.c"
+#include "parser.h"
 
 
 extern void meminfo_all(void);

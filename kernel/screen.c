@@ -62,6 +62,10 @@ void kput_char(char c)
     if(cursor_x>=ROW) cursor_x=0;
 }
 
+
+
+
+
 void kprint(const char *str)
 {
     while (*str)

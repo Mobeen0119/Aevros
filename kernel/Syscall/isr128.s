@@ -1,4 +1,6 @@
-[GLOBAL isr128]
+global isr128
+
+extern syscall_handler
 
 isr128:
     pusha 

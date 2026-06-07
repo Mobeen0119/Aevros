@@ -1,4 +1,4 @@
-[GLOBAL jump_user_mode]
+global jump_user_mode
 
 jump_user_mode:
 

@@ -5,13 +5,16 @@
 
 uint16_t *const vga_memory = (uint16_t *)0xB8000;
 
+
+struct Line buffer[MAX_LINES];
+
 char input_line[WIDTH];
 
 int input_length = 0; // Columns
-int cursor_y = 0;     // Logical line
+extern int cursor_y;     // Logical line
 
 int scroll_top = 0;   // first line
-int cursor_x = 0;     // Input position in the current line
+extern int cursor_x;     // Input position in the current line
 
 uint8_t current_color = 0x07;
 

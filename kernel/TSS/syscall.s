@@ -1,4 +1,4 @@
-[GLOBAL syscall_asm_handler]
+global syscall_asm_handler
 extern syscall_handler
 
 syscall_asm_handler:

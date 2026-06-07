@@ -3,39 +3,39 @@
 #include "../../Include/vfs.h"
 #include "../Memory/pmm.h"
 #include "../Memory/kheap.h"
-#include "../../Lib/string.c"
+#include "../../Lib/string.h"
 
 vfs_ops_t ramfs_ops = {
     .read = ramfs_read,
     .write = ramfs_write};
 
-int ramfs_read(inode_t *inode, uint32_t offset, uint32_t size, uint8_t *buffer)
+uint32_t ramfs_read(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
-    ramfs_inode_t *ram = inode->fs_private;
+    ramfs_inode_t *ram = dentry->inode->fs_private;
 
     if (!ram)
         return -1;
 
-    if (offset > inode->size)
+    if (offset > dentry->inode->size)
         return 0;
 
-    if (offset + size > inode->size)
-        size = inode->size - offset;
+    if (offset + size > dentry->inode->size)
+        size = dentry->inode->size - offset;
 
     memcpy(buffer, ram->data + offset, size);
     return size;
 }
 
-int ramfs_write(inode_t *inode, uint32_t offset, uint32_t size, uint8_t *buffer)
+uint32_t ramfs_write(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
-    ramfs_inode_t *ram = inode->fs_private;
+    ramfs_inode_t *ram = dentry->inode->fs_private;
 
     if (!ram)
         return -1;
 
     memcpy(ram->data + offset, buffer, size);
 
-    if (offset + size > inode->size)
+    if (offset + size > dentry->inode->size)
         if (ramfs_expand(ram, offset + size) < 0)
             return -1;
 
@@ -71,10 +71,10 @@ dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
     child->inode = inode;
     child->parent = parent;
 
-   uint32_t bucket=dentry_hash(child->name);
-    child->next=parent->hash_bucket[bucket];
-    parent->hash_bucket[bucket]=child;
-    
+    uint32_t bucket = dentry_hash(child->name);
+    child->next = parent->hash_bucket[bucket];
+    parent->hash_bucket[bucket] = child;
+
     return child;
 }
 
@@ -100,7 +100,7 @@ int ramfs_expand(ramfs_inode_t *ram, uint32_t needed)
     memcpy(new_data, ram->data, ram->capacity);
     kfree(ram->data);
 
-    ram->data = new_data;
+    ram->data = (uint8_t *)new_data;
     ram->capacity = new_cap;
 
     return 0;

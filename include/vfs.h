@@ -109,5 +109,6 @@ int vfs_mount(dentry_t *mount_point, dentry_t *root);
 
 int sys_read(int fd, uint8_t *buf, uint32_t size);
 
-static int match_seg(const char *name, const char *start, uint32_t len);
+int match_seg(const char *name, const char *start, uint32_t len);
+
 #endif

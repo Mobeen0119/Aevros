@@ -3,8 +3,9 @@
 #include "../Process/task.h"
 #include "../../Include/vfs.h"
 #include "../../Include/ramfs.h"
-#include "../../LIB/string.c"
+#include "../../LIB/string.h"
 #include "../Dev/dev.h"
+#include "../Memory/pmm.h"
 
 dentry_t *vfs_root = 0;
 
@@ -12,20 +13,18 @@ uint32_t vfs_read(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffe
 {
     if (node && node->inode && node->inode->ops && node->inode->ops->read)
     {
-        return node->inode->ops->read(node->inode, offset, size, buffer);
+        return node->inode->ops->read(node, offset, size, buffer);
     }
-    return node->inode->ops->read(node, offset, size, buffer);
-    
+    return VFS_ERR; 
 }
 
 uint32_t vfs_write(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
     if (node && node->inode && node->inode->ops && node->inode->ops->write)
     {
-        return node->inode->ops->write(node->inode, offset, size, buffer);
+        return node->inode->ops->write(node, offset, size, buffer);
     }
-    return node->inode->ops->write(node, offset, size, buffer);
-    
+    return VFS_ERR;
 }
 
 static const char *skip_slash(const char *p)
@@ -37,7 +36,7 @@ static const char *skip_slash(const char *p)
 
 //-----------------------a => what exist ---b => what asked for
 
-static int match_seg(const char *name, const char *start, uint32_t len)
+int match_seg(const char *name, const char *start, uint32_t len)
 {
     uint32_t i = 0;
     while (name[i] && i < len)
@@ -191,7 +190,7 @@ int sys_open(const char *path, uint32_t flags)
 
             parent_dirname(path, parent_path);
 
-            char *name = basename(path);
+            const char *name = basename(path);
             dentry_t *parent = vfs_lookup(vfs_root, parent_path);
 
             if (!parent || !(parent->inode->flags & VFS_DIR))
@@ -247,7 +246,7 @@ int sys_read(int fd, uint8_t *buf, uint32_t size)
     if (!(file->flags & READ_ONLY) && !(file->flags & READ_WRITE))
         return VFS_ERR;
 
-    int bytes_read = file->inode->ops->read(file->dentry, file->offset, size, buf););
+    int bytes_read = file->inode->ops->read(file->dentry, file->offset, size, buf);
     if (bytes_read > 0)
         file->offset += bytes_read;
 
@@ -269,7 +268,7 @@ int sys_write(int fd, uint8_t *buf, uint32_t size)
     if (!(file->flags & WRITE_ONLY) && !(file->flags & READ_WRITE))
         return VFS_ERR;
 
-    int byte_write = file->inode->ops->write(file->inode, file->offset, size, buf);
+    int byte_write = file->inode->ops->write(file->dentry, file->offset, size, buf);
 
     if (byte_write > 0)
         file->offset += byte_write;
@@ -307,7 +306,7 @@ int sys_mkdir(const char *path)
     char parent_path[256];
     parent_dirname(path, parent_path);
 
-    char *name = basename(path);
+    const char *name = basename(path);
 
     dentry_t *parent = vfs_lookup(vfs_root, parent_path);
 
@@ -403,17 +402,14 @@ int sys_chdir(const char *path)
     if (!path)
         return VFS_ERR;
 
-    dentry_t *target_dir = vfs_lookup(path); // Use your actual path lookup function name
-    if (target_dir)
-    {
-        current_task->cwd = target_dir;
-    }
+    dentry_t *target_dir = vfs_lookup(vfs_root, path);
+    if (!target_dir)
+        return VFS_ERR; // Added safety check to prevent dereferencing null
 
     if (!(target_dir->inode->flags & VFS_DIR))
         return VFS_ERR;
 
-    current_task->cwd = target_dir;
-    strcpy(current_task->cwd, path);
+    current_task->cwd = target_dir; // Safely assign pointer layout directly
 
     return VFS_OK;
 }

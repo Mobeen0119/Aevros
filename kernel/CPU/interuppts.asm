@@ -1,4 +1,4 @@
-[GLOBAL isr14]
+global isr14
 extern isr_handler
 isr14:
     cli 

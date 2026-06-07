@@ -1,11 +1,10 @@
-ENTRY(kernel_main)
-
+ENTRY(_start) 
 SECTIONS
 {
-    . = 0x1M;
+    . = 0x00100000;
 
     .text : {
-        *(.multiboot)
+        *(.multiboot) /* Forces the multiboot header to the absolute front */
         *(.text*)
     }
 
@@ -20,5 +19,11 @@ SECTIONS
     .bss : {
         *(COMMON)
         *(.bss*)
+    }
+
+    /DISCARD/ : {
+        *(.note.gnu.property)
+        *(.note*)
+        *(.comment)
     }
 }

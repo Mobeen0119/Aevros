@@ -31,7 +31,7 @@ static void print_decimal(int num)
     }
 }
 
-static void print_hex(uint32_t num)
+void print_hex(uint32_t num)
 {
     char *hex = "0123456789ABCDEF";
     for (int i = 28; i >= 0; i -= 4)

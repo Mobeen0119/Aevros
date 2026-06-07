@@ -3,17 +3,24 @@ set -e
 
 # 1. Clean up ALL previous build artifacts and binaries
 echo "🧹 Cleaning workspace..."
-rm -f *.o kernel.elf forgeos.iso main.exe kernel.exe
+rm -f boot.o *.c.o *.asm.o kernel.elf forgeos.iso main.exe kernel.exe
 rm -rf iso/
 
 echo "🔨 Forging ForgeOS..."
+
+if ! command -v nasm >/dev/null 2>&1; then
+    echo "❌ nasm is required for assembly. Install nasm and rerun."
+    exit 1
+fi
 
 # 2. Assemble Low-Level CPU & Boot Routines
 echo "Assembling assembly source files..."
 
 # Assemble the main bootloader entry point
 if [ -f "./boot.s" ]; then
-    gcc -m32 -c ./boot.s -o boot.o
+    nasm -f elf32 ./boot.s -o boot.o
+elif [ -f "./boot/boot.s" ]; then
+    nasm -f elf32 ./boot/boot.s -o boot.o
 fi
 
 # Assemble all NASM-compatible assembly sources except the bootloader.
@@ -31,7 +38,7 @@ for c_file in $(find . -name "*.c" | grep -v "buddy.c" | grep -v "slab.c" | grep
 done
 
 echo "Linking architecture files into kernel.elf using linker.ld..."
-ld -m elf_i386 -T linker.ld -o kernel.elf *.o
+ld -m elf_i386 -T linker.ld -o kernel.elf boot.o *.c.o *.asm.o
 
 if [ -f kernel.elf ]; then
     mkdir -p iso/boot/grub

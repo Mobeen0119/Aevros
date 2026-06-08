@@ -12,15 +12,18 @@
 
 void paging_init();
 
+void map_page(uint32_t virt, uint32_t phys, uint32_t flags);
+
+void unmap(uint32_t virt);
+
+
 uint32_t* get_virtual_table_address(uint32_t pd_in);
 
-void map_page(uint32_t vir_addr, uint32_t phy_addr, uint32_t flags);
 
 uint32_t clone_page_directory(uint32_t src_cr3);
 
 void *alloc_page_aligned();
 
-void unmap(uint32_t vir_addr);
 
 void memcpy_page_physical(uint32_t dst, uint32_t src);
 

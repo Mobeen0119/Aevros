@@ -2,8 +2,8 @@
 set -euo pipefail
 shopt -s nullglob
 
-BUILD_DIR=build_tmp
-BOOT_SRC=./boot/boot.s
+BUILD_DIR="build_tmp"
+BOOT_SRC="./boot/boot.s"
 
 echo "🧹 Cleaning workspace..."
 rm -f boot.o kernel.elf forgeos.iso
@@ -26,21 +26,29 @@ fi
 echo "Assembling boot loader..."
 nasm -f elf32 "$BOOT_SRC" -o boot.o
 
+
 asm_objects=()
 while IFS= read -r -d '' asm_file; do
     obj_file="$BUILD_DIR/$(printf '%s' "${asm_file#./}" | sed 's#/#_#g; s#\.[^.]*$#.asm.o#')"
     echo "Assembling $asm_file -> $obj_file"
     nasm -f elf32 "$asm_file" -o "$obj_file"
     asm_objects+=("$obj_file")
-done < <(find . -type f \( -name "*.asm" -o -name "*.s" \) ! -path "./User/*" ! -path "./iso/*" ! -path "./$BUILD_DIR/*" ! -name "boot.s" -print0)
+done < <(find . -path "./$BUILD_DIR" -prune \
+    -o -path "./User" -prune \
+    -o \( -name "*.asm" -o -name "*.s" \) ! -name "boot.s" -print0)
+    
 
 c_objects=()
 while IFS= read -r -d '' c_file; do
     obj_file="$BUILD_DIR/$(printf '%s' "${c_file#./}" | sed 's#/#_#g; s#\.c$#.c.o#')"
     echo "Compiling $c_file -> $obj_file"
-    gcc -m32 -ffreestanding -fno-builtin -fno-stack-protector -nostdlib -c "$c_file" -o "$obj_file"
+    gcc -m32 -ffreestanding -fno-builtin -fno-stack-protector -fno-pic -fno-pie -nostdlib -c "$c_file" -o "$obj_file"
     c_objects+=("$obj_file")
-done < <(find . -type f -name "*.c" ! -path "./User/*" ! -path "./iso/*" ! -path "./$BUILD_DIR/*" -print0)
+done < <(find . -type f -name "*.c" \
+    ! -path "./User/*" \
+    ! -path "./iso/*" \
+    ! -path "./$BUILD_DIR/*" \
+    -print0)
 
 if [ ${#c_objects[@]} -eq 0 ] || [ ${#asm_objects[@]} -eq 0 ]; then
     echo "❌ No source files were compiled. Check the repository layout."

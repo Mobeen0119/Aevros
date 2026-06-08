@@ -3,8 +3,11 @@ CC = gcc
 ASM = nasm
 LD = ld
 
-CFLAGS = -m32 -ffreestanding -fno-builtin -fno-stack-protector -nostdlib
-ASMFLAGS = -f elf32
+CFLAGS = -m32 -ffreestanding -fno-builtin -fno-stack-protector \
+         -nostdlib -nostdinc -fno-pic -fno-pie \
+         -fno-asynchronous-unwind-tables \
+         -fno-exceptions -fno-rttiASMFLAGS = -f elf32
+		 
 LDFLAGS = -m elf_i386 -T linker.ld
 
 C_SRCS := $(shell find kernel -type f -name '*.c' | sort)

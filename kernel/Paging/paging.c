@@ -4,79 +4,65 @@
 #include "../../Lib/kprintf.h"
 #include "../Process/task.h"
 
-uint32_t *kernel_directory = (uint32_t *)0xFFFFF000;
+
+static uint32_t page_directory[1024] __attribute__((aligned(4096)));
+static uint32_t first_page_table[1024] __attribute__((aligned(4096)));
 
 void paging_init() {
-    memset(kernel_directory, 0, 4096);
+  
+    for (int i = 0; i < 1024; i++)
+        page_directory[i] = 0;
 
+    for (int i = 0; i < 1024; i++)
+        first_page_table[i] = (i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
 
-    uint32_t *pt = (uint32_t *)pmm_alloc();
-    memset(pt, 0, 4096);
-    for (int i = 0; i < 1024; i++) {
-        pt[i] = (i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
-    }
-    kernel_directory[0] = (uint32_t)pt | PAGE_PRESENT | PAGE_WRITE;
+    page_directory[0] = (uint32_t)first_page_table | PAGE_PRESENT | PAGE_WRITE;
+
+    page_directory[1023] = (uint32_t)page_directory | PAGE_PRESENT | PAGE_WRITE;
 
     
-    kernel_directory[1023] = (uint32_t)kernel_directory | PAGE_PRESENT | PAGE_WRITE;
+    asm volatile("mov %0, %%cr3" :: "r"((uint32_t)page_directory) : "memory");
 
-    uint32_t phys_dir = (uint32_t)kernel_directory - 0xC0000000; 
-    asm volatile("mov %0, %%cr3" :: "r"(phys_dir) : "memory");
 
     uint32_t cr0;
     asm volatile("mov %%cr0, %0" : "=r"(cr0));
-    cr0 |= 0x80000000; 
-    
+    cr0 |= 0x80000000;
     asm volatile("mov %0, %%cr0" :: "r"(cr0) : "memory");
-    
-    kprintf("Paging enabled successfully.\n");
+}
+
+void map_page(uint32_t virt, uint32_t phys, uint32_t flags) {
+    uint32_t pd_idx = virt >> 22;
+    uint32_t pt_idx = (virt >> 12) & 0x3FF;
+
+    uint32_t *pd = (uint32_t *)0xFFFFF000;
+
+    if (!(pd[pd_idx] & PAGE_PRESENT)) {
+        uint32_t new_pt = pmm_alloc();
+        pd[pd_idx] = new_pt | PAGE_PRESENT | PAGE_WRITE;
+        uint32_t *pt = (uint32_t *)(0xFFC00000 + pd_idx * 0x1000);
+        for (int i = 0; i < 1024; i++) pt[i] = 0;
+    }
+
+    uint32_t *pt = (uint32_t *)(0xFFC00000 + pd_idx * 0x1000);
+    pt[pt_idx] = phys | flags | PAGE_PRESENT;
+    asm volatile("invlpg (%0)" :: "r"(virt) : "memory");
+}
+
+void unmap(uint32_t virt) {
+    uint32_t pd_idx = virt >> 22;
+    uint32_t pt_idx = (virt >> 12) & 0x3FF;
+
+    uint32_t *pd = (uint32_t *)0xFFFFF000;
+    if (!(pd[pd_idx] & PAGE_PRESENT)) return;
+
+    uint32_t *pt = (uint32_t *)(0xFFC00000 + pd_idx * 0x1000);
+    pt[pt_idx] = 0;
+    asm volatile("invlpg (%0)" :: "r"(virt) : "memory");
 }
 
 uint32_t *get_virtual_table_address(uint32_t pd)
 {
     return (uint32_t *)RECURSIVE_PT_BASE + (pd * 0x1000);
-}
-
-void map_page(uint32_t vir_addr, uint32_t phy_addr, uint32_t flags)
-{
-    uint32_t page_dir_index = vir_addr >> 22;
-    uint32_t page_table_index = (vir_addr >> 12) & 0x03FF;
-
-    uint32_t *page_dir = (uint32_t *)PAGE_RECURSIVE; // Acess to Page directory
-
-    if (!(page_dir[page_dir_index] & PAGE_PRESENT))
-    {
-
-        uint32_t new_page = pmm_alloc();
-        page_dir[page_dir_index] = new_page | PAGE_WRITE | PAGE_PRESENT; // Present + Read/Write
-
-        memset(get_virtual_table_address(page_dir_index), 0, 4096);
-    }
-
-    uint32_t *page_table = get_virtual_table_address(page_dir_index);
-    page_table[page_table_index] = phy_addr | flags | PAGE_PRESENT;
-
-    asm volatile("invlpg (%0)" ::"r"(vir_addr) : "memory");
-}
-
-void unmap(uint32_t vir_addr)
-{
-    uint32_t p_dir_index = vir_addr >> 22;
-    uint32_t p_table_index = (vir_addr >> 12) & 0x03FF;
-
-    uint32_t *p_dir = (uint32_t *)0xFFFFF000;
-
-    if (!(p_dir[p_dir_index] & 0x1))
-        return;
-
-    uint32_t *p_table = (uint32_t *)(0xFFC00000 + (p_dir_index * 0x1000));
-
-    if (!(p_table[p_table_index] & 0x1))
-        return;
-
-    p_table[p_table_index] = 0;
-
-    asm volatile("invlpg (%0)" ::"r"(vir_addr) : "memory");
 }
 
 void *alloc_page_aligned()

@@ -2,24 +2,22 @@ global gdt_flush
 global load_tss
 
 gdt_flush:
-	cli
-	mov     eax, [esp + 4]						; Load the address of the GDT into eax
-	lgdt    [eax]
-
-	jmp     0x08:flush							; Jump to the code segment selector (0x08) and flush the instruction pipeline
+    cli
+    mov eax, [esp + 4]
+    lgdt [eax]
+    jmp 0x08:flush
 
 flush:
-	mov     ax, 0x10
-	mov     ds, ax
-	mov     es, ax
-	mov     fs, ax
-	mov     gs, ax
-	mov     ss, ax
-
-	sti
-	ret
-
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax      ; safe here — our GDT is now loaded, 0x10 is valid
+    sti
+    ret
+	
 load_tss:
-	mov     ax, 0x28							; Load the TSS segment selector (0x28) into ax
-	ltr     ax									; Load the TSS into the task register
+	mov     ax, 0x28							
+	ltr     ax									
 	ret

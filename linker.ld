@@ -2,11 +2,9 @@ ENTRY(_start)
 
 SECTIONS
 {
-
     . = 0x00100000;
 
     .text : {
-        *(.multiboot)        
         *(.text*)
     }
 
@@ -23,9 +21,13 @@ SECTIONS
         *(.bss*)
     }
 
-    /DISCARD/ : {
-        *(.note.gnu.property)
-        *(.note*)
-        *(.comment)
-    }
+/DISCARD/ : {
+    *(.eh_frame*)
+    *(.got*)    
+    *(.got.plt*)       
+    *(.got*)            
+    *(.note.gnu.property)
+    *(.note*)
+    *(.comment)
+}
 }

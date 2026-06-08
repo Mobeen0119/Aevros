@@ -6,7 +6,6 @@
 
 #define MAX_ORDER 10
 
-
 int size_to_order(size_t size)
 {
     int order = 0;

@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "paging.h"
 #include "../Memory/pmm.h"
+#include "../../Lib/kprintf.h"
 #include "../Process/task.h"
 
 uint32_t *kernel_directory = (uint32_t *)0xFFFFF000;
@@ -25,9 +26,10 @@ void paging_init() {
     uint32_t cr0;
     asm volatile("mov %%cr0, %0" : "=r"(cr0));
     cr0 |= 0x80000000; 
+    
     asm volatile("mov %0, %%cr0" :: "r"(cr0) : "memory");
     
-    kprint("Paging enabled successfully.\n");
+    kprintf("Paging enabled successfully.\n");
 }
 
 uint32_t *get_virtual_table_address(uint32_t pd)

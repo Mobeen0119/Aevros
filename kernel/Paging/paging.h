@@ -10,6 +10,8 @@
 #define TEMP_PT_VIRT 0xFFBFE000
 
 
+void paging_init();
+
 uint32_t* get_virtual_table_address(uint32_t pd_in);
 
 void map_page(uint32_t vir_addr, uint32_t phy_addr, uint32_t flags);

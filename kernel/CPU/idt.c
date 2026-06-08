@@ -30,4 +30,13 @@ void idt_init()
     idt_gate_set(0x80,(unsigned int)syscall_asm_handler,0xEE);
 
     idt_load((unsigned int)&idtp);
+
+    extern void default_handler(); 
+    
+    for(int i = 0; i < 256; i++) {
+        idt_gate_set(i, (unsigned int)default_handler, 0x8E);
+    }
+    
+    idt_gate_set(0x80, (unsigned int)syscall_asm_handler, 0xEE);
+    idt_load((unsigned int)&idtp);
 }

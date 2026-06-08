@@ -5,6 +5,31 @@
 
 uint32_t *kernel_directory = (uint32_t *)0xFFFFF000;
 
+void paging_init() {
+    memset(kernel_directory, 0, 4096);
+
+
+    uint32_t *pt = (uint32_t *)pmm_alloc();
+    memset(pt, 0, 4096);
+    for (int i = 0; i < 1024; i++) {
+        pt[i] = (i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
+    }
+    kernel_directory[0] = (uint32_t)pt | PAGE_PRESENT | PAGE_WRITE;
+
+    
+    kernel_directory[1023] = (uint32_t)kernel_directory | PAGE_PRESENT | PAGE_WRITE;
+
+    uint32_t phys_dir = (uint32_t)kernel_directory - 0xC0000000; 
+    asm volatile("mov %0, %%cr3" :: "r"(phys_dir) : "memory");
+
+    uint32_t cr0;
+    asm volatile("mov %%cr0, %0" : "=r"(cr0));
+    cr0 |= 0x80000000; 
+    asm volatile("mov %0, %%cr0" :: "r"(cr0) : "memory");
+    
+    kprint("Paging enabled successfully.\n");
+}
+
 uint32_t *get_virtual_table_address(uint32_t pd)
 {
     return (uint32_t *)RECURSIVE_PT_BASE + (pd * 0x1000);

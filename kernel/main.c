@@ -20,16 +20,19 @@ void user_program()
 
 void kernel_main()
 {
+    gdt_init();  // MUST be first: Sets up code/data segments
+    idt_init();  // MUST be second: Prevents the "!" crash on exceptions
 
-    volatile char *vga = (volatile char *)0xB8000;
-    vga[0] = 'X';
-    vga[1] = 0x0F; 
-   
-pmm_init(0x100000, 0x4000000);
+    // 2. Memory: Set up physical and virtual memory
+    pmm_init(0x100000, 0x4000000);
+    paging_init(); // Ensure paging is active before tasks exist
+
+    // 3. System: Multitasking and User space
     init_tasking();
     task_create_user(user_program);
 
-    asm volatile("sti"); // enable interrupts
-    while (1)
-        ;
+    // 4. Finally: Enable CPU interrupts
+    asm volatile("sti"); 
+
+    while (1);
 }

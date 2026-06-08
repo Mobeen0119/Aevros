@@ -1,13 +1,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "buddy.h"
+#include "slab.h"
 
-typedef struct slab_cache
-{
-    uint32_t bitmap;
-    void *first_slot;
-    int size;
-} slab_t;
+
 
 slab_t cache_16b;
 slab_t cache_64b;

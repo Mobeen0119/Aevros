@@ -11,7 +11,12 @@ global _start
 
 _start:
     cli                      ; Clear interrupts
-
+   
+    mov byte [0xB8000], 'H'
+    mov byte [0xB8001], 0x0F
+    mov byte [0xB8002], 'I'
+    mov byte [0xB8003], 0x0F
+    
     ; Force flat segment registers to ensure we are pointing to the correct base addresses
     xor ax, ax
     mov ds, ax

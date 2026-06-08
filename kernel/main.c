@@ -18,21 +18,26 @@ void user_program()
     }
 }
 
-void kernel_main()
-{
-    gdt_init();  // MUST be first: Sets up code/data segments
-    idt_init();  // MUST be second: Prevents the "!" crash on exceptions
+void kernel_main(){
+    kprint("kch");
+asm volatile("cli");
+  kprint("kch");
 
-    // 2. Memory: Set up physical and virtual memory
+    gdt_init();
+      kprint("kch");
+    idt_init();
+      kprint("kch");
+
     pmm_init(0x100000, 0x4000000);
-    paging_init(); // Ensure paging is active before tasks exist
+      kprint("kch");
+    paging_init();
 
-    // 3. System: Multitasking and User space
     init_tasking();
     task_create_user(user_program);
 
-    // 4. Finally: Enable CPU interrupts
     asm volatile("sti"); 
 
-    while (1);
+    while (1) {
+        asm volatile("hlt");
+    }
 }

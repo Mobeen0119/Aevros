@@ -1,4 +1,14 @@
 global isr14
+global default_handler
+
+default_handler:
+    pusha
+
+.loop:
+    hlt
+    jmp .loop
+
+    
 extern isr_handler
 isr14:
     cli 

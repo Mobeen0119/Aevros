@@ -1,8 +1,8 @@
 #include "kheap.h"
 #include <stddef.h>
 
-#include "buddy.c"
-#include "slab.c"
+#include "buddy.h"
+#include "slab.h"
 
 #define MAX_ORDER 10
 

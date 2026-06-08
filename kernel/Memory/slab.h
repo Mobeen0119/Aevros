@@ -9,11 +9,15 @@ typedef struct slab_cache
     int size;
 } slab_t;
 
+
 extern slab_t cache_16b;
 extern slab_t cache_64b;
 extern slab_t cache_32b;
 
+
 void slab_init(slab_t* slab, int size);
+
+void slab_init_all();
 
 void* slab_alloc(slab_t* slab);
 

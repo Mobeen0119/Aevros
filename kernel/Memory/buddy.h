@@ -32,6 +32,8 @@ typedef struct _buddy_block
 } buddy_block_t;
 
 
+void buddy_init(uint32_t start, uint32_t end);
+
 void *buddy_alloc(int order);
 
 void add_to_list(void *ptr, int order);

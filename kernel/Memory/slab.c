@@ -17,6 +17,12 @@ void slab_init(slab_t* slab, int size)
     slab->first_slot = buddy_alloc(0);
 }
 
+void slab_init_all() {
+    slab_init(&cache_16b, 16);
+    slab_init(&cache_32b, 32);
+    slab_init(&cache_64b, 64);
+}
+
 void* slab_alloc(slab_t* slab){
   
     uint32_t free_mask=~slab->bitmap;

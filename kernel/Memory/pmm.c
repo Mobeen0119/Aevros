@@ -58,6 +58,14 @@ uint32_t pmm_free_frames(void)
     return stack_top + 1;
 }
 
+uint32_t pmm_get_top() {
+    uint32_t highest = 0;
+    for (int i = 0; i <= stack_top; i++)
+        if (frame_stack[i] > highest)
+            highest = frame_stack[i];
+    return highest + FRAME_SIZE;
+}
+
 uint32_t pmm_used_frames(void)
 {
     return total_frames - (stack_top + 1);

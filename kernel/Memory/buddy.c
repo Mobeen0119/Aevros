@@ -8,6 +8,30 @@
 
 buddy_block_t *free_lists[MAX_ORDER + 1];
 
+void buddy_init(uint32_t start, uint32_t end) {
+    for (int i = 0; i <= MAX_ORDER; i++)
+        free_lists[i] = NULL;
+
+    uint32_t block_size = (1 << MAX_ORDER) * 4096;
+    uint32_t addr = start;
+
+ 
+    if (addr & (block_size - 1))
+        addr = (addr + block_size) & ~(block_size - 1);
+
+    while (addr + block_size <= end) {
+        add_to_list((void *)addr, MAX_ORDER);
+        addr += block_size;
+    }
+
+    if (free_lists[MAX_ORDER] == NULL) {
+        addr = start;
+        while (addr + 4096 <= end) {
+            add_to_list((void *)addr, 0);
+            addr += 4096;
+        }
+    }
+}
 
 void *buddy_alloc(int order)
 {

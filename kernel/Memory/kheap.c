@@ -26,6 +26,7 @@ void *kmalloc(size_t size)
     if (size <= 16)
     {
         hdr = (block_header_t *)slab_alloc(&cache_16b);
+          if (!hdr) return NULL; 
         hdr->type = SLAB;
         hdr->infor.cache = &cache_16b;
         return (void *)(hdr + 1);

@@ -4,7 +4,6 @@ global read_eip
 extern current_task
 extern tss
 
-; task_t offsets - must match your struct exactly
 CR3_OFFSET          equ 0
 ESP_OFFSET          equ 40
 EBP_OFFSET          equ 36

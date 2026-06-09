@@ -10,6 +10,10 @@ global default_handler
 
 
 
+
+
+
+
 default_handler:
     pusha
 .loop:
@@ -21,9 +25,11 @@ isr14:
     push dword 0
     push dword 14
     pusha
+    push ds
     push esp
     call isr_handler
     add esp, 4
+    pop ds
     popa
     add esp, 8
     sti
@@ -35,9 +41,11 @@ irq%1_handler:
     push dword 0
     push dword %2
     pusha
+    push ds
     push esp
     call irq_handler
     add esp, 4
+    pop ds
     popa
     add esp, 8
     mov al, 0x20

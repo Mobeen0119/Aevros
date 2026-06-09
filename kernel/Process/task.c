@@ -82,16 +82,17 @@ task_t *task_create_kernel(void (*entry_point)())
 task_t *task_create_user(void (*entry_point)())
 {
     uint32_t page_dir = create_user_space();
-    if(!page_dir) return VFS_OK;
+    if (!page_dir)
+        return VFS_OK;
 
     task_t *task = create_process(entry_point, 0, page_dir);
-    
+
     if (!task)
     {
         destroy_user_space(page_dir);
         return VFS_OK;
     }
-    
+
     task->state = TASK_READY;
 
     kprint("TASKINGGGGGGGGG\n");
@@ -117,12 +118,11 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     uint32_t stack_top = (uint32_t)stack_base + 4096;
 
     uint32_t *sp = (uint32_t *)stack_top;
-    *(--sp) = (uint32_t)entry_point;  // ret in switch lands here
-*(--sp) = 0;                       // saved ebp
-*(--sp) = 0;                       // saved ebx
-*(--sp) = 0;                       // saved esi
-*(--sp) = 0;  
-
+    *(--sp) = (uint32_t)entry_point; // ret in switch lands here
+    *(--sp) = 0;                     // saved ebp
+    *(--sp) = 0;                     // saved ebx
+    *(--sp) = 0;                     // saved esi
+    *(--sp) = 0;
 
     if (page_dir)
         new_task->cr3 = page_dir;
@@ -153,25 +153,31 @@ void schedule()
 {
     kprint("SCHEDULE RUN\n");
     if (!current_task)
+    {
+        kprint("ha hi ni");
         return;
-
-    if(current_task->state==TASK_RUNNING) current_task->state=TASK_READY;
+    }
+    if (current_task->state == TASK_RUNNING)
+        current_task->state = TASK_READY;
 
     task_t *prev = current_task;
     task_t *next = pick_next_task();
 
-    if (!next || next == prev){
-        prev->state=TASK_RUNNING;
+    kprint("SWITCHING\n");
+
+    if (!next || next == prev)
+    {
+        prev->state = TASK_RUNNING;
         return;
     }
 
     current_task = next;
-    current_task->state=TASK_RUNNING;
+    current_task->state = TASK_RUNNING;
     asm volatile("mov %0,%%cr3" ::"r"(next->cr3));
 
     tss.esp0 = next->kernel_stack;
     tss.ss0 = 0x10;
-
+    kprint("Endddd\n");
     switch_current_task(prev, next);
 }
 

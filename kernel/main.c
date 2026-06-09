@@ -17,6 +17,7 @@
 #include "../Drivers/PIT/pit.h"
 #include "pic.h"
 
+
 void user_program() {
     volatile char *v = (volatile char*)0xB8000;
     int i = 0;
@@ -78,6 +79,6 @@ void kernel_main()
     pit_init(100);
     kprint("PIT OK\n");
     asm volatile("sti");
-    while (1)
-    asm volatile("hlt");
+    asm volatile("int $32");
+   while(1) asm volatile("hlt");
 }

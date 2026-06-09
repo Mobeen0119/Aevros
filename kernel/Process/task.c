@@ -75,6 +75,7 @@ void init_tasking()
 
 task_t *task_create_kernel(void (*entry_point)())
 {
+    kprint("KERNEL CALL\n");
     return create_process(entry_point, 0, 0);
 }
 
@@ -116,15 +117,12 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     uint32_t stack_top = (uint32_t)stack_base + 4096;
 
     uint32_t *sp = (uint32_t *)stack_top;
-    *(--sp) = (uint32_t)entry_point;
+    *(--sp) = (uint32_t)entry_point;  // ret in switch lands here
+*(--sp) = 0;                       // saved ebp
+*(--sp) = 0;                       // saved ebx
+*(--sp) = 0;                       // saved esi
+*(--sp) = 0;  
 
-    *(--sp) = 0;
-    *(--sp) = 0;
-    *(--sp) = 0;
-    *(--sp) = 0;
-    *(--sp) = 0;
-    *(--sp) = 0;
-    *(--sp) = 0;
 
     if (page_dir)
         new_task->cr3 = page_dir;
@@ -153,16 +151,22 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
 
 void schedule()
 {
+    kprint("SCHEDULE RUN\n");
     if (!current_task)
         return;
+
+    if(current_task->state==TASK_RUNNING) current_task->state=TASK_READY;
 
     task_t *prev = current_task;
     task_t *next = pick_next_task();
 
-    if (!next || next == current_task)
+    if (!next || next == prev){
+        prev->state=TASK_RUNNING;
         return;
+    }
 
     current_task = next;
+    current_task->state=TASK_RUNNING;
     asm volatile("mov %0,%%cr3" ::"r"(next->cr3));
 
     tss.esp0 = next->kernel_stack;

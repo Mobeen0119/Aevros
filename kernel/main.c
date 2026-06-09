@@ -21,7 +21,7 @@ void user_program() {
     volatile char *v = (volatile char*)0xB8000;
     int i = 0;
     while(1) {
-        v[40] = 'U'; v[41] = 0x0E;  
+        v[10] = 'U'; v[11] = 0x0C;  
         i++;
     }
 }

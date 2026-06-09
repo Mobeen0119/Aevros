@@ -29,12 +29,12 @@ void gdt_init()
 {
     memset(gdt_entries, 0, sizeof(gdt_entries));
 
-    gdt_gate_set(0, 0, 0,          0,    0   );  // entry 0x00: null
-    gdt_gate_set(1, 0, 0xFFFFFFFF, 0x9A, 0xCF);  // entry 0x08: kernel code
-    gdt_gate_set(2, 0, 0xFFFFFFFF, 0x92, 0xCF);  // entry 0x10: kernel data
-    gdt_gate_set(3, 0, 0xFFFFFFFF, 0xFA, 0xCF);  // entry 0x18: user code
-    gdt_gate_set(4, 0, 0xFFFFFFFF, 0xF2, 0xCF);  // entry 0x20: user data
-    write_tss(5, 0x10, 0);                        // entry 0x28: TSS
+    gdt_gate_set(0, 0, 0,          0,    0   );  
+    gdt_gate_set(1, 0, 0xFFFFFFFF, 0x9A, 0xCF);  
+    gdt_gate_set(2, 0, 0xFFFFFFFF, 0x92, 0xCF); 
+    gdt_gate_set(3, 0, 0xFFFFFFFF, 0xFA, 0xCF);  
+    gdt_gate_set(4, 0, 0xFFFFFFFF, 0xF2, 0xCF); 
+    write_tss(5, 0x10, 0);                       
 
     gdt_ptr.limit = (uint16_t)(sizeof(gdt_entries) - 1);
     gdt_ptr.base  = (uint32_t)&gdt_entries;

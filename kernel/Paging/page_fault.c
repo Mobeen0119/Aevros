@@ -39,7 +39,7 @@ void page_fault_handler(struct registers *reg)
     if (fetch)
         kprintf("Instruction Fetch Fault\n");
 
-        //Future----
+        // Future----
     kprintf("ESP : 0x%x\n", reg->esp);
     kprintf("EIP : 0x%x\n", reg->eip);
 

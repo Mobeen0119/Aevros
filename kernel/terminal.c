@@ -11,10 +11,10 @@ struct Line buffer[MAX_LINES];
 char input_line[WIDTH];
 
 int input_length = 0; // Columns
-extern int cursor_y;     // Logical line
+extern int cursor_y;   
 
-int scroll_top = 0;   // first line
-extern int cursor_x;     // Input position in the current line
+int scroll_top = 0;   
+extern int cursor_x;     //input position
 
 uint8_t current_color = 0x07;
 
@@ -115,7 +115,7 @@ void handle_enter()
 void render()
 {
 
-    for (int y = 0; y < HEIGHT; y++) // History
+    for (int y = 0; y < HEIGHT; y++) 
     {
         int line = scroll_top + y;
         if (line >= MAX_LINES)

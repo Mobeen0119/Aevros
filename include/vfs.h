@@ -81,6 +81,8 @@ struct dentry // name Cache layer
 
 extern dentry_t *vfs_root;
 
+void vfs_init();
+
 uint32_t dentry_hash(const char *name);
 
 int sys_readdir(int fd, dirent_t *dirent);

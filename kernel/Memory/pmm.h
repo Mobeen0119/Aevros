@@ -4,7 +4,7 @@
 
 #define MAX_FRAMES 32768
 
-extern uint32_t mem[1024]; // 4KB of memory
+extern uint32_t mem[1024]; // 4KB 
 
 void *memset(void *dest, uint8_t value, uint32_t size);
 void *memcpy(void *dest, const void *src, uint32_t size);

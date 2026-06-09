@@ -31,7 +31,6 @@ void init_tasking()
         return;
 
     memset(current_task, 0, sizeof(task_t));
-
     current_task->pid = next_pid++;
     current_task->state = TASK_RUNNING;
     current_task->cwd = vfs_root;
@@ -39,29 +38,30 @@ void init_tasking()
     memset(current_task->fd_table, 0, sizeof(current_task->fd_table));
 
     inode_t *tty = devfs_get("tty");
+    if (tty)
+    {
+        file_t *stdin = kmalloc(sizeof(file_t));
 
-    file_t *stdin = kmalloc(sizeof(file_t));
+        stdin->inode = tty;
+        stdin->flags = READ_ONLY;
+        stdin->dentry = NULL;
+        stdin->offset = 0;
 
-    stdin->inode = tty;
-    stdin->flags = READ_ONLY;
-    stdin->dentry = NULL;
-    stdin->offset = 0;
+        file_t *stdout = kmalloc(sizeof(file_t));
+        stdout->inode = tty;
+        stdout->flags = WRITE_ONLY;
+        stdout->offset = 0;
+        stdout->dentry = NULL;
 
-    file_t *stdout = kmalloc(sizeof(file_t));
-    stdout->inode = tty;
-    stdout->flags = WRITE_ONLY;
-    stdout->offset = 0;
-    stdout->dentry = NULL;
+        file_t *stderr = kmalloc(sizeof(file_t));
+        stderr->offset = 0;
+        stderr->inode = tty;
+        stderr->flags = WRITE_ONLY;
 
-    file_t *stderr = kmalloc(sizeof(file_t));
-    stderr->offset = 0;
-    stderr->inode = tty;
-    stderr->flags = WRITE_ONLY;
-
-    current_task->fd_table[0] = stdin;
-    current_task->fd_table[1] = stdout;
-    current_task->fd_table[2] = stderr;
-
+        current_task->fd_table[0] = stdin;
+        current_task->fd_table[1] = stdout;
+        current_task->fd_table[2] = stderr;
+    }
     asm volatile("mov %%esp, %0" : "=r"(current_task->regs.esp));
     asm volatile("mov %%ebp, %0" : "=r"(current_task->regs.ebp));
 
@@ -86,7 +86,7 @@ task_t *task_create_user(void (*entry_point)())
     if (!task)
     {
         destroy_user_space(page_dir);
-        return 0; 
+        return 0;
     }
 
     if (!page_dir)
@@ -155,14 +155,14 @@ void schedule()
         return;
 
     task_t *prev = current_task;
-    task_t *next = pick_next_task(); 
+    task_t *next = pick_next_task();
 
     if (!next || next == current_task)
         return;
 
     current_task = next;
 
-    asm volatile("mov %0,%%cr3" :: "r"(next->cr3));
+    asm volatile("mov %0,%%cr3" ::"r"(next->cr3));
 
     tss.esp0 = next->kernel_stack;
     tss.ss0 = 0x10;

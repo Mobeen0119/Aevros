@@ -28,7 +28,7 @@ typedef struct block_header
 
 typedef struct _buddy_block
 {
-    struct _buddy_block *next; // Pointer to the next block in the free list
+    struct _buddy_block *next; // next block in the free list
 } buddy_block_t;
 
 

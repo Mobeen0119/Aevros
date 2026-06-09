@@ -1,4 +1,3 @@
-// GDT.h
 #pragma once
 #include <stdint.h>
 

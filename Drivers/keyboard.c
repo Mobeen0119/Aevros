@@ -32,7 +32,7 @@ char keyboard_getchar()
 
 void keyboard_handler()
 {
-    const char scan_code = inb(0x60); // Read the scan code from the keyboard data port
+    const char scan_code = inb(0x60);
 
     if (scan_code & KEY_RELEASE)
         return;

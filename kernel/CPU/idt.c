@@ -1,6 +1,6 @@
 #include "idt.h"
 
-// External assembly symbols
+
 extern void default_handler();
 extern void isr14();
 extern void irq0_handler();

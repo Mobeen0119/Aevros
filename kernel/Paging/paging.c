@@ -5,39 +5,29 @@
 #include "../Process/task.h"
 
 
-static uint32_t page_directory[1024] __attribute__((aligned(4096)));
-static uint32_t first_page_table[1024]  __attribute__((aligned(4096)));
-static uint32_t second_page_table[1024] __attribute__((aligned(4096)));  // ADD
-static uint32_t third_page_table[1024]  __attribute__((aligned(4096)));  // ADD
-static uint32_t fourth_page_table[1024] __attribute__((aligned(4096)));  // ADD
+static uint32_t page_directory[1024]    __attribute__((aligned(4096)));
+static uint32_t pt0[1024] __attribute__((aligned(4096))); 
+static uint32_t pt1[1024] __attribute__((aligned(4096))); 
+static uint32_t pt2[1024] __attribute__((aligned(4096)));  
+static uint32_t pt3[1024] __attribute__((aligned(4096)));  
+static uint32_t pt4[1024] __attribute__((aligned(4096)));  
+static uint32_t pt5[1024] __attribute__((aligned(4096)));  
+static uint32_t pt6[1024] __attribute__((aligned(4096)));  
+static uint32_t pt7[1024] __attribute__((aligned(4096)));  
 
 void paging_init() {
-    for (int i = 0; i < 1024; i++)
-        page_directory[i] = 0;
+    for (int i = 0; i < 1024; i++) page_directory[i] = 0;
 
-    for (int i = 0; i < 1024; i++)
-        first_page_table[i] = (i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
-    page_directory[0] = (uint32_t)first_page_table | PAGE_PRESENT | PAGE_WRITE;
+    uint32_t *pts[] = {pt0,pt1,pt2,pt3,pt4,pt5,pt6,pt7};
+    for (int t = 0; t < 8; t++) {
+        for (int i = 0; i < 1024; i++)
+            pts[t][i] = ((t * 0x400000) + i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
+        page_directory[t] = (uint32_t)pts[t] | PAGE_PRESENT | PAGE_WRITE;
+    }
 
-    for (int i = 0; i < 1024; i++)
-        second_page_table[i] = (0x400000 + i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
-    page_directory[1] = (uint32_t)second_page_table | PAGE_PRESENT | PAGE_WRITE;
-
-    
-    for (int i = 0; i < 1024; i++)
-        third_page_table[i] = (0x800000 + i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
-    page_directory[2] = (uint32_t)third_page_table | PAGE_PRESENT | PAGE_WRITE;
-
-  
-    for (int i = 0; i < 1024; i++)
-        fourth_page_table[i] = (0xC00000 + i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
-    page_directory[3] = (uint32_t)fourth_page_table | PAGE_PRESENT | PAGE_WRITE;
-
-    
     page_directory[1023] = (uint32_t)page_directory | PAGE_PRESENT | PAGE_WRITE;
 
     asm volatile("mov %0, %%cr3" :: "r"((uint32_t)page_directory) : "memory");
-
     uint32_t cr0;
     asm volatile("mov %%cr0, %0" : "=r"(cr0));
     cr0 |= 0x80000000;

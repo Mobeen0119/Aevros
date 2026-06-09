@@ -9,13 +9,32 @@
 
 dentry_t *vfs_root = 0;
 
+void vfs_init()
+{
+    vfs_root = (dentry_t *)kmalloc(sizeof(dentry_t));
+    if (!vfs_root)
+    {
+        volatile char *v = (volatile char *)0xB8000;
+        v[20] = 'X';
+        v[21] = 0x0C;
+        while (1)
+            asm volatile("hlt");
+    }
+    memset(vfs_root, 0, sizeof(dentry_t));
+    vfs_root->name = "/";
+    vfs_root->parent = vfs_root;
+    vfs_root->inode = (inode_t *)kmalloc(sizeof(inode_t));
+    memset(vfs_root->inode, 0, sizeof(inode_t));
+    vfs_root->inode->flags = VFS_DIR;
+}
+
 uint32_t vfs_read(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
     if (node && node->inode && node->inode->ops && node->inode->ops->read)
     {
         return node->inode->ops->read(node, offset, size, buffer);
     }
-    return VFS_ERR; 
+    return VFS_ERR;
 }
 
 uint32_t vfs_write(dentry_t *node, uint32_t offset, uint32_t size, uint8_t *buffer)
@@ -34,7 +53,6 @@ static const char *skip_slash(const char *p)
     return p;
 }
 
-//-----------------------a => what exist ---b => what asked for
 
 int match_seg(const char *name, const char *start, uint32_t len)
 {
@@ -404,12 +422,12 @@ int sys_chdir(const char *path)
 
     dentry_t *target_dir = vfs_lookup(vfs_root, path);
     if (!target_dir)
-        return VFS_ERR; // Added safety check to prevent dereferencing null
+        return VFS_ERR; 
 
     if (!(target_dir->inode->flags & VFS_DIR))
         return VFS_ERR;
 
-    current_task->cwd = target_dir; // Safely assign pointer layout directly
+    current_task->cwd = target_dir; 
 
     return VFS_OK;
 }

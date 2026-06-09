@@ -81,17 +81,19 @@ task_t *task_create_kernel(void (*entry_point)())
 task_t *task_create_user(void (*entry_point)())
 {
     uint32_t page_dir = create_user_space();
-    task_t *task = create_process(entry_point, 0, page_dir);
+    if(!page_dir) return VFS_OK;
 
+    task_t *task = create_process(entry_point, 0, page_dir);
+    
     if (!task)
     {
         destroy_user_space(page_dir);
-        return 0;
+        return VFS_OK;
     }
+    
+    task->state = TASK_READY;
 
-    if (!page_dir)
-        return 0;
-
+    kprint("TASKINGGGGGGGGG\n");
     return task;
 }
 
@@ -161,7 +163,6 @@ void schedule()
         return;
 
     current_task = next;
-
     asm volatile("mov %0,%%cr3" ::"r"(next->cr3));
 
     tss.esp0 = next->kernel_stack;
@@ -322,7 +323,7 @@ task_t *pick_next_task()
     task_t *temp = ready_queue;
     do
     {
-        if (temp->state == TASK_READY && temp->state != TASK_ZOMBIE)
+        if (temp->state == TASK_READY)
             return temp;
         temp = temp->next;
     } while (temp != ready_queue);

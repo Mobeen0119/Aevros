@@ -1,14 +1,14 @@
 [bits 32]
 
-; Tell the assembler these symbols are defined elsewhere (in your C files)
 extern irq_handler
 extern isr_handler
 
-; Expose these to the linker so idt.c can find them
 global irq0_handler
 global irq1_handler
 global isr14
 global default_handler
+
+
 
 default_handler:
     pusha
@@ -17,42 +17,34 @@ default_handler:
     jmp .loop
 
 isr14:
-    cli 
+    cli
+    push dword 0
     push dword 14
     pusha
-    ; ... (rest of your isr14 code) ...
+    push esp
     call isr_handler
-    add esp, 4 
+    add esp, 4
     popa
+    add esp, 8
     sti
     iret
 
-; Macro for IRQ Handlers
-%macro IRQ 1
+%macro IRQ 2
 irq%1_handler:
     cli
+    push dword 0
+    push dword %2
     pusha
-    push ds
-    push es
-    push fs
-    push gs
-    mov ax, 0x10
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    push esp        ; Passing registers struct pointer
-    push %1         ; Passing IRQ number
+    push esp
     call irq_handler
-    add esp, 8
-    pop gs
-    pop fs
-    pop es
-    pop ds
+    add esp, 4
     popa
+    add esp, 8
+    mov al, 0x20
+    out 0x20, al
     sti
     iret
 %endmacro
 
-IRQ 0
-IRQ 1
+IRQ 0, 32
+IRQ 1, 33

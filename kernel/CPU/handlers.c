@@ -1,19 +1,17 @@
+
 #include "../../Lib/kprintf.h" 
-
-struct registers {
-    unsigned int gs, fs, es, ds;
-    unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax;
-    unsigned int int_no, err_code;
-};
+#include "../Process/task.h"
 
 
-void irq_handler(struct registers *r) {
+void irq_handler( register_t *r) {
     if (r->int_no >= 40) {
     }
 
     if (r->int_no == 32) {
         kprint("Timer IRQ received!\n");
+        schedule();
     } else if (r->int_no == 33) {
         kprint("Keyboard IRQ received!\n");
     }
 }
+

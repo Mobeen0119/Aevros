@@ -1,4 +1,6 @@
+#include <stdint.h>
 #include "io.h"
+#include "pic.h"
 
 void pic_remap(){
     outb(0x20,0x11);   //Master (0-7)
@@ -19,4 +21,9 @@ void pic_remap(){
     outb(0x21,0xFD);
     outb(0xA1,0xFF);   
 
+}
+
+void pic_eoi(uint8_t irq) {
+    if (irq >= 8) outb(0xA0, 0x20);
+    outb(0x20, 0x20);
 }

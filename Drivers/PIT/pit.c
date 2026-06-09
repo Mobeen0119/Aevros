@@ -2,6 +2,7 @@
 #include "../../Kernel/io.h"
 #include "../../Kernel/Paging/isr.h"
 #include "../../kernel/Process/task.h"
+#include "../../Include/screen.h"
 #define TIME_SLICE 60
 
  volatile uint32_t timer_clicks = 0;
@@ -13,7 +14,7 @@ void pit_init(uint32_t frequency)
 
     outb(0x43, 0x36);
 
-    outb(0x40, (uint8_t)(divisor & 0xFF));
+   outb(0x40, (uint8_t)(divisor & 0xFF));
     outb(0x40, (uint8_t)(divisor >> 8) & 0xFF);
 }
 
@@ -21,5 +22,6 @@ int timer_callback(register_t *regs)
 {
     if (++timer_clicks % TIME_SLICE == 0)
         schedule();
+        kprint("TICK\n");
     return 0;
 }

@@ -2,9 +2,14 @@
 #include <stdint.h>
 
 
-typedef struct registers{
-    uint32_t ds,gs,fs,es;  // Data segment selector
-    unsigned int edi, esi, ebp, esp, ebx, edx, ecx, eax; // Pushed by pusha
-    unsigned int int_no, err_code;     // Interrupt number and error code
-    unsigned int eip, cs, eflags, useresp, ss;  // Pushed by the processor automatically
-}register_t;
+typedef struct registers {
+    uint32_t ds;
+    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
+
+    uint32_t int_no;
+    uint32_t err_code;
+
+    uint32_t eip;
+    uint32_t cs;
+    uint32_t eflags;
+} register_t;

@@ -14,36 +14,70 @@
 #include "../Include/vfs.h"
 #include "Dev/dev.h"
 #include "../Drivers/tty.h"
+#include "../Drivers/PIT/pit.h"
+#include "pic.h"
 
-void user_program()
-{
-    while (1)
-    {
-        kprint("HELLO USER\n");
+void user_program() {
+    volatile char *v = (volatile char*)0xB8000;
+    int i = 0;
+    while(1) {
+        v[40] = 'U'; v[41] = 0x0E;  
+        i++;
     }
 }
 
-void kernel_main() {
+void kernel_main()
+{
     volatile char *v = (volatile char *)0xB8000;
-    for (int i = 0; i < 80*25*2; i+=2) { v[i]=' '; v[i+1]=0x07; }
+    for (int i = 0; i < 80 * 25 * 2; i += 2)
+    {
+        v[i] = ' ';
+        v[i + 1] = 0x07;
+    }
 
     asm volatile("cli");
-    gdt_init();    v[0]='G'; v[1]=0x0A;
-    idt_init();    v[2]='I'; v[3]=0x0A;
-    pmm_init(0x200000, 0x200000);
-                   v[4]='P'; v[5]=0x0A;
-    paging_init(); v[6]='A'; v[7]=0x0A;
-    buddy_init(0x800000, 0x2000000);
-                   v[8]='B'; v[9]=0x0A;
-    slab_init_all();
-                   v[10]='S'; v[11]=0x0A;
-    vfs_init();    v[12]='V'; v[13]=0x0A;
-    tty_init();    v[14]='T'; v[15]=0x0A;  
-    devfs_init();  v[16]='D'; v[17]=0x0A;
-    init_tasking();
-                   v[18]='K'; v[19]=0x0A;
-    asm volatile("sti");
-                   v[20]='!'; v[21]=0x0E;
+    gdt_init();
+  kprint("GDT OK\n");
 
-    while(1) asm volatile("hlt");
+    idt_init();
+    kprint("IDT OK\n");
+
+    pic_remap();
+    kprint("Pic b \n");
+
+   pmm_init(0x200000, 0x200000);   
+   kprint("PMM OK\n");
+
+    paging_init();
+    kprint("PAGING OK\n");
+
+    buddy_init(0x800000, 0x2000000);
+   kprint("Buddy OK\n");
+
+    slab_init_all();
+    kprint("SLAB OK\n");
+
+    vfs_init();
+    kprint("VFS OK\n");
+
+    tty_init();
+   kprint("TTY OK\n");
+
+    devfs_init();
+   kprint("Devfs OK\n");
+
+    init_tasking();
+   kprint("TASKING OK\n");
+
+    task_create_kernel(user_program);
+    kprint("TASKPRINT \n");
+
+    v[20] = '!';
+    v[21] = 0x0E;
+    
+    pit_init(100);
+    kprint("PIT OK\n");
+    asm volatile("sti");
+    while (1)
+    asm volatile("hlt");
 }

@@ -180,7 +180,7 @@ int sys_exec(const char *path)
     asm volatile("mov %0, %%cr3" ::"r"(new_cr3) : "memory");
 
     current_task->regs.eip = hdr->entry_point;
-    current_task->regs.useresp = USER_STACK_TOP;
+    current_task->regs.esp = USER_STACK_TOP;
 
     current_task->regs.esp = USER_STACK_TOP;
     current_task->regs.ebp = USER_STACK_TOP;

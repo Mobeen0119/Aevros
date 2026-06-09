@@ -3,31 +3,23 @@
 #include "../Memory/pmm.h"
 #include "../../Lib/kprintf.h"
 #include "../Process/task.h"
-
-
-static uint32_t page_directory[1024]    __attribute__((aligned(4096)));
-static uint32_t pt0[1024] __attribute__((aligned(4096))); 
-static uint32_t pt1[1024] __attribute__((aligned(4096))); 
-static uint32_t pt2[1024] __attribute__((aligned(4096)));  
-static uint32_t pt3[1024] __attribute__((aligned(4096)));  
-static uint32_t pt4[1024] __attribute__((aligned(4096)));  
-static uint32_t pt5[1024] __attribute__((aligned(4096)));  
-static uint32_t pt6[1024] __attribute__((aligned(4096)));  
-static uint32_t pt7[1024] __attribute__((aligned(4096)));  
+#define PD_ADDR   0x9000   
+#define PT_BASE   0xA000  
 
 void paging_init() {
-    for (int i = 0; i < 1024; i++) page_directory[i] = 0;
+    uint32_t *pd = (uint32_t *)PD_ADDR;
+    memset(pd, 0, 4096);
 
-    uint32_t *pts[] = {pt0,pt1,pt2,pt3,pt4,pt5,pt6,pt7};
     for (int t = 0; t < 8; t++) {
+        uint32_t *pt = (uint32_t *)(PT_BASE + t * 4096);
         for (int i = 0; i < 1024; i++)
-            pts[t][i] = ((t * 0x400000) + i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
-        page_directory[t] = (uint32_t)pts[t] | PAGE_PRESENT | PAGE_WRITE;
+            pt[i] = ((t * 0x400000) + i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
+        pd[t] = (PT_BASE + t * 4096) | PAGE_PRESENT | PAGE_WRITE;
     }
 
-    page_directory[1023] = (uint32_t)page_directory | PAGE_PRESENT | PAGE_WRITE;
+    pd[1023] = PD_ADDR | PAGE_PRESENT | PAGE_WRITE;
 
-    asm volatile("mov %0, %%cr3" :: "r"((uint32_t)page_directory) : "memory");
+    asm volatile("mov %0, %%cr3" :: "r"((uint32_t)pd) : "memory");
     uint32_t cr0;
     asm volatile("mov %%cr0, %0" : "=r"(cr0));
     cr0 |= 0x80000000;

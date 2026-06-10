@@ -13,7 +13,6 @@ switch_current_task:
     mov eax, [esp+4]    
     mov ecx, [esp+8]    
 
-    ; save prev task state
     test eax, eax
     jz .load_next
 
@@ -21,22 +20,17 @@ switch_current_task:
     mov [eax + EBP_OFFSET], ebp
 
 .load_next:
-    ; update current_task pointer
     mov [current_task], ecx
 
-    ; switch page directory
     mov edx, [ecx + CR3_OFFSET]
     mov cr3, edx
 
-    ; update TSS kernel stack
     mov edx, [ecx + KERNEL_STACK_OFFSET]
     mov [tss+4], edx
 
-    ; restore next task registers
-    mov esp, [ecx + ESP_OFFSET]
-    mov ebp, [ecx + EBP_OFFSET]
 
-    ret    
+    iret  
+      
 read_eip:
     mov eax, [esp]
     ret

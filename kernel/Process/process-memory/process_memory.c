@@ -17,10 +17,12 @@ uint32_t create_user_space(void)
 
     uint32_t *kernel_pd = (uint32_t *)(PAGE_RECURSIVE);
 
-    for (uint32_t i = 768; i < 1023; i++)
+    for (uint32_t i = 0; i < 1023; i++)
     {
         new_pd[i] = kernel_pd[i];
     }
+
+    new_pd[0] = kernel_pd[0];
 
     new_pd[1023] = pd_phy | PAGE_PRESENT | PAGE_WRITE;
 

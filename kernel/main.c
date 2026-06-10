@@ -28,6 +28,8 @@ void user_program() {
     }
 }
 
+
+
 void kernel_main()
 {
     volatile char *v = (volatile char *)0xB8000;
@@ -39,46 +41,46 @@ void kernel_main()
 
     asm volatile("cli");
     gdt_init();
-  kprint("GDT OK\n");
+//   kprint("GDT OK\n");
 
     idt_init();
-    kprint("IDT OK\n");
+    // kprint("IDT OK\n");
 
     pic_remap();
-    kprint("Pic b \n");
+    // kprint("Pic b \n");
 
    pmm_init(0x200000, 0x200000);   
-   kprint("PMM OK\n");
+//    kprint("PMM OK\n");
 
     paging_init();
- kprint("PAGING OK\n");
+//  kprint("PAGING OK\n");
 
     buddy_init(0x800000, 0x2000000);
-   kprint("Buddy OK\n");
+//    kprint("Buddy OK\n");
 
     slab_init_all();
-     kprint("SLAB OK\n");
+    //  kprint("SLAB OK\n");
 
     vfs_init();
-     kprint("VFS OK\n");
+    //  kprint("VFS OK\n");
 
     tty_init();
-  kprint("TTY OK\n");
+//   kprint("TTY OK\n");
 
     devfs_init();
-   kprint("Devfs OK\n");
+//    kprint("Devfs OK\n");
 
     init_tasking();
-   kprint("TASKING OK\n");
+//    kprint("TASKING OK\n");
 
-    task_create_kernel(user_program);
-    kprint("TASKPRINT \n");
+    task_create_user(user_program);
+    // kprint("TASKPRINT \n");
 
     v[20] = '!';
     v[21] = 0x0E;
     
     pit_init(100);
-    kprint("PIT OK\n");
+    // kprint("PIT OK\n");
     asm volatile("sti");
     asm volatile("int $32");
    while(1) asm volatile("hlt");

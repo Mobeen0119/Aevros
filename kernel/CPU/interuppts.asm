@@ -1,5 +1,6 @@
 [bits 32]
 
+global isr13
 extern irq_handler
 extern isr_handler
 
@@ -9,9 +10,19 @@ global isr14
 global default_handler
 
 
-
-
-
+isr13:
+    cli
+    push dword 13        
+    pusha
+    push ds
+    push esp
+    call isr_handler
+    add esp, 4
+    pop ds
+    popa
+    add esp, 4            
+    sti
+    iret
 
 
 default_handler:

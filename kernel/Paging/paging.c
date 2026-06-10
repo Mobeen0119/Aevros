@@ -155,6 +155,7 @@ int map_page_in_directory(uint32_t tar_cr3, uint32_t vir,
 
     uint32_t *tar_pd = (uint32_t *)TEMP_PD_VIRT;
 
+
     if (!(tar_pd[pd_index] & PAGE_PRESENT))
     {
         uint32_t new_pt_phy = pmm_alloc();

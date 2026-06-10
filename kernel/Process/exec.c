@@ -9,6 +9,13 @@
 
 #include "../../Include/vfs.h"
 
+static inline uint32_t read_cr3()
+{
+    uint32_t cr3;
+    asm volatile("mov %%cr3, %0" : "=r"(cr3));
+    return cr3;
+}
+
 int exec_user(void *binary, uint32_t size)
 {
     if (!binary || !size)
@@ -42,9 +49,10 @@ int exec_user(void *binary, uint32_t size)
     task_t *task = kmalloc(sizeof(task_t));
 
     if (!task)
-        kfree(task);
-    destroy_user_space(new_cr3);
-    return VFS_ERR;
+    {
+        destroy_user_space(new_cr3);
+        return VFS_ERR;
+    }
 
     memset(task, 0, sizeof(task_t));
 
@@ -61,9 +69,23 @@ int exec_user(void *binary, uint32_t size)
     task->state = TASK_READY;
     task->cr3 = new_cr3;
     task->regs.eip = hdr->entry_point;
-
-    task->regs.esp = USER_STACK_TOP;
     task->regs.ebp = USER_STACK_TOP;
+
+    // Set up iret frame on kernel stack (not user space to avoid page faults)
+    uint32_t *sp = (uint32_t *)((uint32_t)kstack + 4096);
+    *(--sp) = 0x23 | 3;         // SS (user data segment with RPL=3)
+    *(--sp) = USER_STACK_TOP;   // ESP (user stack top)
+    *(--sp) = 0x202;            // EFLAGS (interrupts enabled)
+    *(--sp) = 0x1B | 3;         // CS (user code segment with RPL=3)
+    *(--sp) = hdr->entry_point; // EIP
+    
+    // Saved registers
+    *(--sp) = 0;  // edi
+    *(--sp) = 0;  // esi
+    *(--sp) = 0;  // ebx
+    *(--sp) = 0;  // ebp
+
+    task->regs.esp = (uint32_t)sp;  // Point to iret frame on kernel stack
     task->cwd = current_task->cwd;
     task->parent = current_task;
 
@@ -177,12 +199,23 @@ int sys_exec(const char *path)
 
     uint32_t old_cr3 = current_task->cr3;
     current_task->cr3 = new_cr3;
-    asm volatile("mov %0, %%cr3" ::"r"(new_cr3) : "memory");
+
+    // Set up iret frame on kernel stack for sys_exec (exec variant of exec_user)
+    uint32_t *sp = (uint32_t *)current_task->kernel_stack;
+    *(--sp) = 0x23 | 3;         // SS (user data segment with RPL=3)
+    *(--sp) = USER_STACK_TOP;   // ESP (user stack top)
+    *(--sp) = 0x202;            // EFLAGS (interrupts enabled)
+    *(--sp) = 0x1B | 3;         // CS (user code segment with RPL=3)
+    *(--sp) = hdr->entry_point; // EIP
+    
+    // Saved registers
+    *(--sp) = 0;  // edi
+    *(--sp) = 0;  // esi
+    *(--sp) = 0;  // ebx
+    *(--sp) = 0;  // ebp
 
     current_task->regs.eip = hdr->entry_point;
-    current_task->regs.esp = USER_STACK_TOP;
-
-    current_task->regs.esp = USER_STACK_TOP;
+    current_task->regs.esp = (uint32_t)sp;  // Point to iret frame on kernel stack
     current_task->regs.ebp = USER_STACK_TOP;
 
     destroy_user_space(old_cr3);

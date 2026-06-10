@@ -4,17 +4,23 @@
 #include "../Paging/isr.h"
 #include "../../Lib/kprintf.h"
 
-
 static inline uint32_t read_cr2()
 {
     uint32_t value;
-    asm volatile("mov %%cr3,%0" : "=r"(value));
+    asm volatile("mov %%cr2,%0" : "=r"(value));
     return value;
 }
 
-
 void page_fault_handler(struct registers *reg)
 {
+    uint32_t fault_addr;
+    asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
+
+    kprintf("PAGE FAULT!\n");
+    kprintf("CR2 = %x\n", fault_addr);
+    kprintf("EIP = %x\n", reg->eip);
+    kprintf("ESP = %x\n", reg->esp);
+
     uint32_t addr = read_cr2();
     uint32_t err = reg->err_code;
 
@@ -39,17 +45,18 @@ void page_fault_handler(struct registers *reg)
     if (fetch)
         kprintf("Instruction Fetch Fault\n");
 
-        // Future----
+    // Future----
     kprintf("ESP : 0x%x\n", reg->esp);
     kprintf("EIP : 0x%x\n", reg->eip);
 
-    if(user){
-    kprintf("\n----USER PROCESS CRASH\n");
-    for (;;)
-        asm volatile ("hlt"); 
+    if (user)
+    {
+        kprintf("\n----USER PROCESS CRASH\n");
+        for (;;)
+            asm volatile("hlt");
     }
 
-
     kprintf("\nKERNEL PANIC\n");
-    for(;;) asm volatile ("hlt");
+    for (;;)
+        asm volatile("hlt");
 }

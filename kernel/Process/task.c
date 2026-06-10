@@ -84,14 +84,14 @@ task_t *task_create_user(void (*entry_point)())
 {
     uint32_t page_dir = create_user_space();
     if (!page_dir)
-        return VFS_OK;
+        return NULL;
 
     task_t *task = create_process(entry_point, 0, page_dir);
 
     if (!task)
     {
         destroy_user_space(page_dir);
-        return VFS_OK;
+        return NULL;
     }
 
     task->state = TASK_READY;
@@ -119,19 +119,33 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     uint32_t stack_top = (uint32_t)stack_base + 4096;
 
     uint32_t *sp = (uint32_t *)stack_top;
-   
-    *(--sp) = 0;                     // saved ebp
-    *(--sp) = 0;                     // saved ebx
-    *(--sp) = 0;                     // saved esi
-    *(--sp) = 0;
 
+    uint32_t cs = 0x08; // kcs
+    uint32_t ss = 0x10; // kds
+
+    if (page_dir)
+    {
+        cs = 0x1B | 3; // ucs
+        ss = 0x23 | 3; // uds
+    }
+
+    *(--sp) = ss;
+    *(--sp) = stack_top;
+    *(--sp) = 0x202;
+    *(--sp) = cs;
     *(--sp) = (uint32_t)entry_point;
+
+    *(--sp) = 0; // ebp
+    *(--sp) = 0; //  ebx
+    *(--sp) = 0; //  esi
+    *(--sp) = 0; // edi
+
     if (page_dir)
         new_task->cr3 = page_dir;
     else
         new_task->cr3 = read_cr3();
 
-    new_task->regs.esp = (uint32_t)sp;
+    new_task->regs.esp = (uint32_t)sp + 16;
     new_task->regs.ebp = stack_top;
     new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;
@@ -149,6 +163,8 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
         temp->next = new_task;
         new_task->next = ready_queue;
     }
+    kprintf("STACK BASE=%x\n", stack_base);
+    kprintf("STACK TOP=%x\n", stack_top);
     return new_task;
 }
 
@@ -183,10 +199,12 @@ void schedule()
 
     kprint("Endddd\n");
 
-    kprintf("next=%x\n", next);
-kprintf("eip=%x\n", next->regs.eip);
-kprintf("esp=%x\n", next->regs.esp);
-kprintf("*esp=%x\n", *(uint32_t*)next->regs.esp);
+    kprintf("NEXT TASK\n");
+    kprintf("CR3=%x\n", next->cr3);
+    kprintf("ESP=%x\n", next->regs.esp);
+    kprintf("EBP=%x\n", next->regs.ebp);
+    kprintf("EIP=%x\n", next->regs.eip);
+    kprintf("KSTACK=%x\n", next->kernel_stack);
 
     switch_current_task(prev, next);
 }
@@ -340,12 +358,13 @@ void task_remove_ready(task_t *task)
 
 task_t *pick_next_task()
 {
-    if(!ready_queue) return NULL;
+    if (!ready_queue)
+        return NULL;
 
     task_t *temp = current_task->next;
     do
     {
-        if (temp->state == TASK_READY || temp->state==TASK_RUNNING)
+        if (temp->state == TASK_READY || temp->state == TASK_RUNNING)
             return temp;
         temp = temp->next;
     } while (temp != current_task);

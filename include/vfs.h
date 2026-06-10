@@ -75,9 +75,7 @@ struct dentry // name Cache layer
     struct vfs_mount *mount;
     struct dentry *next; // bucket chain
     struct dentry *hash_bucket[DENTRY_HASH];
-    struct dentry *hash_next;
-    
-};
+    struct dentry *hash_next};
 
 extern dentry_t *vfs_root;
 

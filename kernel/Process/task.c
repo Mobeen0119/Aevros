@@ -9,6 +9,7 @@
 #include "../CPU/tss.h"
 #include "userspace.h"
 #include "process-memory/process_memory.h"
+#include "../../Lib/kprintf.h"
 
 task_t *current_task = 0, *ready_queue = 0;
 
@@ -118,18 +119,20 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     uint32_t stack_top = (uint32_t)stack_base + 4096;
 
     uint32_t *sp = (uint32_t *)stack_top;
-    *(--sp) = (uint32_t)entry_point; // ret in switch lands here
+   
     *(--sp) = 0;                     // saved ebp
     *(--sp) = 0;                     // saved ebx
     *(--sp) = 0;                     // saved esi
     *(--sp) = 0;
 
+    *(--sp) = (uint32_t)entry_point;
     if (page_dir)
         new_task->cr3 = page_dir;
     else
         new_task->cr3 = read_cr3();
 
-    new_task->regs.ebp = new_task->regs.esp = (uint32_t)sp;
+    new_task->regs.esp = (uint32_t)sp;
+    new_task->regs.ebp = stack_top;
     new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;
 
@@ -177,7 +180,14 @@ void schedule()
 
     tss.esp0 = next->kernel_stack;
     tss.ss0 = 0x10;
+
     kprint("Endddd\n");
+
+    kprintf("next=%x\n", next);
+kprintf("eip=%x\n", next->regs.eip);
+kprintf("esp=%x\n", next->regs.esp);
+kprintf("*esp=%x\n", *(uint32_t*)next->regs.esp);
+
     switch_current_task(prev, next);
 }
 
@@ -330,13 +340,15 @@ void task_remove_ready(task_t *task)
 
 task_t *pick_next_task()
 {
-    task_t *temp = ready_queue;
+    if(!ready_queue) return NULL;
+
+    task_t *temp = current_task->next;
     do
     {
-        if (temp->state == TASK_READY)
+        if (temp->state == TASK_READY || temp->state==TASK_RUNNING)
             return temp;
         temp = temp->next;
-    } while (temp != ready_queue);
+    } while (temp != current_task);
 
-    return ready_queue;
+    return current_task;
 }

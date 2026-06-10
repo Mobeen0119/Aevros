@@ -5,8 +5,8 @@ extern current_task
 extern tss
 
 CR3_OFFSET          equ 0
-ESP_OFFSET          equ 40
-EBP_OFFSET          equ 36
+ESP_OFFSET          equ 28
+EBP_OFFSET          equ 24
 KERNEL_STACK_OFFSET equ 68
 
 switch_current_task:

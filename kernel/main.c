@@ -19,10 +19,11 @@
 
 
 void user_program() {
+    kprint("User Program");
     volatile char *v = (volatile char*)0xB8000;
     int i = 0;
     while(1) {
-        v[10] = 'U'; v[11] = 0x0C;  
+        v[12] = 'U'; v[13] = 0x0C;  
         i++;
     }
 }
@@ -50,19 +51,19 @@ void kernel_main()
    kprint("PMM OK\n");
 
     paging_init();
-    kprint("PAGING OK\n");
+ kprint("PAGING OK\n");
 
     buddy_init(0x800000, 0x2000000);
    kprint("Buddy OK\n");
 
     slab_init_all();
-    kprint("SLAB OK\n");
+     kprint("SLAB OK\n");
 
     vfs_init();
-    kprint("VFS OK\n");
+     kprint("VFS OK\n");
 
     tty_init();
-   kprint("TTY OK\n");
+  kprint("TTY OK\n");
 
     devfs_init();
    kprint("Devfs OK\n");

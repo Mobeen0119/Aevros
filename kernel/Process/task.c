@@ -94,6 +94,19 @@ task_t *task_create_user(void (*entry_point)())
         return NULL;
     }
 
+    uint32_t stack_phy = (uint64_t)task->kernel_stack - 4096;
+
+    map_page(TEMP_PD_VIRT, page_dir, PAGE_PRESENT | PAGE_WRITE);
+    uint32_t *new_pd = (uint32_t *)TEMP_PD_VIRT;
+
+    uint32_t vir_stack_base = stack_phy;
+    uint32_t pdi = vir_stack_base >> 22;
+    uint32_t *kernel_pd = (uint32_t *)PAGE_RECURSIVE;
+
+    new_pd[pdi] = kernel_pd[pdi];
+
+    unmap(TEMP_PD_VIRT);
+
     task->state = TASK_READY;
 
     kprint("TASKINGGGGGGGGG\n");
@@ -113,20 +126,28 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     new_task->parent = current_task;
 
     uint8_t *stack_base = kmalloc(4096);
+
     if (!stack_base)
-        return 0;
+    {
+        kfree(new_task);
+        return NULL;
+    }
 
     uint32_t stack_top = (uint32_t)stack_base + 4096;
 
     uint32_t *sp = (uint32_t *)stack_top;
 
-    uint32_t cs = 0x08; // kcs
-    uint32_t ss = 0x10; // kds
+    uint32_t cs, ss;
 
     if (page_dir)
     {
-        cs = 0x1B | 3; // ucs
-        ss = 0x23 | 3; // uds
+        cs = 0x1B; // ucs
+        ss = 0x23; // uds
+    }
+    else
+    {
+        cs = 0x08;
+        ss = 0x10;
     }
 
     *(--sp) = ss;
@@ -145,7 +166,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     else
         new_task->cr3 = read_cr3();
 
-    new_task->regs.esp = (uint32_t)sp + 16;
+    new_task->regs.esp = (uint32_t)sp;
     new_task->regs.ebp = stack_top;
     new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;

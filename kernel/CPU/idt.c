@@ -1,5 +1,6 @@
 
 #include "idt.h"
+#include "../Paging/isr.h"
 
 extern void default_handler();
 extern void isr13();
@@ -14,9 +15,9 @@ extern void syscall_asm_handler();
 
 extern void idt_load(unsigned int idtp);
 
-extern void irq_handler(struct registers *r);
+extern void irq_handler(register_t *r);
 
-extern void isr_handler(struct registers *r);
+extern void isr_handler(register_t *r);
 
 struct IDT_entry idt[256];
 

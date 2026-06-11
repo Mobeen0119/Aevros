@@ -71,21 +71,21 @@ int exec_user(void *binary, uint32_t size)
     task->regs.eip = hdr->entry_point;
     task->regs.ebp = USER_STACK_TOP;
 
-    // Set up iret frame on kernel stack (not user space to avoid page faults)
+
     uint32_t *sp = (uint32_t *)((uint32_t)kstack + 4096);
-    *(--sp) = 0x23 | 3;         // SS (user data segment with RPL=3)
-    *(--sp) = USER_STACK_TOP;   // ESP (user stack top)
-    *(--sp) = 0x202;            // EFLAGS (interrupts enabled)
-    *(--sp) = 0x1B | 3;         // CS (user code segment with RPL=3)
+    *(--sp) = 0x23 | 3;         // SS
+    *(--sp) = USER_STACK_TOP;   // ESP 
+    *(--sp) = 0x202;            // EFLAGS
+    *(--sp) = 0x1B | 3;         // CS 
     *(--sp) = hdr->entry_point; // EIP
     
-    // Saved registers
+    
     *(--sp) = 0;  // edi
     *(--sp) = 0;  // esi
     *(--sp) = 0;  // ebx
     *(--sp) = 0;  // ebp
 
-    task->regs.esp = (uint32_t)sp;  // Point to iret frame on kernel stack
+    task->regs.esp = (uint32_t)sp;  
     task->cwd = current_task->cwd;
     task->parent = current_task;
 

@@ -16,9 +16,13 @@ switch_current_task:
     test eax, eax
     jz .load_next
 
-    mov [eax + ESP_OFFSET], esp
-    mov [eax + EBP_OFFSET], ebp
+    push ebp
+    push ebx
+    push esi
+    push edi
 
+    mov [eax + ESP_OFFSET], esp
+    
 .load_next:
     mov [current_task], ecx
 
@@ -28,6 +32,12 @@ switch_current_task:
     mov edx, [ecx + KERNEL_STACK_OFFSET]
     mov [tss+4], edx
 
+    mov esp,[ecx + ESP_OFFSET]
+
+    pop edi
+    pop esi
+    pop ebx
+    pop ebp
 
     iret  
       

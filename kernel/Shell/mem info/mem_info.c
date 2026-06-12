@@ -71,7 +71,10 @@ void meminfo_buddy()
 void meminfo_slab()
 {
     kprintf("\n=== SLAB ===\n");
-    kprintf("Slab statistics not implemented\n");
+
+    kprintf("Free Objects : &u\n", slab_objects_free());
+    kprintf("Used Objects : &u\n", slab_objects_used());
+    
 }
 
 void meminfo_all()

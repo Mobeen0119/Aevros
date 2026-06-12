@@ -22,3 +22,6 @@ void slab_init_all();
 void* slab_alloc(slab_t* slab);
 
 void slab_free(slab_t* slab, void* ptr);
+
+uint32_t slab_objects_used();
+uint32_t slab_objects_free();

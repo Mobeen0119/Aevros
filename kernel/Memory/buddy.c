@@ -4,29 +4,34 @@
 #include "pmm.h"
 #include "buddy.h"
 
-
+static uint32_t buddy_total_mem = 0;
 
 buddy_block_t *free_lists[MAX_ORDER + 1];
 
-void buddy_init(uint32_t start, uint32_t end) {
+void buddy_init(uint32_t start, uint32_t end)
+{
+
     for (int i = 0; i <= MAX_ORDER; i++)
         free_lists[i] = NULL;
 
     uint32_t block_size = (1 << MAX_ORDER) * 4096;
     uint32_t addr = start;
+    buddy_total_mem = end - start;
 
- 
     if (addr & (block_size - 1))
         addr = (addr + block_size) & ~(block_size - 1);
 
-    while (addr + block_size <= end) {
+    while (addr + block_size <= end)
+    {
         add_to_list((void *)addr, MAX_ORDER);
         addr += block_size;
     }
 
-    if (free_lists[MAX_ORDER] == NULL) {
+    if (free_lists[MAX_ORDER] == NULL)
+    {
         addr = start;
-        while (addr + 4096 <= end) {
+        while (addr + 4096 <= end)
+        {
             add_to_list((void *)addr, 0);
             addr += 4096;
         }
@@ -130,4 +135,31 @@ void buddy_free(void *ptr, int order)
     }
 
     add_to_list((void *)address, order);
+}
+
+uint32_t buddy_total_memory()
+{
+    return buddy_total_mem;
+}
+
+uint32_t buddy_free_memory()
+{
+    uint32_t total = 0;
+
+    for (int order = 0; order <= MAX_ORDER; order++)
+    {
+        buddy_block_t *curr = free_lists[order];
+
+        while (curr)
+        {
+            total += (1 << order) * 4096;
+            curr = curr->next;
+        }
+    }
+    return total;
+}
+
+uint32_t buddy_fragmentation()
+{
+    return buddy_total_memory() - buddy_free_memory();
 }

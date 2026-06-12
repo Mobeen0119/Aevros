@@ -42,4 +42,8 @@ void remove_from_list(void *ptr, int order);
 
 void buddy_free(void *ptr, int order);
 
+uint32_t buddy_total_memory();
+uint32_t buddy_free_memory();
+uint32_t buddy_fragmentation();
+
 #endif 

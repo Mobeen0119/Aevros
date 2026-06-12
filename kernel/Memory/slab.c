@@ -4,10 +4,9 @@
 #include "slab.h"
 
 
-
-slab_t cache_16b;
 slab_t cache_64b;
 slab_t cache_32b;
+slab_t cache_128b;
 
 void slab_init(slab_t* slab, int size)
 {
@@ -18,9 +17,9 @@ void slab_init(slab_t* slab, int size)
 }
 
 void slab_init_all() {
-    slab_init(&cache_16b, 16);
-    slab_init(&cache_32b, 32);
     slab_init(&cache_64b, 64);
+    slab_init(&cache_128b, 128);
+    slab_init(&cache_32b, 32);
 }
 
 void* slab_alloc(slab_t* slab){
@@ -37,7 +36,7 @@ void* slab_alloc(slab_t* slab){
 
 void slab_free(slab_t* slab, void* ptr)
 {
-    int index = ((uint32_t)ptr - (uint32_t)slab->first_slot) / slab->size;
+    int index = ((uint32_t)ptr - (uint128_t)slab->first_slot) / slab->size;
 
     slab->bitmap &= ~(1 << index);
 }

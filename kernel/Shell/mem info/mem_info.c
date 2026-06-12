@@ -6,6 +6,7 @@
 
 #include "../../Process/task.h"
 
+
 void meminfo_pmm()
 {
     kprintf("\n==== PMM ====\n");
@@ -60,7 +61,11 @@ void meminfo_task()
 void meminfo_buddy()
 {
     kprintf("\n=== BUDDY ===\n");
-    kprintf("Buddy statistics not implemented\n");
+   
+    kprintf("Total Memory : &u\n", buddy_total_memory());
+    kprintf("Free Memory : &u\n", buddy_free_memory());
+    kprintf("Fragmentation : &u\n", buddy_fragmentation());
+
 }
 
 void meminfo_slab()

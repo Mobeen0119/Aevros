@@ -7,7 +7,6 @@
 #include "builtins.h"
 #include "parser.h"
 
-
 extern void meminfo_all(void);
 extern void meminfo_pmm(void);
 extern void meminfo_heap(void);
@@ -77,15 +76,15 @@ void shell_execute(char *input)
     }
 
     else if (strcmp(argv[0], "touch") == 0)
-{
-    if (argc < 2)
     {
-        kprint("touch: missing file\n");
-        return;
-    }
+        if (argc < 2)
+        {
+            kprint("touch: missing file\n");
+            return;
+        }
 
-    cmd_touch(argv[1]);
-}
+        cmd_touch(argv[1]);
+    }
     else if (strcmp(argv[0], "write") == 0)
     {
         if (argc < 3)
@@ -143,6 +142,14 @@ void shell_execute(char *input)
         {
             kprint("usage: meminfo [pmm|heap|paging|task]\n");
         }
+    }
+    else if (strcmp(argv[1], "buddy") == 0)
+    {
+        meminfo_buddy();
+    }
+    else if (strcmp(argv[1], "slab") == 0)
+    {
+        meminfo_slab();
     }
 
     else

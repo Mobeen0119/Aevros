@@ -32,6 +32,9 @@ void user_program() {
 
 void kernel_main()
 {
+    volatile char *s = (volatile char *)0xB8000;
+s[0] = 'A'; s[1] = 0x0F;
+
     volatile char *v = (volatile char *)0xB8000;
     for (int i = 0; i < 80 * 25 * 2; i += 2)
     {

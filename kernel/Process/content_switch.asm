@@ -10,8 +10,8 @@ EBP_OFFSET          equ 24
 KERNEL_STACK_OFFSET equ 72
 
 switch_current_task:
-    mov eax, [esp+4]    
-    mov ecx, [esp+8]    
+    mov eax, [esp+4]        ; prev task
+    mov ecx, [esp+8]        ; next task
 
     test eax, eax
     jz .load_next
@@ -22,7 +22,7 @@ switch_current_task:
     push edi
 
     mov [eax + ESP_OFFSET], esp
-    
+
 .load_next:
     mov [current_task], ecx
 
@@ -32,15 +32,15 @@ switch_current_task:
     mov edx, [ecx + KERNEL_STACK_OFFSET]
     mov [tss+4], edx
 
-    mov esp,[ecx + ESP_OFFSET]
+    mov esp, [ecx + ESP_OFFSET]
 
     pop edi
     pop esi
     pop ebx
     pop ebp
 
-    iret  
-      
+    iret
+
 read_eip:
     mov eax, [esp]
     ret

@@ -10,13 +10,13 @@
 #include "userspace.h"
 #include "process-memory/process_memory.h"
 #include "../../Lib/kprintf.h"
+#include "../CPU/tss.h"
 
 task_t *current_task = 0, *ready_queue = 0;
 
 int next_pid = 0;
 
-extern void jump_user_mode(void *entry, void *stack);
-
+extern void jump_user_mode(uint32_t entry, uint32_t stack);
 
 extern void switch_current_task(task_t *prev, task_t *next);
 extern uint32_t read_eip();
@@ -89,36 +89,49 @@ task_t *task_create_user(void (*entry_point)())
     if (!page_dir)
         return NULL;
 
-    task_t *task = create_process(entry_point, 0, page_dir);
+    uint32_t user_stack_top = 0xBFFFF000;
 
+    uint32_t phys = pmm_alloc();
+    if (!phys)
+    {
+        destroy_user_space(page_dir);
+        return NULL;
+    }
+
+    map_page_in_directory(page_dir, user_stack_top, phys,
+                          PAGE_PRESENT | PAGE_WRITE | PAGE_USER);
+
+    task_t *task = create_process(entry_point, 0, page_dir);
     if (!task)
     {
         destroy_user_space(page_dir);
         return NULL;
     }
 
-    
-    task->state = TASK_READY;
-    task->cr3=read_cr3();
+    task->regs.esp = user_stack_top + 4096;
+    task->regs.ebp = task->regs.esp;
+    task->kernel_stack = task->kernel_stack; 
 
-    kprint("TASKINGGGGGGGGG\n");
+    task->state = TASK_READY;
+    kprint("TASK USER CREATED\n");
     return task;
 }
 
 task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
 {
+    (void)flags;
 
     task_t *new_task = (task_t *)kmalloc(sizeof(task_t));
     if (!new_task)
-        return 0;
-
+        return NULL;
     memset(new_task, 0, sizeof(task_t));
+
     new_task->pid = next_pid++;
     new_task->state = TASK_READY;
     new_task->parent = current_task;
+    new_task->first_run = 1;
 
     uint8_t *stack_base = kmalloc(4096);
-
     if (!stack_base)
     {
         kfree(new_task);
@@ -126,15 +139,13 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     }
 
     uint32_t stack_top = (uint32_t)stack_base + 4096;
-
     uint32_t *sp = (uint32_t *)stack_top;
 
     uint32_t cs, ss;
-
     if (page_dir)
     {
-        cs = 0x1B; // ucs
-        ss = 0x23; // uds
+        cs = 0x1B;
+        ss = 0x23;
     }
     else
     {
@@ -149,17 +160,13 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     *(--sp) = (uint32_t)entry_point;
 
     *(--sp) = 0; // ebp
-    *(--sp) = 0; //  ebx
-    *(--sp) = 0; //  esi
+    *(--sp) = 0; // ebx
+    *(--sp) = 0; // esi
     *(--sp) = 0; // edi
 
-    if (page_dir)
-        new_task->cr3 = page_dir;
-    else
-        new_task->cr3 = read_cr3();
-
+    new_task->cr3 = page_dir ? page_dir : read_cr3();
     new_task->regs.esp = (uint32_t)sp;
-   new_task->regs.ebp = (uint32_t)sp;
+    new_task->regs.ebp = stack_top;
     new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;
 
@@ -176,53 +183,56 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
         temp->next = new_task;
         new_task->next = ready_queue;
     }
-    kprintf("STACK BASE=%x\n", stack_base);
-    kprintf("STACK TOP=%x\n", stack_top);
+
+    kprintf("STACK BASE=%x STACK TOP=%x EIP=%x\n",
+            stack_base, stack_top, entry_point);
     return new_task;
 }
-
-void schedule()
+void schedule(void)
 {
-    kprint("SCHEDULE RUN\n");
-    if (!current_task)
-    {
-        kprint("ha hi ni");
-        return;
-    }
-    if (current_task->state == TASK_RUNNING)
-        current_task->state = TASK_READY;
-
     task_t *prev = current_task;
-    task_t *next = pick_next_task();
-
-    kprint("SWITCHING\n");
-
+    task_t *next = prev->next;
     if (!next || next == prev)
-    {
-        prev->state = TASK_RUNNING;
         return;
+
+    kprintf("SCHED: prev=%x next=%x eip=%x first_run=%d\n",
+            prev, next, next->regs.eip, next->first_run);
+
+    if (next->first_run)
+    {
+        next->first_run = 0;
+        current_task = next;
+        tss.esp0 = next->kernel_stack;
+
+        asm volatile("mov %0, %%cr3" :: "r"(next->cr3) : "memory");
+
+        uint32_t eip = next->regs.eip;
+        uint32_t esp = next->regs.esp;
+
+        asm volatile(
+            "mov $0x23, %%ax  \n"
+            "mov %%ax,  %%ds  \n"
+            "mov %%ax,  %%es  \n"
+            "mov %%ax,  %%fs  \n"
+            "mov %%ax,  %%gs  \n"
+            "push $0x23       \n"   // SS
+            "push %1          \n"   // ESP
+            "pushf            \n"
+            "pop  %%ecx       \n"
+            "or   $0x200,%%ecx\n"
+            "push %%ecx       \n"   // EFLAGS
+            "push $0x1B       \n"   // CS
+            "push %0          \n"   // EIP
+            "iret             \n"
+            :: "r"(eip), "r"(esp)
+: "eax", "ecx"
+        );
     }
 
-    current_task = next;
-    current_task->state = TASK_RUNNING;
-    // asm volatile("mov %0,%%cr3" ::"r"(next->cr3));
-
-    tss.esp0 = next->kernel_stack;
-    tss.ss0 = 0x10;
-
-    kprint("Endddd\n");
-
-    // kprintf("NEXT TASK\n");
-    // kprintf("CR3=%x\n", next->cr3);
-    // kprintf("ESP=%x\n", next->regs.esp);
-    // kprintf("EBP=%x\n", next->regs.ebp);
-    // kprintf("EIP=%x\n", next->regs.eip);
-    // kprintf("KSTACK=%x\n", next->kernel_stack);
-    kprintf("ESP OFFSET=%d\n", offsetof(task_t, regs) + offsetof(register_t, esp));
-kprintf("EBP OFFSET=%d\n", offsetof(task_t, regs) + offsetof(register_t, ebp));
-kprintf("KSTACK OFFSET=%d\n", offsetof(task_t, kernel_stack));
-
-    switch_current_task(prev, next);
+    else
+    {
+        switch_current_task(prev, next);
+    }
 }
 
 void sys_exit(int status)
@@ -387,3 +397,4 @@ task_t *pick_next_task()
 
     return current_task;
 }
+

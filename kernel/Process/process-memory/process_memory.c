@@ -5,29 +5,21 @@
 uint32_t create_user_space(void)
 {
     uint32_t pd_phy = pmm_alloc();
-
-    if (!pd_phy)
-        return 0;
+    if (!pd_phy) return 0;
 
     map_page(TEMP_PD_VIRT, pd_phy, PAGE_PRESENT | PAGE_WRITE);
-
-    uint32_t *new_pd = (uint32_t *)TEMP_PD_VIRT;
+    uint32_t *new_pd    = (uint32_t *)TEMP_PD_VIRT;
+    uint32_t *kernel_pd = (uint32_t *)PAGE_RECURSIVE;
 
     memset(new_pd, 0, 4096);
 
-    uint32_t *kernel_pd = (uint32_t *)(PAGE_RECURSIVE);
-
-    for (uint32_t  i = 768; i < 1023; i++)
-    {
+    for (uint32_t i = 0; i < 1023; i++)
         new_pd[i] = kernel_pd[i];
-    }
 
-    new_pd[0] = kernel_pd[0];
+    new_pd[0] |= PAGE_USER;
 
     new_pd[1023] = pd_phy | PAGE_PRESENT | PAGE_WRITE;
-
     unmap(TEMP_PD_VIRT);
-
     return pd_phy;
 }
 

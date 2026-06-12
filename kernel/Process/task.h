@@ -32,6 +32,7 @@ typedef struct task
 
     int started;
     int exit_code;
+    uint32_t first_run;
 } task_t;
 
 extern task_t *current_task;

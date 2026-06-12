@@ -34,9 +34,13 @@ void map_page(uint32_t virt, uint32_t phys, uint32_t flags) {
 
     if (!(pd[pd_idx] & PAGE_PRESENT)) {
         uint32_t new_pt = pmm_alloc();
-        pd[pd_idx] = new_pt | PAGE_PRESENT | PAGE_WRITE;
+
+        pd[pd_idx] = new_pt | PAGE_PRESENT | PAGE_WRITE | (flags & PAGE_USER);
         uint32_t *pt = (uint32_t *)(0xFFC00000 + pd_idx * 0x1000);
         for (int i = 0; i < 1024; i++) pt[i] = 0;
+    } else {
+
+        pd[pd_idx] |= (flags & PAGE_USER);
     }
 
     uint32_t *pt = (uint32_t *)(0xFFC00000 + pd_idx * 0x1000);

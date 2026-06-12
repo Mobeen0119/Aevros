@@ -7,7 +7,7 @@ extern tss
 CR3_OFFSET          equ 0
 ESP_OFFSET          equ 28
 EBP_OFFSET          equ 24
-KERNEL_STACK_OFFSET equ 68
+KERNEL_STACK_OFFSET equ 72
 
 switch_current_task:
     mov eax, [esp+4]    

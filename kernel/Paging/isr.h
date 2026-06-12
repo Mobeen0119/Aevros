@@ -12,4 +12,5 @@ typedef struct registers {
     uint32_t eip;
     uint32_t cs;
     uint32_t eflags;
+    uint32_t ss;
 } register_t;

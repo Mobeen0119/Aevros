@@ -71,21 +71,19 @@ int exec_user(void *binary, uint32_t size)
     task->regs.eip = hdr->entry_point;
     task->regs.ebp = USER_STACK_TOP;
 
-
     uint32_t *sp = (uint32_t *)((uint32_t)kstack + 4096);
     *(--sp) = 0x23 | 3;         // SS
-    *(--sp) = USER_STACK_TOP;   // ESP 
+    *(--sp) = USER_STACK_TOP;   // ESP
     *(--sp) = 0x202;            // EFLAGS
-    *(--sp) = 0x1B | 3;         // CS 
+    *(--sp) = 0x1B | 3;         // CS
     *(--sp) = hdr->entry_point; // EIP
-    
-    
-    *(--sp) = 0;  // edi
-    *(--sp) = 0;  // esi
-    *(--sp) = 0;  // ebx
-    *(--sp) = 0;  // ebp
 
-    task->regs.esp = (uint32_t)sp;  
+    *(--sp) = 0; // edi
+    *(--sp) = 0; // esi
+    *(--sp) = 0; // ebx
+    *(--sp) = 0; // ebp
+
+    task->regs.esp = (uint32_t)sp;
     task->cwd = current_task->cwd;
     task->parent = current_task;
 
@@ -130,8 +128,10 @@ int sys_exec(const char *path)
     file_t *file = current_task->fd_table[fd];
 
     if (!file)
+    {
         sys_close(fd);
-    return VFS_ERR;
+        return VFS_ERR;
+    }
 
     uint32_t size = file->inode->size;
 
@@ -207,15 +207,15 @@ int sys_exec(const char *path)
     *(--sp) = 0x202;            // EFLAGS (interrupts enabled)
     *(--sp) = 0x1B | 3;         // CS (user code segment with RPL=3)
     *(--sp) = hdr->entry_point; // EIP
-    
+
     // Saved registers
-    *(--sp) = 0;  // edi
-    *(--sp) = 0;  // esi
-    *(--sp) = 0;  // ebx
-    *(--sp) = 0;  // ebp
+    *(--sp) = 0; // edi
+    *(--sp) = 0; // esi
+    *(--sp) = 0; // ebx
+    *(--sp) = 0; // ebp
 
     current_task->regs.eip = hdr->entry_point;
-    current_task->regs.esp = (uint32_t)sp;  // Point to iret frame on kernel stack
+    current_task->regs.esp = (uint32_t)sp; // Point to iret frame on kernel stack
     current_task->regs.ebp = USER_STACK_TOP;
 
     destroy_user_space(old_cr3);

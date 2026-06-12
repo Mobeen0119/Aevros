@@ -15,6 +15,9 @@ task_t *current_task = 0, *ready_queue = 0;
 
 int next_pid = 0;
 
+extern void jump_user_mode(void *entry, void *stack);
+
+
 extern void switch_current_task(task_t *prev, task_t *next);
 extern uint32_t read_eip();
 
@@ -94,20 +97,9 @@ task_t *task_create_user(void (*entry_point)())
         return NULL;
     }
 
-    uint32_t stack_phy = (uint64_t)task->kernel_stack - 4096;
-
-    map_page(TEMP_PD_VIRT, page_dir, PAGE_PRESENT | PAGE_WRITE);
-    uint32_t *new_pd = (uint32_t *)TEMP_PD_VIRT;
-
-    uint32_t vir_stack_base = stack_phy;
-    uint32_t pdi = vir_stack_base >> 22;
-    uint32_t *kernel_pd = (uint32_t *)PAGE_RECURSIVE;
-
-    new_pd[pdi] = kernel_pd[pdi];
-
-    unmap(TEMP_PD_VIRT);
-
+    
     task->state = TASK_READY;
+    task->cr3=read_cr3();
 
     kprint("TASKINGGGGGGGGG\n");
     return task;
@@ -167,7 +159,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
         new_task->cr3 = read_cr3();
 
     new_task->regs.esp = (uint32_t)sp;
-    new_task->regs.ebp = stack_top;
+   new_task->regs.ebp = (uint32_t)sp;
     new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;
 
@@ -213,19 +205,22 @@ void schedule()
 
     current_task = next;
     current_task->state = TASK_RUNNING;
-    asm volatile("mov %0,%%cr3" ::"r"(next->cr3));
+    // asm volatile("mov %0,%%cr3" ::"r"(next->cr3));
 
     tss.esp0 = next->kernel_stack;
     tss.ss0 = 0x10;
 
     kprint("Endddd\n");
 
-    kprintf("NEXT TASK\n");
-    kprintf("CR3=%x\n", next->cr3);
-    kprintf("ESP=%x\n", next->regs.esp);
-    kprintf("EBP=%x\n", next->regs.ebp);
-    kprintf("EIP=%x\n", next->regs.eip);
-    kprintf("KSTACK=%x\n", next->kernel_stack);
+    // kprintf("NEXT TASK\n");
+    // kprintf("CR3=%x\n", next->cr3);
+    // kprintf("ESP=%x\n", next->regs.esp);
+    // kprintf("EBP=%x\n", next->regs.ebp);
+    // kprintf("EIP=%x\n", next->regs.eip);
+    // kprintf("KSTACK=%x\n", next->kernel_stack);
+    kprintf("ESP OFFSET=%d\n", offsetof(task_t, regs) + offsetof(register_t, esp));
+kprintf("EBP OFFSET=%d\n", offsetof(task_t, regs) + offsetof(register_t, ebp));
+kprintf("KSTACK OFFSET=%d\n", offsetof(task_t, kernel_stack));
 
     switch_current_task(prev, next);
 }

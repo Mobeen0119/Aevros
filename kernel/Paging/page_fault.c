@@ -34,8 +34,7 @@ void page_fault_handler(struct registers *reg)
 
     kprintf("Address : 0s%x\n", addr);
 
-    kprintf("Cause of it : %x\n", protection ? "Protection Violation " : "Page Not Present");
-
+kprintf("Cause of it : %s\n",protection ? "Protection Violation": "Page Not Present");
     kprintf("Access : %s\n", write ? "Write" : "Read");
 
     kprintf("Mode : %s\n", user ? "User" : "Kernel");
@@ -44,10 +43,13 @@ void page_fault_handler(struct registers *reg)
         kprintf("Reserved bits overwritten\n");
     if (fetch)
         kprintf("Instruction Fetch Fault\n");
+    
 
     // Future----
-    kprintf("ESP : 0x%x\n", reg->esp);
-    kprintf("EIP : 0x%x\n", reg->eip);
+    // kprintf("ESP : 0x%x\n", reg->esp);
+    // kprintf("EIP : 0x%x\n", reg->eip);
+    kprintf("CS=%x\n", reg->cs);
+kprintf("SS=%x\n", reg->ss);
 
     if (user)
     {

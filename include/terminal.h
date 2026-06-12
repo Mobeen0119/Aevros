@@ -23,3 +23,4 @@ extern uint16_t *const vga_memory;
 
 
 void terminal_readline(char* out);
+void render();

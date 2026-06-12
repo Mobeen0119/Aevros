@@ -77,14 +77,15 @@ void shell_execute(char *input)
     }
 
     else if (strcmp(argv[0], "touch") == 0)
+{
+    if (argc < 2)
     {
-        if (argc < 2)
-            kprint("touch: missing file\n");
-            return;
-
-        cmd_touch(argv[1]);
+        kprint("touch: missing file\n");
+        return;
     }
 
+    cmd_touch(argv[1]);
+}
     else if (strcmp(argv[0], "write") == 0)
     {
         if (argc < 3)

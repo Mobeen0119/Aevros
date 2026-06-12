@@ -70,3 +70,8 @@ uint32_t pmm_used_frames(void)
 {
     return total_frames - (stack_top + 1);
 }
+
+uint32_t pmm_total_frames(void)
+{
+    return total_frames;
+}

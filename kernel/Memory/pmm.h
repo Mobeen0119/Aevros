@@ -18,3 +18,5 @@ uint32_t pmm_free_frames(void);
 uint32_t pmm_get_top();
 
 uint32_t pmm_used_frames(void);
+
+uint32_t pmm_total_frames(void);

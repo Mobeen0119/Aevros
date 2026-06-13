@@ -23,18 +23,11 @@ void *kmalloc(size_t size)
 {
     block_header_t *hdr;
 
-    if (size <= 16)
-    {
-        hdr = (block_header_t *)slab_alloc(&cache_16b);
-          if (!hdr) return NULL; 
-        hdr->type = SLAB;
-        hdr->infor.cache = &cache_16b;
-        return (void *)(hdr + 1);
-    }
-
     if (size <= 32)
     {
         hdr = (block_header_t *)slab_alloc(&cache_32b);
+        if (!hdr)
+            return NULL;
         hdr->type = SLAB;
         hdr->infor.cache = &cache_32b;
         return (void *)(hdr + 1);
@@ -43,8 +36,20 @@ void *kmalloc(size_t size)
     if (size <= 64)
     {
         hdr = (block_header_t *)slab_alloc(&cache_64b);
+        if (!hdr)
+            return NULL;
         hdr->type = SLAB;
         hdr->infor.cache = &cache_64b;
+        return (void *)(hdr + 1);
+    }
+
+    if (size <= 128)
+    {
+        hdr = (block_header_t *)slab_alloc(&cache_128b);
+        if (!hdr)
+            return NULL;
+        hdr->type = SLAB;
+        hdr->infor.cache = &cache_128b;
         return (void *)(hdr + 1);
     }
 
@@ -72,4 +77,29 @@ void kfree(void *ptr)
     {
         buddy_free(hdr, hdr->infor.order);
     }
+}
+
+uint32_t heap_used_bytes(void)
+{
+    return slab_used_bytes() + buddy_used_memory();
+}
+
+uint32_t heap_free_bytes(void)
+{
+    return slab_free_bytes() + buddy_free_memory();
+}
+
+uint32_t heap_total_bytes(void)
+{
+    return heap_used_bytes() + heap_free_bytes();
+}
+
+uint32_t heap_largest_free_block(void)
+{
+    return buddy_largest_free_block();
+}
+
+uint32_t heap_live_allocation(void)
+{
+    return slab_objects_used() + buddy_live_allocations();
 }

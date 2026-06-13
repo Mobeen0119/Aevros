@@ -6,12 +6,8 @@
 #include "../../Include/vfs.h"
 #include "builtins.h"
 #include "parser.h"
+#include "/MemInfo/mem_info.h"
 
-extern void meminfo_all(void);
-extern void meminfo_pmm(void);
-extern void meminfo_heap(void);
-extern void meminfo_paging(void);
-extern void meminfo_task(void);
 
 void shell_prompt()
 {

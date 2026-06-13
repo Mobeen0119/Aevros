@@ -9,7 +9,7 @@
 static slab_t *const slab_caches[SLAB_NUM_CACHES] = {
     &cache_32b,
     &cache_64b,
-    &cache_128b,
+    &cache_128b
 };
 
 void slab_init(slab_t *slab, int size)
@@ -18,6 +18,10 @@ void slab_init(slab_t *slab, int size)
     slab->size = size;
 
     slab->first_slot = buddy_alloc(0);
+
+    if(!slab->first_slot) {
+        kprint("\nKERNEL PANICCCCCC\n");
+    }
 }
 
 void slab_init_all()
@@ -44,24 +48,16 @@ void slab_free(slab_t *slab, void *ptr)
 {
     int index = ((uint32_t)ptr - (uint32_t)slab->first_slot) / slab->size;
 
+    if(index<0 || index>=SLAB_SLOTS_PER_CACHE) return;
+
     slab->bitmap &= ~(1 << index);
 }
 
 static uint32_t slab_used_count(void)
 {
     uint32_t total = 0;
-
-    slab_t *caches[3] = {&cache_32b, &cache_64b, &cache_128b};
-
-    for (int i = 0; i < 3; i++)
-    {
-        uint32_t bm = caches[i]->bitmap;
-        for (int k = 0; k < 32; k++)
-        {
-            if (bm & (1u << k))
-                total++;
-        }
-    }
+    for (int i = 0; i < SLAB_NUM_CACHES; i++)
+        total += __builtin_popcount(slab_caches[i]->bitmap);
     return total;
 }
 
@@ -87,22 +83,16 @@ uint32_t slab_cache_free(slab_t *cache)
 
 uint32_t slab_used_bytes(void)
 {
-    static const uint32_t sizes[SLAB_NUM_CACHES] = {32, 64, 128};
     uint32_t total = 0;
-
     for (int i = 0; i < SLAB_NUM_CACHES; i++)
-        total += slab_cache_used(slab_caches[i]) * sizes[i];
-
+        total += slab_cache_used(slab_caches[i]) * slab_caches[i]->size;
     return total;
 }
 
 uint32_t slab_free_bytes(void)
 {
-    static const uint32_t sizes[SLAB_NUM_CACHES] = {32, 64, 128};
     uint32_t total = 0;
-
     for (int i = 0; i < SLAB_NUM_CACHES; i++)
-        total += slab_cache_free(slab_caches[i]) * sizes[i];
-
+        total += slab_cache_free(slab_caches[i]) * slab_caches[i]->size;
     return total;
 }

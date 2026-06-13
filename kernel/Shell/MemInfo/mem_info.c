@@ -6,6 +6,7 @@
 #include "../../Memory/slab.h"
 
 #include "../../Process/task.h"
+#include "../../Memory/kheap.h"
 
 #define ROW(label, fmt, ...) \
     kprintf(" %-28s " fmt "\n", label ":", ##__VA_ARGS__)
@@ -13,13 +14,13 @@
 static char *fmt_bytes(uint32_t bytes, char *buf, int bufsz)
 {
     if (bytes >= (1024 * 1024))
-        kprintf(buf, bufsz, "%u MB (%u KB)", bytes / (1024 * 1024), bytes / 1024);
+        ksnprintf(buf, bufsz, "%u MB (%u KB)", bytes / (1024 * 1024), bytes / 1024);
 
     else if (bytes >= 1024)
-        kprintf(buf, bufsz, "%U KB", bytes / 1024);
+        ksnprintf(buf, bufsz, "%U KB", bytes / 1024);
 
     else
-        kprintf(buf, bufsz, "%u B", bytes);
+        ksnprintf(buf, bufsz, "%u B", bytes);
 
     return buf;
 }
@@ -88,7 +89,25 @@ void meminfo_pmm()
 
 void meminfo_heap(void)
 {
-    kprintf("\n==== Heap ====\n");
+    section("HEAP",
+            "Routes to slab (<=64B) or buddy (>64B)");
+
+    char buf_u[32], buf_f[32], buf_t[32];
+
+    uint32_t used  = heap_used_bytes();
+    uint32_t free  = heap_free_bytes();
+    uint32_t total = heap_total_bytes();
+
+    ROW("Total managed",  "%s", fmt_bytes(total, buf_t, sizeof buf_t));
+    ROW("In use",         "%s  (%u%%)", fmt_bytes(used, buf_u, sizeof buf_u), pct(used, total));
+    ROW("Free",           "%s  (%u%%)", fmt_bytes(free, buf_f, sizeof buf_f), pct(free, total));
+    kprintf("\n");
+    kprintf("  Usage  ");
+    print_bar(used, total, 40);
+    kprintf("\n\n");
+    ROW("Largest free block", "%s", fmt_bytes(heap_largest_free_block(), buf_u, sizeof buf_u));
+    ROW("Live allocations",   "%u", heap_live_allocation());
+
 }
 
 void meminfo_buddy(void)
@@ -103,8 +122,9 @@ void meminfo_buddy(void)
     bool fragmented = (free_mem > 0 && buddy_largest_free_block() < free_mem);
     char buf_t[32], buf_f[32], buf_u[32];
 
-    ROW("Total managed", "%s (%u%%)",
-        fmt_bytes(used_mem, buf_u, sizeof(buf_u)), pct(used_mem, total));
+    ROW("Total managed",         "%s", fmt_bytes(total,    buf_t, sizeof buf_t));
+    ROW("In use",                "%s  (%u%%)", fmt_bytes(used_mem, buf_u, sizeof buf_u), pct(used_mem, total));
+    ROW("Free",                  "%s  (%u%%)", fmt_bytes(free_mem, buf_f, sizeof buf_f), pct(free_mem, total));
 
     kprintf("\n");
 
@@ -158,7 +178,7 @@ void meminfo_slab(void)
             "Fixed-size object pools: fast O(1) small allocations");
  
     uint32_t total_slots = 32 * 3;
-    uint32_t used        = slab_used_count();
+    uint32_t used        = slab_objects_used();
     uint32_t free_objs   = total_slots - used;
  
     ROW("Total object slots",    "%u  (3 caches × 32 slots)", total_slots);
@@ -197,7 +217,7 @@ void meminfo_task(void)
         {
             case TASK_RUNNING:  state_str = "RUNNING";  break;
             case TASK_READY:    state_str = "READY";    break;
-            case TASK_ZOMBIE: state_str = "SLEEPING"; break;
+            case TASK_ZOMBIE:   state_str = "ZOMBIE"; break;
             case TASK_BLOCKED:  state_str = "BLOCKED";  break;
             default:            state_str = "UNKNOWN";  break;
         }

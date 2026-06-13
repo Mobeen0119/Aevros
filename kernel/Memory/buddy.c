@@ -137,12 +137,12 @@ void buddy_free(void *ptr, int order)
     add_to_list((void *)address, order);
 }
 
-uint32_t buddy_total_memory()
+uint32_t buddy_total_memory(void)
 {
     return buddy_total_mem;
 }
 
-uint32_t buddy_free_memory()
+uint32_t buddy_free_memory(void)
 {
     uint32_t free = 0;
 
@@ -181,7 +181,7 @@ uint32_t buddy_largest_free_block(void)
     return 0;
 }
 
-uint32_t buddy_fragmentation()
+uint32_t buddy_fragmentation(void)
 {
     uint32_t free = buddy_free_memory();
     uint32_t largest = buddy_largest_free_block();
@@ -202,3 +202,15 @@ uint32_t buddy_free_count_at_order(int order){
     }
     return count;
 }
+
+uint32_t buddy_live_allocations(void)
+{
+    uint32_t total_pages = buddy_total_mem / 4096;
+    uint32_t free_pages  = 0;
+
+    for (int order = 0; order <= MAX_ORDER; order++)
+        free_pages += buddy_free_count_at_order(order) * ((uint32_t)1 << order);
+
+    return total_pages - free_pages;
+}
+

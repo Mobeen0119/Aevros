@@ -53,18 +53,20 @@ static uint32_t slab_used_count(void)
         uint32_t bm = caches[i]->bitmap;
         for (int k = 0; k < 32; k++)
         {
-            if (bm & (1u << i))
+            if (bm & (1u << k))
                 total++;
         }
     }
         return total;
     }
 
-    uint32_t slab_objects_used(void)
+uint32_t slab_objects_used(void)
     {
         return slab_used_count();
     }
-    uint32_t slab_objects_free(void)
+ 
+uint32_t slab_objects_free(void)
     {
         return (32 * 3) - slab_used_count();
     }
+

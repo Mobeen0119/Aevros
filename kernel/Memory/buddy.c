@@ -163,3 +163,4 @@ uint32_t buddy_fragmentation()
 {
     return buddy_total_memory() - buddy_free_memory();
 }
+

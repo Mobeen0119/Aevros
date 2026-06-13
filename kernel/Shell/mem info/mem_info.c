@@ -91,41 +91,6 @@ void meminfo_heap(void)
     kprintf("\n==== Heap ====\n");
 }
 
-void meminfo_paging(void)
-{
-    kprintf("\n=== PAGING ===\n");
-
-    if (current_task)
-        kprintf("Current CR3 : 0x%x\n", current_task->cr3);
-    else
-        kprintf("No current task\n");
-}
-
-void meminfo_task(void)
-{
-    kprintf("\n=== Task ===\n");
-
-    if (!ready_queue)
-    {
-        kprintf("No tasks\n");
-        return;
-    }
-
-    task_t *t = ready_queue;
-
-    do
-    {
-        kprintf(
-            "PID=%u STATE=%u CR3=0x%x\n",
-            t->pid,
-            t->state,
-            t->cr3);
-
-        t = t->next;
-
-    } while (t != ready_queue);
-}
-
 void meminfo_buddy(void)
 {
     section("BUDDY ALLOCATOR",
@@ -171,25 +136,140 @@ void meminfo_buddy(void)
                 "large allocations may fail.\n");
 }
 
-void meminfo_slab()
-{
-    kprintf("\n=== SLAB ===\n");
+void meminfo_slab_cache(const char *label, slab_t *cache,
+                                uint32_t obj_size){
 
-    kprintf("Free Objects : &u\n", slab_objects_free());
-    kprintf("Used Objects : &u\n", slab_objects_used());
+    uint32_t used=0;
+    uint32_t bm=cache->bitmap;
+
+    for(int k=0;k<32;k++)
+        if(bm&(1u<<k)) used++;
+    uint32_t free_objs=32-used;
+
+    kprintf("  %-10s  %3u B/obj    %2u used   %2u free   ",
+            label, obj_size, used, free_objs);
+    print_bar(used, 32, 20);
+    kprintf("\n");
+   
+}
+void meminfo_slab(void)
+{
+    section("SLAB ALLOCATOR",
+            "Fixed-size object pools: fast O(1) small allocations");
+ 
+    uint32_t total_slots = 32 * 3;
+    uint32_t used        = slab_used_count();
+    uint32_t free_objs   = total_slots - used;
+ 
+    ROW("Total object slots",    "%u  (3 caches × 32 slots)", total_slots);
+    ROW("Slots in use",          "%u  (%u%%)", used,      pct(used,      total_slots));
+    ROW("Slots free",            "%u  (%u%%)", free_objs, pct(free_objs, total_slots));
+    kprintf("\n");
+ 
+    kprintf("  Per-cache breakdown:\n");
+    div_line();
+    meminfo_slab_cache("cache_32b",  &cache_32b,  32);
+    meminfo_slab_cache("cache_64b",  &cache_64b,  64);
+    meminfo_slab_cache("cache_128b", &cache_128b, 128);
+    div_line();
 }
 
-void meminfo_all()
+void meminfo_task(void)
 {
-    meminfo_pmm();
-
-    meminfo_buddy();
-
-    meminfo_slab();
-
-    meminfo_heap();
-
-    meminfo_task();
-
-    meminfo_paging();
+    section("TASKS",
+            "All runnable kernel tasks and their memory context");
+ 
+    if (!ready_queue)
+    {
+        kprintf("  No tasks in ready queue.\n");
+        return;
+    }
+ 
+    div_line();
+    kprintf("  %-6s  %-12s  %-12s  %s\n",
+            "PID", "STATE", "CR3 (page dir)", "Notes");
+    div_line();
+ 
+    task_t *t = ready_queue;
+    do {
+        const char *state_str;
+        switch (t->state)
+        {
+            case TASK_RUNNING:  state_str = "RUNNING";  break;
+            case TASK_READY:    state_str = "READY";    break;
+            case TASK_ZOMBIE: state_str = "SLEEPING"; break;
+            case TASK_BLOCKED:  state_str = "BLOCKED";  break;
+            default:            state_str = "UNKNOWN";  break;
+        }
+ 
+        kprintf("  %-6u  %-12s  0x%08x  %s\n",
+                t->pid,
+                state_str,
+                t->cr3,
+                (t == current_task) ? "<-- currently executing" : "");
+ 
+        t = t->next;
+    } while (t != ready_queue);
+ 
+    div_line();
 }
+ 
+void meminfo_paging(void)
+{
+    section("PAGING",
+            "Virtual memory mapping — current page directory (CR3)");
+ 
+    if (current_task)
+    {
+        ROW("Current task PID",  "%u",       current_task->pid);
+        ROW("Page directory CR3","0x%08x",   current_task->cr3);
+        kprintf("\n");
+        kprintf("  CR3 is the physical address of this task's page directory.\n");
+        kprintf("  Each task has its own, giving isolated virtual address spaces.\n");
+    }
+    else
+    {
+        kprintf("  No current task — running in early boot / idle context.\n");
+        kprintf("  CR3 contains the kernel's own page directory.\n");
+    }
+}
+ 
+static void meminfo_summary(void)
+{
+    uint32_t phys_total = pmm_total_frames() * 4096;
+    uint32_t phys_used  = pmm_used_frames()  * 4096;
+    uint32_t phys_free  = pmm_free_frames()  * 4096;
+ 
+    char t[32], u[32], f[32];
+ 
+    kprintf("\n");
+    kprintf("  ┌─────────────────────────────────────────────────────────────┐\n");
+    kprintf("  │                  MEMORY REPORT — meminfo                    │\n");
+    kprintf("  │                                                              │\n");
+    kprintf("  │  Physical RAM:  %-44s│\n", fmt_bytes(phys_total, t, sizeof t));
+    kprintf("  │  In use:        %-44s│\n", fmt_bytes(phys_used,  u, sizeof u));
+    kprintf("  │  Free:          %-44s│\n", fmt_bytes(phys_free,  f, sizeof f));
+    kprintf("  │                                                              │\n");
+    kprintf("  │  Overall usage  ");
+    print_bar(phys_used, phys_total, 32);
+    kprintf("  │\n");
+    kprintf("  │                                                              │\n");
+    kprintf("  │  Layers:  PMM → Buddy → Slab → Heap → (kmalloc)            │\n");
+    kprintf("  │           Each section below covers one layer.              │\n");
+    kprintf("  └─────────────────────────────────────────────────────────────┘\n");
+}
+ 
+void meminfo_all(void)
+{
+    meminfo_summary();   
+ 
+    meminfo_pmm();       
+    meminfo_buddy();    
+    meminfo_slab();     
+    meminfo_heap();     
+    meminfo_task();     
+    meminfo_paging();   
+ 
+    kprintf("\n  End of memory report.\n\n");
+}
+ 

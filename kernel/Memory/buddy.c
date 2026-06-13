@@ -144,23 +144,61 @@ uint32_t buddy_total_memory()
 
 uint32_t buddy_free_memory()
 {
-    uint32_t total = 0;
+    uint32_t free = 0;
 
     for (int order = 0; order <= MAX_ORDER; order++)
     {
         buddy_block_t *curr = free_lists[order];
+        uint32_t block_bytes = ((uint32_t)1 << order) * 4096;
 
         while (curr)
         {
-            total += (1 << order) * 4096;
+            if (free > UINT32_MAX - block_bytes)
+            {
+                free = UINT32_MAX;
+                break;
+            }
+            free += block_bytes;
             curr = curr->next;
         }
     }
-    return total;
+    return free;
+}
+
+uint32_t buddy_used_memory(void)
+{
+    uint32_t free = buddy_free_memory();
+    return (buddy_total_mem >= free) ? buddy_total_mem - free : 0;
+}
+
+uint32_t buddy_largest_free_block(void)
+{
+    for (int order = MAX_ORDER; order >= 0; order--)
+    {
+        if (free_lists[order])
+            return ((uint32_t)1 << order) * 4096;
+    }
+    return 0;
 }
 
 uint32_t buddy_fragmentation()
 {
-    return buddy_total_memory() - buddy_free_memory();
+    uint32_t free = buddy_free_memory();
+    uint32_t largest = buddy_largest_free_block();
+
+    return (free > largest) ? free - largest : 0;
 }
 
+uint32_t buddy_free_count_at_order(int order){
+    if(order <0 || order > MAX_ORDER) return 0;
+
+    uint32_t count=0;
+    
+    buddy_block_t* b=free_lists[order];
+
+    while(b) {
+         count++;
+         b=b->next;
+    }
+    return count;
+}

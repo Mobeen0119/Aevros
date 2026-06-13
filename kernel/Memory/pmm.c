@@ -53,16 +53,12 @@ void pmm_free(uint32_t address)
     frame_stack[++stack_top] = address;
 }
 
-uint32_t pmm_free_frames(void)
-{
-    return stack_top + 1;
-}
 
 uint32_t pmm_get_top() {
     uint32_t highest = 0;
     for (int i = 0; i <= stack_top; i++)
-        if (frame_stack[i] > highest)
-            highest = frame_stack[i];
+    if (frame_stack[i] > highest)
+    highest = frame_stack[i];
     return highest + FRAME_SIZE;
 }
 
@@ -74,4 +70,9 @@ uint32_t pmm_used_frames(void)
 uint32_t pmm_total_frames(void)
 {
     return total_frames;
+}
+
+uint32_t pmm_free_frames(void)
+{
+    return pmm_total_frames()-pmm_used_frames();
 }

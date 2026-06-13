@@ -3,9 +3,14 @@
 #include "buddy.h"
 #include "slab.h"
 
-slab_t cache_64b;
-slab_t cache_32b;
-slab_t cache_128b;
+#define SLAB_SLOTS_PER_CACHE 32
+#define SLAB_NUM_CACHES 3
+
+static slab_t *const slab_caches[SLAB_NUM_CACHES] = {
+    &cache_32b,
+    &cache_64b,
+    &cache_128b,
+};
 
 void slab_init(slab_t *slab, int size)
 {
@@ -57,16 +62,47 @@ static uint32_t slab_used_count(void)
                 total++;
         }
     }
-        return total;
-    }
+    return total;
+}
 
 uint32_t slab_objects_used(void)
-    {
-        return slab_used_count();
-    }
- 
-uint32_t slab_objects_free(void)
-    {
-        return (32 * 3) - slab_used_count();
-    }
+{
+    return slab_used_count();
+}
 
+uint32_t slab_objects_free(void)
+{
+    return (SLAB_NUM_CACHES * SLAB_SLOTS_PER_CACHE) - slab_used_count();
+}
+
+uint32_t slab_cache_used(slab_t *cache)
+{
+    return (uint32_t)__builtin_popcount(cache->bitmap);
+}
+
+uint32_t slab_cache_free(slab_t *cache)
+{
+    return SLAB_SLOTS_PER_CACHE - slab_cache_used(cache);
+}
+
+uint32_t slab_used_bytes(void)
+{
+    static const uint32_t sizes[SLAB_NUM_CACHES] = {32, 64, 128};
+    uint32_t total = 0;
+
+    for (int i = 0; i < SLAB_NUM_CACHES; i++)
+        total += slab_cache_used(slab_caches[i]) * sizes[i];
+
+    return total;
+}
+
+uint32_t slab_free_bytes(void)
+{
+    static const uint32_t sizes[SLAB_NUM_CACHES] = {32, 64, 128};
+    uint32_t total = 0;
+
+    for (int i = 0; i < SLAB_NUM_CACHES; i++)
+        total += slab_cache_free(slab_caches[i]) * sizes[i];
+
+    return total;
+}

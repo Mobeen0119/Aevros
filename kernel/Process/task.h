@@ -38,32 +38,32 @@ typedef enum
 
 typedef struct task
 {
-    uint32_t cr3;
+   uint32_t cr3;
     uint32_t pid;
     task_state_t state;
-
     register_t regs;
+    
     uint32_t kernel_stack;
+    uint32_t kernel_stack_base;  
+
     file_t *fd_table[TASK_MAX_FDS];
-
     dentry_t *cwd;
-
     struct task *next;
     struct task *parent;
-
     int started;
+
     int exit_code;
     uint32_t first_run;
-
     uint32_t signal_mask;
+
     uint32_t pending_signals;
     void (*signal_handlers[NSIGNALS])(int);
-
     rlimit_t rlimits[RLIMIT_COUNT];
 
     uint32_t user_time;
     uint32_t kernel_time;
     uint32_t start_time;
+
 } task_t;
 
 extern task_t *current_task;
@@ -75,6 +75,7 @@ void init_tasking();
 task_t *create_process(void (*entry)(), uint32_t flags, uint32_t page_dir);
 
 task_t *task_create_kernel(void (*entry_point)());
+
 task_t *task_create_user(void (*entry_point)());
 
 task_t *pick_next_task(void);

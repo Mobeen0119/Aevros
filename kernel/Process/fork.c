@@ -56,6 +56,7 @@ int do_fork(register_t *state_at_interuppt)
 
     uint32_t stack_top = (uint32_t)new_stack + 4096;
     child->kernel_stack = stack_top;
+    child->kernel_stack_base = (uint32_t)new_stack;
 
     if (state_at_interuppt->esp > parent->kernel_stack)
     {

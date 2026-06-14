@@ -20,6 +20,7 @@ int next_pid = 0;
 extern void jump_user_mode(uint32_t entry, uint32_t stack);
 
 extern void switch_current_task(task_t *prev, task_t *next);
+
 extern uint32_t read_eip();
 
 static inline uint32_t read_cr3()
@@ -72,7 +73,8 @@ void init_tasking()
 
     current_task->cr3 = read_cr3();
     current_task->regs.eip = read_eip();
-    current_task->kernel_stack = current_task->regs.esp;
+    current_task->kernel_stack = current_task->regs.esp + 4096;
+    current_task->kernel_stack_base=0;
 
     current_task->next = current_task;
     ready_queue = current_task;
@@ -81,7 +83,10 @@ void init_tasking()
 task_t *task_create_kernel(void (*entry_point)())
 {
     kprint("KERNEL CALL\n");
-    return create_process(entry_point, 0, 0);
+    task_t *t = create_process(entry_point, 0, 0);
+    if (t)
+        task_add_ready(t);
+    return t;
 }
 
 task_t *task_create_user(void (*entry_point)())
@@ -111,9 +116,8 @@ task_t *task_create_user(void (*entry_point)())
 
     task->regs.esp = user_stack_top + 4096;
     task->regs.ebp = task->regs.esp;
-    task->kernel_stack = task->kernel_stack; 
 
-    task->state = TASK_READY;
+    task_add_ready(task);
     kprint("TASK USER CREATED\n");
     return task;
 }
@@ -170,6 +174,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     new_task->regs.ebp = stack_top;
     new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;
+    new_task->kernel_stack_base = (uint32_t)stack_base;
 
     if (!ready_queue)
     {
@@ -193,7 +198,8 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
 void schedule(void)
 {
     task_t *prev = current_task;
-    task_t *next = prev->next;
+    task_t *next = pick_next_task();
+
     if (!next || next == prev)
         return;
 
@@ -206,7 +212,7 @@ void schedule(void)
         current_task = next;
         tss.esp0 = next->kernel_stack;
 
-        asm volatile("mov %0, %%cr3" :: "r"(next->cr3) : "memory");
+        asm volatile("mov %0, %%cr3" ::"r"(next->cr3) : "memory");
 
         uint32_t eip = next->regs.eip;
         uint32_t esp = next->regs.esp;
@@ -217,18 +223,17 @@ void schedule(void)
             "mov %%ax,  %%es  \n"
             "mov %%ax,  %%fs  \n"
             "mov %%ax,  %%gs  \n"
-            "push $0x23       \n"   // SS
-            "push %1          \n"   // ESP
+            "push $0x23       \n" // SS
+            "push %1          \n" // ESP
             "pushf            \n"
             "pop  %%ecx       \n"
             "or   $0x200,%%ecx\n"
-            "push %%ecx       \n"   // EFLAGS
-            "push $0x1B       \n"   // CS
-            "push %0          \n"   // EIP
-            "iret             \n"
-            :: "r"(eip), "r"(esp)
-: "eax", "ecx"
-        );
+            "push %%ecx       \n" // EFLAGS
+            "push $0x1B       \n" // CS
+            "push %0          \n" // EIP
+            "iret             \n" ::"r"(eip),
+            "r"(esp)
+            : "eax", "ecx");
     }
 
     else
@@ -270,9 +275,13 @@ void sys_exit(int status)
     if (ready_queue == dead)
         ready_queue = dead->next;
 
+    if (dead->cr3)
+        destroy_user_space(dead->cr3);
+
     if (dead->parent && dead->parent->state == TASK_BLOCKED)
         dead->parent->state = TASK_READY;
 
+    current_task = pick_next_task();
     schedule();
 
     __builtin_unreachable();
@@ -316,8 +325,8 @@ int sys_waitpid(int target_pid, int *status)
 
                     int dead_pid = curr->pid;
 
-                    if (curr->kernel_stack)
-                        kfree((void *)(curr->kernel_stack - 4096));
+                    if (curr->kernel_stack_base)
+                        kfree((void *)(curr->kernel_stack_base));
                     kfree(curr);
 
                     return dead_pid;
@@ -400,11 +409,15 @@ task_t *pick_next_task(void)
     return current_task;
 }
 
-uint32_t get_ticks(void){
+uint32_t get_ticks(void)
+{
     return timer_clicks;
 }
-void task_wake(task_t* task){
-    if(!task) return;
 
-    task->state=TASK_READY;
+void task_wake(task_t *task)
+{
+    if (!task)
+        return;
+
+    task->state = TASK_READY;
 }

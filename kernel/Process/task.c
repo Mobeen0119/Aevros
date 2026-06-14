@@ -32,7 +32,7 @@ static inline uint32_t read_cr3()
 
 void init_tasking()
 {
-    current_task = (task_t *)kmalloc(sizeof(task_t));
+    current_task = (task_t *)kmalloc_raw(sizeof(task_t));
     if (!current_task)
         return;
 
@@ -46,20 +46,20 @@ void init_tasking()
     inode_t *tty = devfs_get("tty");
     if (tty)
     {
-        file_t *stdin = kmalloc(sizeof(file_t));
+        file_t *stdin = kmalloc_raw(sizeof(file_t));
 
         stdin->inode = tty;
         stdin->flags = READ_ONLY;
         stdin->dentry = NULL;
         stdin->offset = 0;
 
-        file_t *stdout = kmalloc(sizeof(file_t));
+        file_t *stdout = kmalloc_raw(sizeof(file_t));
         stdout->inode = tty;
         stdout->flags = WRITE_ONLY;
         stdout->offset = 0;
         stdout->dentry = NULL;
 
-        file_t *stderr = kmalloc(sizeof(file_t));
+        file_t *stderr = kmalloc_raw(sizeof(file_t));
         stderr->offset = 0;
         stderr->inode = tty;
         stderr->flags = WRITE_ONLY;
@@ -126,7 +126,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
 {
     (void)flags;
 
-    task_t *new_task = (task_t *)kmalloc(sizeof(task_t));
+    task_t *new_task = (task_t *)kmalloc_raw(sizeof(task_t));
     if (!new_task)
         return NULL;
     memset(new_task, 0, sizeof(task_t));
@@ -136,10 +136,10 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     new_task->parent = current_task;
     new_task->first_run = 1;
 
-    uint8_t *stack_base = kmalloc(4096);
+    uint8_t *stack_base = kmalloc_raw(4096);
     if (!stack_base)
     {
-        kfree(new_task);
+        kfree_raw(new_task);
         return NULL;
     }
 
@@ -326,8 +326,8 @@ int sys_waitpid(int target_pid, int *status)
                     int dead_pid = curr->pid;
 
                     if (curr->kernel_stack_base)
-                        kfree((void *)(curr->kernel_stack_base));
-                    kfree(curr);
+                        kfree_raw((void *)(curr->kernel_stack_base));
+                    kfree_raw(curr);
 
                     return dead_pid;
                 }

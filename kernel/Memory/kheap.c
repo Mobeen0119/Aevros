@@ -19,7 +19,7 @@ int size_to_order(size_t size)
     return order;
 }
 
-void *kmalloc(size_t size)
+void *kmalloc_raw(size_t size)
 {
     block_header_t *hdr;
 
@@ -56,13 +56,16 @@ void *kmalloc(size_t size)
     int order = size_to_order(size);
 
     hdr = (block_header_t *)buddy_alloc(order);
+    if (!hdr)
+        return NULL;
+        
     hdr->type = BUDDY;
     hdr->infor.order = order;
 
     return (void *)(hdr + 1);
 }
 
-void kfree(void *ptr)
+void kfree_raw(void *ptr)
 {
     if (!ptr)
         return;

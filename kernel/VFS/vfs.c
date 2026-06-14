@@ -11,7 +11,7 @@ dentry_t *vfs_root = 0;
 
 void vfs_init()
 {
-    vfs_root = (dentry_t *)kmalloc(sizeof(dentry_t));
+    vfs_root = (dentry_t *)kmalloc_raw(sizeof(dentry_t));
     if (!vfs_root)
     {
         volatile char *v = (volatile char *)0xB8000;
@@ -23,7 +23,7 @@ void vfs_init()
     memset(vfs_root, 0, sizeof(dentry_t));
     vfs_root->name = "/";
     vfs_root->parent = vfs_root;
-    vfs_root->inode = (inode_t *)kmalloc(sizeof(inode_t));
+    vfs_root->inode = (inode_t *)kmalloc_raw(sizeof(inode_t));
     memset(vfs_root->inode, 0, sizeof(inode_t));
     vfs_root->inode->flags = VFS_DIR;
 }
@@ -224,7 +224,7 @@ int sys_open(const char *path, uint32_t flags)
 
     inode_t *inode = dentry->inode;
 
-    file_t *file = kmalloc(sizeof(file_t));
+    file_t *file = kmalloc_raw(sizeof(file_t));
 
     if (!file)
         return VFS_ERR;
@@ -243,7 +243,7 @@ int sys_open(const char *path, uint32_t flags)
             return i;
         }
     }
-    kfree(file);
+    kfree_raw(file);
     return VFS_ERR;
 }
 
@@ -310,7 +310,7 @@ int sys_close(int fd)
         if (inode->ref_count > 0)
             inode->ref_count--;
     }
-    kfree(file);
+    kfree_raw(file);
     current_task->fd_table[fd] = 0;
 
     return VFS_OK;
@@ -399,18 +399,18 @@ int sys_unlink(const char *path)
                 if (ram)
                 {
                     if (ram->data)
-                        kfree(ram->data);
+                        kfree_raw(ram->data);
 
-                    kfree(ram);
+                    kfree_raw(ram);
                 }
             }
-            kfree(inode);
+            kfree_raw(inode);
         }
     }
 
     if (target->name)
-        kfree(target->name);
-    kfree(target);
+        kfree_raw(target->name);
+    kfree_raw(target);
 
     return VFS_OK;
 }
@@ -440,7 +440,7 @@ int vfs_mount(dentry_t *mount_point, dentry_t *root)
     if (!(mount_point->inode->flags & VFS_DIR))
         return VFS_ERR;
 
-    vfs_mount_t *mnt = kmalloc(sizeof(vfs_mount_t));
+    vfs_mount_t *mnt = kmalloc_raw(sizeof(vfs_mount_t));
 
     if (!mnt)
         return VFS_ERR;

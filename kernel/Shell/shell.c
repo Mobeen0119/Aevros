@@ -143,10 +143,16 @@ void shell_execute(char *input)
     {
         meminfo_buddy();
     }
+
     else if (strcmp(argv[1], "slab") == 0)
     {
         meminfo_slab();
     }
+    
+    else if(strcmp(argv[1],"memstory")==0){
+        tracker_dump();
+    }
+
 
     else
     {

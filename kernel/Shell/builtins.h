@@ -129,7 +129,6 @@ void cmd_pwd()
     
 }
 
-
 void tree_walk(dentry_t *dir, int depth)
 {
     if (!dir)

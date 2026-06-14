@@ -9,12 +9,12 @@ static dentry_t *devfs_root = NULL;
 
 void devfs_init()
 {
-    devfs_root = (dentry_t *)kmalloc(sizeof(dentry_t));
+    devfs_root = (dentry_t *)kmalloc_raw(sizeof(dentry_t));
     memset(devfs_root, 0, sizeof(dentry_t));
     devfs_root->name = "dev";
     devfs_root->parent = vfs_root;
 
-    inode_t *ino = (inode_t *)kmalloc(sizeof(inode_t));
+    inode_t *ino = (inode_t *)kmalloc_raw(sizeof(inode_t));
     memset(ino, 0, sizeof(inode_t));
     ino->flags = VFS_DIR;
     devfs_root->inode = ino;
@@ -43,7 +43,7 @@ int devfs_register(const char *name, inode_t *inode)
     devfs_count++;
     if (devfs_root)
     {
-        dentry_t *d = (dentry_t *)kmalloc(sizeof(dentry_t));
+        dentry_t *d = (dentry_t *)kmalloc_raw(sizeof(dentry_t));
         memset(d, 0, sizeof(dentry_t));
         d->name = (char *)name;
         d->inode = inode;

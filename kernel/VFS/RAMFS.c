@@ -45,9 +45,9 @@ uint32_t ramfs_write(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *
 dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
 {
 
-    dentry_t *child = kmalloc(sizeof(dentry_t));
-    inode_t *inode = kmalloc(sizeof(inode_t));
-    ramfs_inode_t *ram = kmalloc(sizeof(ramfs_inode_t));
+    dentry_t *child = kmalloc_raw(sizeof(dentry_t));
+    inode_t *inode = kmalloc_raw(sizeof(inode_t));
+    ramfs_inode_t *ram = kmalloc_raw(sizeof(ramfs_inode_t));
 
     if (!ram || !child || !inode)
         return 0;
@@ -57,7 +57,7 @@ dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
     memset(ram, 0, sizeof(ramfs_inode_t));
 
     ram->capacity = 4096;
-    ram->data = kmalloc(ram->capacity);
+    ram->data = kmalloc_raw(ram->capacity);
     if (!ram->data)
         return 0;
 
@@ -92,13 +92,13 @@ int ramfs_expand(ramfs_inode_t *ram, uint32_t needed)
     while (new_cap < needed)
         new_cap *= 2;
 
-    uint32_t *new_data = kmalloc(new_cap);
+    uint32_t *new_data = kmalloc_raw(new_cap);
 
     if (!new_data)
         return -1;
 
     memcpy(new_data, ram->data, ram->capacity);
-    kfree(ram->data);
+    kfree_raw(ram->data);
 
     ram->data = (uint8_t *)new_data;
     ram->capacity = new_cap;
@@ -111,8 +111,8 @@ dentry_t *ramfs_mkdir(dentry_t *parent, const char *name)
     if (!parent || !name)
         return 0;
 
-    dentry_t *dentry = kmalloc(sizeof(dentry_t));
-    inode_t *inode = kmalloc(sizeof(inode_t));
+    dentry_t *dentry = kmalloc_raw(sizeof(dentry_t));
+    inode_t *inode = kmalloc_raw(sizeof(inode_t));
 
     if (!dentry || !inode)
         return 0;

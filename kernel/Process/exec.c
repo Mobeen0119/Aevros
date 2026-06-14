@@ -46,7 +46,7 @@ int exec_user(void *binary, uint32_t size)
         destroy_user_space(new_cr3);
         return VFS_ERR;
     }
-    task_t *task = kmalloc(sizeof(task_t));
+    task_t *task = kmalloc_raw(sizeof(task_t));
 
     if (!task)
     {
@@ -56,11 +56,11 @@ int exec_user(void *binary, uint32_t size)
 
     memset(task, 0, sizeof(task_t));
 
-    void *kstack = kmalloc(4096);
+    void *kstack = kmalloc_raw(4096);
 
     if (!kstack)
     {
-        kfree(task);
+        kfree_raw(task);
         destroy_user_space(new_cr3);
         return VFS_ERR;
     }
@@ -135,7 +135,7 @@ int sys_exec(const char *path)
 
     uint32_t size = file->inode->size;
 
-    void *buffer = kmalloc(size);
+    void *buffer = kmalloc_raw(size);
 
     if (!buffer)
     {
@@ -147,7 +147,7 @@ int sys_exec(const char *path)
 
     if (sys_read(fd, buffer, size) != size)
     {
-        kfree(buffer);
+        kfree_raw(buffer);
         sys_close(fd);
 
         return VFS_ERR;
@@ -159,7 +159,7 @@ int sys_exec(const char *path)
 
     if (!elf_validate(hdr))
     {
-        kfree(buffer);
+        kfree_raw(buffer);
         return VFS_ERR;
     }
 
@@ -167,14 +167,14 @@ int sys_exec(const char *path)
 
     if (!new_cr3)
     {
-        kfree(buffer);
+        kfree_raw(buffer);
         return VFS_ERR;
     }
 
     if (!elf_load_segs(hdr, new_cr3))
     {
         destroy_user_space(new_cr3);
-        kfree(buffer);
+        kfree_raw(buffer);
 
         return VFS_ERR;
     }
@@ -184,7 +184,7 @@ int sys_exec(const char *path)
     if (!stack_phy)
     {
         destroy_user_space(new_cr3);
-        kfree(buffer);
+        kfree_raw(buffer);
         return VFS_ERR;
     }
 
@@ -193,7 +193,7 @@ int sys_exec(const char *path)
     {
         pmm_free(stack_phy);
         destroy_user_space(new_cr3);
-        kfree(buffer);
+        kfree_raw(buffer);
         return VFS_ERR;
     }
 
@@ -220,7 +220,7 @@ int sys_exec(const char *path)
 
     destroy_user_space(old_cr3);
 
-    kfree(buffer);
+    kfree_raw(buffer);
 
     return 0;
 }

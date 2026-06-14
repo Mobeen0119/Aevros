@@ -11,7 +11,7 @@ static vfs_ops_t tty_ops = {
 
 void tty_init()
 {
-    inode_t *tty_inode = (inode_t *)kmalloc(sizeof(inode_t));
+    inode_t *tty_inode = (inode_t *)kmalloc_raw(sizeof(inode_t));
     memset(tty_inode, 0, sizeof(inode_t));
 
     tty_inode->flags = VFS_DEVICE;

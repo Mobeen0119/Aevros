@@ -19,7 +19,7 @@ int do_fork(register_t *state_at_interuppt)
     if (!parent)
         return VFS_ERR;
 
-    task_t *child = (task_t *)kmalloc(sizeof(task_t));
+    task_t *child = (task_t *)kmalloc_raw(sizeof(task_t));
 
     if (!child)
         return VFS_ERR;
@@ -30,16 +30,16 @@ int do_fork(register_t *state_at_interuppt)
 
     if (!child->cr3)
     {
-        kfree(child);
+        kfree_raw(child);
         return VFS_ERR;
     }
 
-    uint8_t *new_stack = (uint8_t *)kmalloc(4096);
+    uint8_t *new_stack = (uint8_t *)kmalloc_raw(4096);
 
     if (!new_stack)
     {
         destroy_user_space(child->cr3);
-        kfree(child);
+        kfree_raw(child);
         return -VFS_ENOMEM;
     }
 
@@ -61,8 +61,8 @@ int do_fork(register_t *state_at_interuppt)
     if (state_at_interuppt->esp > parent->kernel_stack)
     {
         destroy_user_space(child->cr3);
-        kfree(child);
-        kfree(new_stack);
+        kfree_raw(child);
+        kfree_raw(new_stack);
 
         return -VFS_ENOMEM;
     }
@@ -72,8 +72,8 @@ int do_fork(register_t *state_at_interuppt)
     if (stack_used > 4096)
     {
         destroy_user_space(child->cr3);
-        kfree(new_stack);
-        kfree(child);
+        kfree_raw(new_stack);
+        kfree_raw(child);
 
         return -VFS_ENOMEM;
     }

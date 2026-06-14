@@ -83,7 +83,7 @@ char *strdup(const char *str)
         return 0;
 
     uint32_t len = strlen(str);
-    char *copy = kmalloc(len + 1);
+    char *copy = kmalloc_raw(len + 1);
 
     if (!copy)
         return 0;

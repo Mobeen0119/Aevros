@@ -29,12 +29,24 @@ int exec_user(void *binary, uint32_t size)
     Elf32_Header *hdr = (Elf32_Header *)binary;
 
     if (!elf_validate(hdr))
+    {
+        destroy_user_space(new_cr3);
         return VFS_ERR;
+    }
 
     if (!elf_load_segs(hdr, new_cr3))
+    {
+        destroy_user_space(new_cr3);
         return VFS_ERR;
+    }
 
     uint32_t stack_phy = pmm_alloc();
+
+    if (!stack_phy)
+    {
+        destroy_user_space(new_cr3);
+        return VFS_ERR;
+    }
 
     if (!(map_page_in_directory(
             new_cr3,
@@ -46,7 +58,8 @@ int exec_user(void *binary, uint32_t size)
         destroy_user_space(new_cr3);
         return VFS_ERR;
     }
-    task_t *task = kmalloc_raw(sizeof(task_t));
+
+    task_t *task = kmalloc(sizeof(task_t));
 
     if (!task)
     {
@@ -56,7 +69,7 @@ int exec_user(void *binary, uint32_t size)
 
     memset(task, 0, sizeof(task_t));
 
-    void *kstack = kmalloc_raw(4096);
+    void *kstack = kmalloc(4096);
 
     if (!kstack)
     {
@@ -69,7 +82,17 @@ int exec_user(void *binary, uint32_t size)
     task->state = TASK_READY;
     task->cr3 = new_cr3;
     task->regs.eip = hdr->entry_point;
+
     task->regs.ebp = USER_STACK_TOP;
+    task->kernel_stack = (uint32_t)kstack + 4096;
+    task->kernel_stack_base = (uint32_t)kstack;
+    task->cwd = current_task->cwd;
+    
+    task->parent = current_task;
+    task->start_time = get_ticks();
+
+    if (task->cwd)
+        task->cwd->ref_count++;
 
     uint32_t *sp = (uint32_t *)((uint32_t)kstack + 4096);
     *(--sp) = 0x23 | 3;         // SS
@@ -84,33 +107,21 @@ int exec_user(void *binary, uint32_t size)
     *(--sp) = 0; // ebp
 
     task->regs.esp = (uint32_t)sp;
-    task->cwd = current_task->cwd;
-    task->parent = current_task;
 
-    task->kernel_stack = (uint32_t)kstack + (4096);
-
-    for (int i = 0; i < 32; i++)
+    for (int i = 0; i < TASK_MAX_FDS; i++)
     {
+        if (!current_task->fd_table[i])
+            continue;
+        if (current_task->fd_table[i]->flags & O_CLOEXEC)
+        {
+            task->fd_table[i] = NULL;
+            continue;
+        }
         task->fd_table[i] = current_task->fd_table[i];
-
-        if (task->fd_table[i])
-            task->fd_table[i]->inode->ref_count++;
+        task->fd_table[i]->inode->ref_count++;
     }
 
-    if (!ready_queue)
-    {
-        ready_queue = task;
-        task->next = task;
-    }
-    else
-    {
-        task_t *temp = ready_queue;
-
-        while (temp->next != ready_queue)
-            temp = temp->next;
-        temp->next = task;
-        task->next = ready_queue;
-    }
+    task_add_ready(task);
 
     return task->pid;
 }
@@ -135,7 +146,7 @@ int sys_exec(const char *path)
 
     uint32_t size = file->inode->size;
 
-    void *buffer = kmalloc_raw(size);
+    void *buffer = kmalloc(size);
 
     if (!buffer)
     {
@@ -145,7 +156,7 @@ int sys_exec(const char *path)
         return VFS_ERR;
     }
 
-    if (sys_read(fd, buffer, size) != size)
+    if ((uint32_t)sys_read(fd, buffer, size) != size)
     {
         kfree_raw(buffer);
         sys_close(fd);
@@ -197,15 +208,32 @@ int sys_exec(const char *path)
         return VFS_ERR;
     }
 
+    for (int i = 0; i < TASK_MAX_FDS; i++)
+    {
+        if (current_task->fd_table[i] &&
+            current_task->fd_table[i]->flags & O_CLOEXEC)
+            sys_close(i);
+    }
+
     uint32_t old_cr3 = current_task->cr3;
     current_task->cr3 = new_cr3;
+    current_task->regs.eip = hdr->entry_point;
+    current_task->regs.ebp = USER_STACK_TOP;
 
-    // Set up iret frame on kernel stack for sys_exec (exec variant of exec_user)
+    current_task->signal_mask=0;
+    current_task->pending_signals=0;
+
+    for(int i=0;i<NSIGNALS;i++) current_task->signal_handlers[i]=NULL;
+
+    current_task->user_time=0;
+    current_task->kernel_time=0;
+    current_task->start_time=get_ticks();
+
     uint32_t *sp = (uint32_t *)current_task->kernel_stack;
-    *(--sp) = 0x23 | 3;         // SS (user data segment with RPL=3)
-    *(--sp) = USER_STACK_TOP;   // ESP (user stack top)
-    *(--sp) = 0x202;            // EFLAGS (interrupts enabled)
-    *(--sp) = 0x1B | 3;         // CS (user code segment with RPL=3)
+    *(--sp) = 0x23 | 3;         // SS
+    *(--sp) = USER_STACK_TOP;   // ESP
+    *(--sp) = 0x202;            // EFLAGS=
+    *(--sp) = 0x1B | 3;         // CS
     *(--sp) = hdr->entry_point; // EIP
 
     // Saved registers
@@ -214,9 +242,7 @@ int sys_exec(const char *path)
     *(--sp) = 0; // ebx
     *(--sp) = 0; // ebp
 
-    current_task->regs.eip = hdr->entry_point;
     current_task->regs.esp = (uint32_t)sp; // Point to iret frame on kernel stack
-    current_task->regs.ebp = USER_STACK_TOP;
 
     destroy_user_space(old_cr3);
 

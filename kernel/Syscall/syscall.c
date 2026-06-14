@@ -76,10 +76,6 @@ void syscall_handler(register_t *regs)
     regs->eax = res;
 }
 
-int sys_fork(register_t *regs)
-{
-    return do_fork(regs);
-}
 
 void sys_print(char *user_string)
 {

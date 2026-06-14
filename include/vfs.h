@@ -1,6 +1,7 @@
 #ifndef VFS_H
 #define VFS_H
 #include <stdint.h>
+
 #define VFS_FILE 1
 #define VFS_DIR 2
 #define VFS_DEVICE 4
@@ -17,6 +18,7 @@
 #define WRITE_ONLY 0x02
 #define READ_WRITE 0x03
 #define CREAT 0x04
+
 
 struct task; 
 typedef struct task task_t;
@@ -76,6 +78,7 @@ struct dentry // name Cache layer
     struct dentry *next; // bucket chain
     struct dentry *hash_bucket[DENTRY_HASH];
     struct dentry *hash_next;
+    int ref_count;
     
 };
 

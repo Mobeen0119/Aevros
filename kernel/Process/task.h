@@ -6,12 +6,33 @@
 
 #include <stdint.h>
 
+#define TASK_MAX_FDS 32
+#define O_CLOEXEC 0x08
+#define RLIMIT_CPU   0
+#define RLIMIT_NOFILE 1
+#define RLIMIT_STACK 2
+#define RLIMIT_COUNT 3
+
+#define NSIGNALS 32
+
+typedef struct rlimit{
+    uint32_t rlim_cur;
+    uint32_t rlim_max;
+}rlimit_t;
+
+#define RLIMIT_CPU   0
+#define RLIMIT_NOFILE 1
+#define RLIMIT_STACK 2
+#define RLIMIT_COUNT 3
+
+
 typedef enum
 {
     TASK_READY,
     TASK_RUNNING,
     TASK_BLOCKED,
-    TASK_ZOMBIE
+    TASK_ZOMBIE,
+    TASK_SUSPENDED
 
 } task_state_t;
 
@@ -23,7 +44,7 @@ typedef struct task
 
     register_t regs;
     uint32_t kernel_stack;
-    file_t *fd_table[32];
+    file_t *fd_table[TASK_MAX_FDS];
 
     dentry_t *cwd;
 
@@ -33,6 +54,16 @@ typedef struct task
     int started;
     int exit_code;
     uint32_t first_run;
+
+    uint32_t signal_mask;
+    uint32_t pending_signals;
+    void (*signal_handlers[NSIGNALS])(int);
+
+    rlimit_t rlimits[RLIMIT_COUNT];
+
+    uint32_t user_time;
+    uint32_t kernel_time;
+    uint32_t start_time;
 } task_t;
 
 extern task_t *current_task;
@@ -56,5 +87,8 @@ int do_fork(register_t *state_at_interuppt);
 int sys_waitpid(int target_pid, int *status);
 
 void task_add_ready(task_t* task);
+
+void task_wake(task_t *task);       
+uint32_t get_ticks(void);
 
 #endif

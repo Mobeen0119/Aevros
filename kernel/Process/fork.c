@@ -11,7 +11,8 @@ extern uint32_t read_eip(void);
 
 int do_fork(register_t *state_at_interuppt)
 {
-    if(!current_task || !state_at_interuppt) return VFS_ERR;
+    if (!current_task || !state_at_interuppt)
+        return -VFS_ENOMEM;
 
     task_t *parent = current_task;
 
@@ -21,7 +22,6 @@ int do_fork(register_t *state_at_interuppt)
     task_t *child = (task_t *)kmalloc(sizeof(task_t));
 
     if (!child)
-        kfree(child);
         return VFS_ERR;
 
     memset(child, 0, sizeof(task_t));
@@ -33,29 +33,26 @@ int do_fork(register_t *state_at_interuppt)
         kfree(child);
         return VFS_ERR;
     }
-    
+
     uint8_t *new_stack = (uint8_t *)kmalloc(4096);
 
     if (!new_stack)
     {
         destroy_user_space(child->cr3);
         kfree(child);
-        return VFS_ERR;
+        return -VFS_ENOMEM;
     }
 
     child->pid = next_pid++;
-    child->state = TASK_READY;
-    child->next = NULL;
-    child->cwd = parent->cwd;
-
     child->parent = parent;
     child->exit_code = 0;
+
+    child->state = TASK_SUSPENDED;
+    child->next = NULL;
 
     child->regs = *state_at_interuppt;
 
     child->regs.eax = 0;
-
-
 
     uint32_t stack_top = (uint32_t)new_stack + 4096;
     child->kernel_stack = stack_top;
@@ -66,32 +63,66 @@ int do_fork(register_t *state_at_interuppt)
         kfree(child);
         kfree(new_stack);
 
-        return VFS_ERR;
+        return -VFS_ENOMEM;
     }
 
     uint32_t stack_used = parent->kernel_stack - state_at_interuppt->esp;
 
-    if(stack_used>4096){
+    if (stack_used > 4096)
+    {
         destroy_user_space(child->cr3);
         kfree(new_stack);
         kfree(child);
-        
-        return VFS_ERR;
+
+        return -VFS_ENOMEM;
     }
     child->regs.esp = stack_top - stack_used;
-    child->regs.ebp = state_at_interuppt->ebp + (child->regs.esp - state_at_interuppt->esp);
 
     memcpy((void *)child->regs.esp, (void *)state_at_interuppt->esp, stack_used);
+    uint32_t stack_delta = child->regs.esp - state_at_interuppt->esp;
 
-    for (int i = 0; i < 32; i++)
+    if (state_at_interuppt->ebp >= state_at_interuppt->esp &&
+        state_at_interuppt->ebp < parent->kernel_stack)
     {
-        child->fd_table[i] = parent->fd_table[i];
-
-        if (child->fd_table[i])
-            child->fd_table[i]->inode->ref_count++;
+        child->regs.ebp = state_at_interuppt->ebp + stack_delta;
+    }
+    else
+    {
+        child->regs.ebp = state_at_interuppt->ebp;
     }
 
-    task_add_ready(child);
+    child->cwd = parent->cwd;
+    if (child->cwd)
+        child->cwd->ref_count++;
 
-    return child->pid;
+    for (int i = 0; i < TASK_MAX_FDS; i++)
+    {
+        if (!parent->fd_table[i])
+            continue;
+
+        if (parent->fd_table[i]->flags & O_CLOEXEC)
+        {
+            child->fd_table[i] = NULL;
+            continue;
+        }
+        child->fd_table[i] = parent->fd_table[i];
+        child->fd_table[i]->inode->ref_count++;
+    }
+
+    child->signal_mask = parent->signal_mask;
+
+    child->pending_signals = 0;
+
+    memcpy(child->signal_handlers, parent->signal_handlers, sizeof(parent->signal_handlers));
+
+    memcpy(child->rlimits, parent->rlimits, sizeof(parent->rlimits));
+
+    child->user_time = 0;
+    child->kernel_time = 0;
+
+    child->start_time = get_ticks();
+
+    int pid = child->pid;
+    task_add_ready(child);
+    return pid;
 }

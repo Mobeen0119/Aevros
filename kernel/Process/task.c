@@ -11,6 +11,7 @@
 #include "process-memory/process_memory.h"
 #include "../../Lib/kprintf.h"
 #include "../CPU/tss.h"
+#include "../../Drivers/PIT/pit.h"
 
 task_t *current_task = 0, *ready_queue = 0;
 
@@ -188,6 +189,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
             stack_base, stack_top, entry_point);
     return new_task;
 }
+
 void schedule(void)
 {
     task_t *prev = current_task;
@@ -382,7 +384,7 @@ void task_remove_ready(task_t *task)
         ready_queue = task->next;
 }
 
-task_t *pick_next_task()
+task_t *pick_next_task(void)
 {
     if (!ready_queue)
         return NULL;
@@ -398,3 +400,11 @@ task_t *pick_next_task()
     return current_task;
 }
 
+uint32_t get_ticks(void){
+    return timer_clicks;
+}
+void task_wake(task_t* task){
+    if(!task) return;
+
+    task->state=TASK_READY;
+}

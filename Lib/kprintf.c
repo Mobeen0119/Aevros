@@ -149,7 +149,7 @@ void ksnprintf(char *buff, int bufsz, const char *fmt, ...)
                 n /= 10;
             }
          for (int j = t - 1; j >= 0 && pos < bufsz - 1; j--)
-             _[pos++] = tmp[j];
+             buff[pos++] = tmp[j];
          break;
         }
         case 's':

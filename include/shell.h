@@ -1,4 +1,4 @@
-s#ifndef SHELL_H
+#ifndef SHELL_H
 #define SHELL_H
 
 #define MAX_INPUT 128

@@ -148,7 +148,17 @@ void shell_execute(char *input)
     }
     else if (argc > 1 && strcmp(argv[1], "memstory") == 0)
     {
-        tracker_dump();
+        if (argc == 1)
+            tracker_dump();
+       
+        else if (strcmp(argv[1], "ghosts") == 0)
+            tracker_dump_ghosts();
+        
+        else if (strcmp(argv[1], "pid") == 0 && argc >= 3)
+            tracker_dump_pid((uint32_t)atoi(argv[2]));
+      
+        else
+            kprint("usage: memstory [ghosts | pid <n>]\n");
     }
 
     else

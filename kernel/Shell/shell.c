@@ -114,29 +114,21 @@ void shell_execute(char *input)
     else if (strcmp(argv[0], "meminfo") == 0)
     {
         if (argc == 1)
-        {
             meminfo_all();
-        }
         else if (strcmp(argv[1], "pmm") == 0)
-        {
             meminfo_pmm();
-        }
         else if (strcmp(argv[1], "heap") == 0)
-        {
             meminfo_heap();
-        }
         else if (strcmp(argv[1], "paging") == 0)
-        {
             meminfo_paging();
-        }
         else if (strcmp(argv[1], "task") == 0)
-        {
             meminfo_task();
-        }
+        else if (strcmp(argv[1], "buddy") == 0)
+            meminfo_buddy();
+        else if (strcmp(argv[1], "slab") == 0)
+            meminfo_slab();
         else
-        {
-            kprint("usage: meminfo [pmm|heap|paging|task]\n");
-        }
+            kprint("usage: meminfo [pmm|heap|paging|task|buddy|slab]\n");
     }
     else if (argc > 1 && strcmp(argv[1], "buddy") == 0)
     {
@@ -146,21 +138,20 @@ void shell_execute(char *input)
     {
         meminfo_slab();
     }
-    else if (argc > 1 && strcmp(argv[1], "memstory") == 0)
+    else if (strcmp(argv[0], "memstory") == 0)
     {
         if (argc == 1)
             tracker_dump();
-       
+
         else if (strcmp(argv[1], "ghosts") == 0)
             tracker_dump_ghosts();
-        
+
         else if (strcmp(argv[1], "pid") == 0 && argc >= 3)
             tracker_dump_pid((uint32_t)atoi(argv[2]));
-      
+
         else
             kprint("usage: memstory [ghosts | pid <n>]\n");
     }
-
     else
     {
         kprint("unknown command\n");

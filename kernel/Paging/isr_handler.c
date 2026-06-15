@@ -8,49 +8,68 @@
 #include "../io.h"
 #include "../Paging/paging.h"
 
-void isr_handler(struct registers* r)
+#include "isr.h"
+#include "page_fault.h"
+#include "Forge_Panic/forge_panic.h"
+#include "../Process/task.h"
+#include "../../Lib/kprintf.h"
+#include "../../Drivers/keyboard.h"
+#include "../io.h"
+
+void isr_handler(struct registers *r)
 {
-    if(r->int_no==14){
+    if (r->int_no == 14)
+    {
         page_fault_handler(r);
-    }
-    else if (r->int_no == 33)
-    {
-        keyboard_handler();
-    }
-    else if (r->int_no == 32)
-    {
-        schedule();
-    }
-    else if (r->int_no < 32)
-    {
-        kprintf("CPU HANDLES IT : ");
-        print_hex(r->int_no);
-        asm volatile("hlt");
-    }
-    else if (r->int_no > 32)
-        outb(0x20, 0x20);
-}
-
-void Paging_handler(struct registers r)
-{
-    uint32_t faulting_address;
-    asm volatile(
-        "mov %%cr2,%0" : "=r"(faulting_address));
-
-    int present = !(r.err_code & 0x1);
-    int write = r.err_code & 0x2;
-    int user_mode = r.err_code & 0x4;
-
-    if (present)
-    {
-        uint32_t page = pmm_alloc();
-        map_page(faulting_address, page, 0x3);
         return;
     }
 
-    if (write && !user_mode)
+    if (r->int_no == 33)
     {
-       kprintf("SECURITY VIOLATION: KERNEL PROTECTION FAULT");
-        asm volatile("hlt");
+        keyboard_handler();
+        outb(0x20, 0x20);
+        return;
     }
+
+    if (r->int_no == 32)
+    {
+        schedule();
+        outb(0x20, 0x20);
+        return;
+    }
+
+    if (r->int_no < 32)
+    {
+        static const char *exceptions[] = {
+            "divide by zero",
+            "debug",
+            "NMI",
+            "breakpoint",
+            "overflow",
+            "bound range exceeded",
+            "invalid opcode",
+            "device not available",
+            "double fault",
+            "coprocessor segment overrun",
+            "invalid TSS",
+            "segment not present",
+            "stack segment fault",
+            "general protection fault",
+            "page fault",     
+            "reserved",
+            "x87 float fault",
+            "alignment check",
+            "machine check",
+            "SIMD float fault"
+        };
+
+        const char *name = (r->int_no < 20)
+                         ? exceptions[r->int_no]
+                         : "unknown exception";
+
+        forge_panic(name, r);
+        return;
+    }
+
+    outb(0x20, 0x20);
 }

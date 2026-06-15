@@ -13,11 +13,8 @@ static inline uint32_t read_cr2()
 
 void page_fault_handler(struct registers *reg)
 {
-    uint32_t fault_addr;
-    asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
 
     kprintf("PAGE FAULT!\n");
-    kprintf("CR2 = %x\n", fault_addr);
     kprintf("EIP = %x\n", reg->eip);
     kprintf("ESP = %x\n", reg->esp);
 
@@ -32,9 +29,9 @@ void page_fault_handler(struct registers *reg)
 
     kprintf("\n--------------PAGE FAULT---------------\n");
 
-    kprintf("Address : 0s%x\n", addr);
+    kprintf("Address : 0x%x\n", addr);
 
-kprintf("Cause of it : %s\n",protection ? "Protection Violation": "Page Not Present");
+    kprintf("Cause of it : %s\n", protection ? "Protection Violation" : "Page Not Present");
     kprintf("Access : %s\n", write ? "Write" : "Read");
 
     kprintf("Mode : %s\n", user ? "User" : "Kernel");
@@ -43,13 +40,9 @@ kprintf("Cause of it : %s\n",protection ? "Protection Violation": "Page Not Pres
         kprintf("Reserved bits overwritten\n");
     if (fetch)
         kprintf("Instruction Fetch Fault\n");
-    
 
-    // Future----
-    // kprintf("ESP : 0x%x\n", reg->esp);
-    // kprintf("EIP : 0x%x\n", reg->eip);
     kprintf("CS=%x\n", reg->cs);
-kprintf("SS=%x\n", reg->ss);
+    kprintf("SS=%x\n", reg->ss);
 
     if (user)
     {

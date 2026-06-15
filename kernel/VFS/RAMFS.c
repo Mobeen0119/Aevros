@@ -9,6 +9,11 @@ vfs_ops_t ramfs_ops = {
     .read = ramfs_read,
     .write = ramfs_write};
 
+void ramfs_init()
+{
+    vfs_root->inode->ops = &ramfs_ops;
+}
+
 uint32_t ramfs_read(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
     ramfs_inode_t *ram = dentry->inode->fs_private;
@@ -29,15 +34,17 @@ uint32_t ramfs_read(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *b
 uint32_t ramfs_write(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
     ramfs_inode_t *ram = dentry->inode->fs_private;
-
     if (!ram)
         return -1;
+
+    if (offset + size > ram->capacity)
+        if (ramfs_expand(ram, offset + size) < 0)
+            return -1;
 
     memcpy(ram->data + offset, buffer, size);
 
     if (offset + size > dentry->inode->size)
-        if (ramfs_expand(ram, offset + size) < 0)
-            return -1;
+        dentry->inode->size = offset + size;
 
     return size;
 }
@@ -58,9 +65,13 @@ dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
 
     ram->capacity = 4096;
     ram->data = kmalloc_raw(ram->capacity);
-    if (!ram->data)
-        return 0;
-
+    if (!ram->data){
+         kfree_raw(ram);
+    kfree_raw(inode);
+    kfree_raw(child);
+    return NULL;
+    }
+        
     inode->size = 0;
     inode->flags = VFS_FILE;
     inode->ops = &ramfs_ops;
@@ -72,7 +83,7 @@ dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
     child->parent = parent;
 
     uint32_t bucket = dentry_hash(child->name);
-    child->next = parent->hash_bucket[bucket];
+    child->hash_next = parent->hash_bucket[bucket];
     parent->hash_bucket[bucket] = child;
 
     return child;
@@ -129,10 +140,9 @@ dentry_t *ramfs_mkdir(dentry_t *parent, const char *name)
     dentry->inode = inode;
     dentry->parent = parent;
 
-    dentry->children = 0;
-    dentry->next = parent->children;
-
-    parent->children = dentry;
+    uint32_t bucket = dentry_hash(name);
+    dentry->hash_next = parent->hash_bucket[bucket];
+    parent->hash_bucket[bucket] = dentry;
 
     return dentry;
 }

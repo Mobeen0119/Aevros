@@ -11,10 +11,8 @@ void *kmalloc_raw(size_t size);
 
 void kfree_raw(void *ptr);
 
-#define kmalloc(size)                                                             \
-    ({ void *_p = kmalloc(raw(size);                                              \
-                          tracker_record(_p, size, __FILE__, __LINE__, __func__); \
-                          _p; })
+#define kmalloc(size) ({ void *_p = kmalloc_raw(size); tracker_record(_p, size, __FILE__, __LINE__, __func__); _p; })
+
 
 #define kfree(ptr) \
     ({ tracker_remove(ptr); \

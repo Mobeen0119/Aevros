@@ -26,12 +26,15 @@ void tracker_record(void *ptr, size_t size, const char *file, uint32_t line, con
             records[i].size = size;
             records[i].file = file;
             records[i].line = line;
+            records[i].func = func; 
             records[i].pid = current_task ? current_task->pid : 0;
             records[i].alive = 1;
             record_count++;
             return;
         }
     }
+    kprintf("[MEMSTORY] WARNING: tracker table full, allocation at %x not recorded\n", ptr);
+
 }
 
 void tracker_remove(void *ptr)
@@ -65,8 +68,9 @@ void tracker_dump(void)
 
         uint8_t pid_alive = 0;
 
-        if (current_task)
-        {
+        if (!current_task || !ready_queue) pid_alive=1;
+
+       else {
             task_t *t = ready_queue;
             do
             {
@@ -76,12 +80,10 @@ void tracker_dump(void)
                     break;
                 }
                 t = t->next;
+                 if (!t) break;
             } while (t != ready_queue);
         }
-        else
-        {
-            pid_alive = 1;
-        }
+       
         const char *status = pid_alive ? "ALIVE" : "GHOST";
 
         kprintf("[%s] %s:%u %s()  size=%u  pid=%u  ptr=%x\n",
@@ -100,7 +102,7 @@ void tracker_dump(void)
     kprintf("=================\n\n");
 }
 
-void tracker_live_count(void)
+uint32_t tracker_live_count(void)
 {
     return record_count;
 }
@@ -129,6 +131,7 @@ uint32_t tracker_leaked_bytes(void)
                 break;
             }
             t = t->next;
+            if(!t) break;
         } while (t != ready_queue);
 
         if (!found)
@@ -137,3 +140,4 @@ uint32_t tracker_leaked_bytes(void)
 
     return total;
 }
+

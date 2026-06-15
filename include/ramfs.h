@@ -8,6 +8,7 @@ typedef struct
     uint32_t capacity;
 } ramfs_inode_t;
 
+void ramfs_init(void);
 uint32_t ramfs_read(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer);
 uint32_t ramfs_write(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer);
 

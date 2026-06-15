@@ -6,8 +6,7 @@
 #include "../../Include/vfs.h"
 #include "builtins.h"
 #include "parser.h"
-#include "/MemInfo/mem_info.h"
-
+#include "MemInfo/mem_info.h"
 
 void shell_prompt()
 {
@@ -139,20 +138,18 @@ void shell_execute(char *input)
             kprint("usage: meminfo [pmm|heap|paging|task]\n");
         }
     }
-    else if (strcmp(argv[1], "buddy") == 0)
+    else if (argc > 1 && strcmp(argv[1], "buddy") == 0)
     {
         meminfo_buddy();
     }
-
-    else if (strcmp(argv[1], "slab") == 0)
+    else if (argc > 1 && strcmp(argv[1], "slab") == 0)
     {
         meminfo_slab();
     }
-    
-    else if(strcmp(argv[1],"memstory")==0){
+    else if (argc > 1 && strcmp(argv[1], "memstory") == 0)
+    {
         tracker_dump();
     }
-
 
     else
     {

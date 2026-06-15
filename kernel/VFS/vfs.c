@@ -234,7 +234,7 @@ int sys_open(const char *path, uint32_t flags)
     file->offset = 0;
     file->flags = flags;
 
-    for (int i = 0; i < 32; i++)
+    for (int i = 0; i < TASK_MAX_FDS; i++)
     {
         if (!current_task->fd_table[i])
         {
@@ -249,7 +249,7 @@ int sys_open(const char *path, uint32_t flags)
 
 int sys_read(int fd, uint8_t *buf, uint32_t size)
 {
-    if (fd < 0 || fd >= 32 || !current_task->fd_table[fd])
+    if (fd < 0 || fd >= TASK_MAX_FDS || !current_task->fd_table[fd])
     {
         return VFS_ERR;
     }
@@ -273,7 +273,7 @@ int sys_read(int fd, uint8_t *buf, uint32_t size)
 
 int sys_write(int fd, uint8_t *buf, uint32_t size)
 {
-    if (fd < 0 || fd >= 32 || !current_task->fd_table[fd])
+    if (fd < 0 || fd >= TASK_MAX_FDS || !current_task->fd_table[fd])
         return VFS_ERR;
 
     file_t *file = current_task->fd_table[fd];

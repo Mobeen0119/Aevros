@@ -39,7 +39,7 @@ void cmd_ls()
 
 void cmd_cat(char *path)
 {
-    int fd = sys_open(path, 0);
+    int fd = sys_open(path, READ_ONLY);
     if (fd < 0)
     {
         kprint("cat: failed");
@@ -48,7 +48,7 @@ void cmd_cat(char *path)
     char buff[128];
     int n;
 
-    while ((n=(sys_read(fd,(uint8_t*) buff, sizeof(buff)))) > 0)
+    while ((n = (sys_read(fd, (uint8_t *)buff, sizeof(buff)))) > 0)
     {
         for (int i = 0; i < n; i++)
         {
@@ -84,7 +84,8 @@ void cmd_touch(char *path)
 
 void cmd_write(const char *path, char *txt)
 {
-    if(!path || !txt){
+    if (!path || !txt)
+    {
         kprint("cat: missing args\n");
         return;
     }
@@ -110,23 +111,24 @@ void cmd_rm(char *path)
     }
 }
 
-void print_path(dentry_t* dir){
-    if(!dir) return;
-
-    if(dir->parent) print_path(dir->parent);
-
-    kprint(
-    "\n"
-    );
-
+void print_path(dentry_t *dir)
+{
+    if (!dir || dir == dir->parent)
+        return;
+    print_path(dir->parent);
+    kprint("/");
     kprint(dir->name);
 }
 
 void cmd_pwd()
-{ 
+{
+    if (current_task->cwd == vfs_root)
+    {
+        kprint("/\n");
+        return;
+    }
     print_path(current_task->cwd);
-    kprint("/");
-    
+    kprint("\n");
 }
 
 void tree_walk(dentry_t *dir, int depth)

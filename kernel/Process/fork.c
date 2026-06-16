@@ -4,6 +4,7 @@
 #include "../Memory/kheap.h"
 #include "../../Include/vfs.h"
 #include "task.h"
+#include "TaskLife/tasklife.h"
 #include "process-memory/process_memory.h"
 
 extern uint32_t read_cr3(void);
@@ -122,6 +123,9 @@ int do_fork(register_t *state_at_interuppt)
     child->kernel_time = 0;
 
     child->start_time = get_ticks();
+
+    task_log_event(parent, EVT_FORKED, child->pid);
+    task_log_event(child, EVT_CREATED, parent->pid);
 
     int pid = child->pid;
     task_add_ready(child);

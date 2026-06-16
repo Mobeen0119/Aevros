@@ -6,6 +6,8 @@
 #include "../../LIB/string.h"
 #include "../Dev/dev.h"
 #include "../Memory/pmm.h"
+#include "../Process/TaskLife/tasklife.h"
+
 
 dentry_t *vfs_root = 0;
 
@@ -243,6 +245,9 @@ int sys_open(const char *path, uint32_t flags)
             return i;
         }
     }
+    task_log_event(current_task, EVT_FD_OPEN, (uint32_t)file);
+
+    task_log_event(current_task, EVT_FD_CLOSE, (uint32_t)file);
     kfree_raw(file);
     return VFS_ERR;
 }

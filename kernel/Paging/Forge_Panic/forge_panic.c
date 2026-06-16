@@ -4,6 +4,7 @@
 #include "../../Memory/kheap.h"
 #include "../../../Lib/kprintf.h"
 #include "../../../Include/screen.h"
+#include "../../Process/TaskLife/tasklife.h"
 #include <stdint.h>
 
 static inline uint32_t read_cr2(void)
@@ -17,7 +18,7 @@ static inline uint32_t read_cr2(void)
 static void print_stack_trace(uint32_t ebp)
 {
     kpring("---stack trace : \n");
- 
+
     for (int i = 0; i < 8 && ebp; i++)
     {
         uint32_t *frame = (uint32_t *)ebp;
@@ -130,7 +131,10 @@ void forge_panic(const char *reason, register_t *regs)
     kprintf("║  System Halted ... no data lost in tracker ║\n");
     kprintf("╚════════════════════════════════════════════╝\n");
 
+    kprintf("╠══════════════════════════════════════════╣\n");
+    kprintf("║ TASK LIFECYCLE                           ║\n");
+    tasklife_dump_current();
+
     for (;;)
         asm volatile("hlt");
 }
-

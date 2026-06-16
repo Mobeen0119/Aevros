@@ -217,6 +217,7 @@ int sys_exec(const char *path)
 
     uint32_t old_cr3 = current_task->cr3;
     current_task->cr3 = new_cr3;
+    task_log_event(current_task, EVT_EXEC, 0);
     current_task->regs.eip = hdr->entry_point;
     current_task->regs.ebp = USER_STACK_TOP;
 

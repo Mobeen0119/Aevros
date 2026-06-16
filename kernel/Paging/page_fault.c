@@ -15,6 +15,7 @@ void page_fault_handler(struct registers *reg)
 {
 
     kprintf("PAGE FAULT!\n");
+
     kprintf("EIP = %x\n", reg->eip);
     kprintf("ESP = %x\n", reg->esp);
 
@@ -50,6 +51,9 @@ void page_fault_handler(struct registers *reg)
         for (;;)
             asm volatile("hlt");
     }
+    if (current_task)
+   
+    task_log_event(current_task, EVT_FAULT, addr);
 
     kprintf("\nKERNEL PANIC\n");
     for (;;)

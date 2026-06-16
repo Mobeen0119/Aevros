@@ -12,6 +12,8 @@
 #include "../../Lib/kprintf.h"
 #include "../CPU/tss.h"
 #include "../../Drivers/PIT/pit.h"
+#include "TaskLife/tasklife.h"
+
 
 task_t *current_task = 0, *ready_queue = 0;
 
@@ -74,10 +76,11 @@ void init_tasking()
     current_task->cr3 = read_cr3();
     current_task->regs.eip = read_eip();
     current_task->kernel_stack = current_task->regs.esp + 4096;
-    current_task->kernel_stack_base=0;
+    current_task->kernel_stack_base = 0;
 
     current_task->next = current_task;
     ready_queue = current_task;
+    task_log_event(current_task, EVT_CREATED, 0);
 }
 
 task_t *task_create_kernel(void (*entry_point)())
@@ -208,7 +211,10 @@ void schedule(void)
 
     if (next->first_run)
     {
+
         next->first_run = 0;
+        task_log_event(next, EVT_FIRST_RUN, 0); /* add this */
+
         current_task = next;
         tss.esp0 = next->kernel_stack;
 
@@ -248,8 +254,14 @@ void sys_exit(int status)
     if (!dead)
         return;
 
+    task_log_event(dead, EVT_EXITED, (uint32_t)status);
+    dead->destroy_time = get_ticks();
+
     dead->exit_code = status;
     dead->state = TASK_ZOMBIE;
+
+    if (dead->parent)
+        task_log_event(dead->parent, EVT_CHILD_DIED, dead->pid);
 
     for (int i = 0; i < 32; i++)
     {
@@ -369,6 +381,7 @@ void task_remove_ready(task_t *task)
     if (!task || !ready_queue)
         return;
 
+    task_log_event(task, EVT_BLOCKED, 0);
     task->state = TASK_BLOCKED;
 
     if (ready_queue == task && ready_queue->next == ready_queue)
@@ -419,5 +432,6 @@ void task_wake(task_t *task)
     if (!task)
         return;
 
+    task_log_event(task, EVT_WOKE, 0);
     task->state = TASK_READY;
 }

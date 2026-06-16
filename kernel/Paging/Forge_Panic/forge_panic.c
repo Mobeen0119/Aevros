@@ -17,7 +17,7 @@ static inline uint32_t read_cr2(void)
 static void print_stack_trace(uint32_t ebp)
 {
     kpring("---stack trace : \n");
-
+ 
     for (int i = 0; i < 8 && ebp; i++)
     {
         uint32_t *frame = (uint32_t *)ebp;
@@ -65,7 +65,7 @@ void forge_panic(const char *reason, register_t *regs)
     uint32_t cr2 = read_cr2();
     kprintf("\n");
     kprintf("╔══════════════════════════════════════════╗\n");
-    kprintf("║         FORGE OS  —  KERNEL FAULT        ║\n");
+    kprintf("║         FORGE OS  ---  KERNEL FAULT      ║\n");
     kprintf("╠══════════════════════════════════════════╣\n");
 
     kprintf("|| REASON    : %-31s||\n ", reason);
@@ -126,9 +126,9 @@ void forge_panic(const char *reason, register_t *regs)
     kprintf("║ GHOST ALLOCATIONS AT PANIC               ║\n");
     tracker_dump();
 
-    kprintf("╠══════════════════════════════════════════╣\n");
-    kprintf("║  system halted .... no data lost in tracker ║\n");
-    kprintf("╚══════════════════════════════════════════╝\n");
+    kprintf("╠════════════════════════════════════════════╣\n");
+    kprintf("║  System Halted ... no data lost in tracker ║\n");
+    kprintf("╚════════════════════════════════════════════╝\n");
 
     for (;;)
         asm volatile("hlt");

@@ -8,23 +8,47 @@
 
 #define TASK_MAX_FDS 32
 #define O_CLOEXEC 0x08
-#define RLIMIT_CPU   0
+#define RLIMIT_CPU 0
 #define RLIMIT_NOFILE 1
 #define RLIMIT_STACK 2
 #define RLIMIT_COUNT 3
 
 #define NSIGNALS 32
 
-typedef struct rlimit{
+typedef struct rlimit
+{
     uint32_t rlim_cur;
     uint32_t rlim_max;
-}rlimit_t;
+} rlimit_t;
 
-#define RLIMIT_CPU   0
+#define RLIMIT_CPU 0
 #define RLIMIT_NOFILE 1
 #define RLIMIT_STACK 2
 #define RLIMIT_COUNT 3
+#define TASK_MAX_EVENTS 16
 
+typedef enum
+{
+    EVT_CREATED,
+    EVT_FIRST_RUN,
+    EVT_EXEC,
+    EVT_FD_OPEN,
+    EVT_FD_CLOSE,
+    EVT_FORKED,
+    EVT_CHILD_DIED,
+    EVT_FAULT,
+    EVT_SIGNAL,
+    EVT_BLOCKED,
+    EVT_WOKE,
+    EVT_EXITED
+} task_event_type_t;
+
+typedef struct
+{
+    task_event_type_t type;
+    uint32_t tick, data;
+
+} task_event_t;
 
 typedef enum
 {
@@ -38,13 +62,13 @@ typedef enum
 
 typedef struct task
 {
-   uint32_t cr3;
+    uint32_t cr3;
     uint32_t pid;
     task_state_t state;
     register_t regs;
-    
+
     uint32_t kernel_stack;
-    uint32_t kernel_stack_base;  
+    uint32_t kernel_stack_base;
 
     file_t *fd_table[TASK_MAX_FDS];
     dentry_t *cwd;
@@ -63,6 +87,9 @@ typedef struct task
     uint32_t user_time;
     uint32_t kernel_time;
     uint32_t start_time;
+    task_event_t events[TASK_MAX_EVENTS];
+    uint8_t event_count;
+    uint32_t destroy_time;
 
 } task_t;
 
@@ -87,9 +114,9 @@ int do_fork(register_t *state_at_interuppt);
 
 int sys_waitpid(int target_pid, int *status);
 
-void task_add_ready(task_t* task);
+void task_add_ready(task_t *task);
 
-void task_wake(task_t *task);       
+void task_wake(task_t *task);
 uint32_t get_ticks(void);
 
 #endif

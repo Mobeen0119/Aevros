@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #define TASK_MAX_FDS 32
+#define TASK_NAME_LEN 16
 #define O_CLOEXEC 0x08
 #define RLIMIT_CPU 0
 #define RLIMIT_NOFILE 1
@@ -88,8 +89,10 @@ typedef struct task
     uint32_t kernel_time;
     uint32_t start_time;
     task_event_t events[TASK_MAX_EVENTS];
+
     uint8_t event_count;
     uint32_t destroy_time;
+    char name[TASK_NAME_LEN];    
 
 } task_t;
 

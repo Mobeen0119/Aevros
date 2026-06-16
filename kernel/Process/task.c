@@ -10,6 +10,7 @@
 #include "userspace.h"
 #include "process-memory/process_memory.h"
 #include "../../Lib/kprintf.h"
+#include "../../Lib/string.h"
 #include "../CPU/tss.h"
 #include "../../Drivers/PIT/pit.h"
 #include "TaskLife/tasklife.h"
@@ -37,6 +38,8 @@ void init_tasking()
     current_task = (task_t *)kmalloc_raw(sizeof(task_t));
     if (!current_task)
         return;
+    
+    strncpy(current_task->name, "shell", TASK_NAME_LEN);
 
     memset(current_task, 0, sizeof(task_t));
     current_task->pid = next_pid++;
@@ -85,11 +88,15 @@ void init_tasking()
 
 task_t *task_create_kernel(void (*entry_point)())
 {
+    task_t *new_task = (task_t *)kmalloc_raw(sizeof(task_t));
     kprint("KERNEL CALL\n");
+    strncpy(new_task->name, "kernel", TASK_NAME_LEN);
+    
     task_t *t = create_process(entry_point, 0, 0);
     if (t)
         task_add_ready(t);
     return t;
+
 }
 
 task_t *task_create_user(void (*entry_point)())

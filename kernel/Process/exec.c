@@ -6,6 +6,7 @@
 #include "../Memory/kheap.h"
 #include "../ELF/elf.h"
 #include "process-memory/process_memory.h"
+#include "../../Lib/string.h"
 
 #include "../../Include/vfs.h"
 
@@ -218,6 +219,7 @@ int sys_exec(const char *path)
     uint32_t old_cr3 = current_task->cr3;
     current_task->cr3 = new_cr3;
     task_log_event(current_task, EVT_EXEC, 0);
+
     current_task->regs.eip = hdr->entry_point;
     current_task->regs.ebp = USER_STACK_TOP;
 
@@ -229,6 +231,8 @@ int sys_exec(const char *path)
     current_task->user_time=0;
     current_task->kernel_time=0;
     current_task->start_time=get_ticks();
+
+    strncpy(current_task->name, path, TASK_NAME_LEN);
 
     uint32_t *sp = (uint32_t *)current_task->kernel_stack;
     *(--sp) = 0x23 | 3;         // SS

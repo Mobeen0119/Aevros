@@ -1,6 +1,5 @@
 #include "string.h"
 
-
 void *memset(void *dest, uint8_t value, uint32_t size)
 {
     uint8_t *ptr = (uint8_t *)dest;
@@ -20,7 +19,6 @@ void *memcpy(void *dest, const void *src, uint32_t size)
 
     return dest;
 }
-
 
 uint32_t strlen(const char *str)
 {
@@ -42,6 +40,21 @@ void strcpy(char *dest, const char *src)
         i++;
     }
 
+    dest[i] = '\0';
+}
+
+void strncpy(char *dest, const char *src, int len)
+{
+    if (!src && len < 1)
+        return;
+
+    int i = 0;
+
+    while (src[i] && i < len)
+    {
+        dest[i] = src[i];
+        i++;
+    }
     dest[i] = '\0';
 }
 
@@ -95,22 +108,31 @@ char *strdup(const char *str)
     return copy;
 }
 
-int katoi(const char* s){
-    if(!s) return 0;
+int katoi(const char *s)
+{
+    if (!s)
+        return 0;
 
-    int result=0;
-    int sign=1;
+    int result = 0;
+    int sign = 1;
 
-    while(*s == ' ') s++;
+    while (*s == ' ')
+        s++;
 
-    if(*s =='-') {sign =-1; s++;}
-
-    else if(*s == '+') s++;
-
-    while(*s>='0' && *s>=9){
-        result=result*10+(*s - '0');
+    if (*s == '-')
+    {
+        sign = -1;
         s++;
     }
 
-    return sign*result;
+    else if (*s == '+')
+        s++;
+
+    while (*s >= '0' && *s >= 9)
+    {
+        result = result * 10 + (*s - '0');
+        s++;
+    }
+
+    return sign * result;
 }

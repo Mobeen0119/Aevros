@@ -145,8 +145,8 @@ void tasklife_ps(void){
         return;
     }
 
-     kprintf("\n  PID   STATE      TICKS ALIVE  PARENT\n");
-    kprintf("  ────────────────────────────────────\n");
+     kprintf("\n  PID     NAME     STATE      TICKS ALIVE  PARENT\n");
+    kprintf("  ────────────────────────────────────────────────\n");
 
     task_t* t =ready_queue;
 
@@ -156,8 +156,9 @@ void tasklife_ps(void){
             t->state == TASK_BLOCKED  ? "BLOCKED  " :
             t->state == TASK_ZOMBIE   ? "ZOMBIE   " : "SUSPENDED";
         
-  kprintf("  %-5u %s  %-13u  %u\n",
+  kprintf("  %-5u   %s   %s %-13u  %u\n",
                 t->pid,
+                t->name,
                 state,
                 get_ticks() - t->start_time,
                 t->parent ? t->parent->pid : 0);

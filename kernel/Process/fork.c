@@ -6,6 +6,7 @@
 #include "task.h"
 #include "TaskLife/tasklife.h"
 #include "process-memory/process_memory.h"
+#include "../../Lib/string.h"
 
 extern uint32_t read_cr3(void);
 extern uint32_t read_eip(void);
@@ -121,6 +122,8 @@ int do_fork(register_t *state_at_interuppt)
 
     child->user_time = 0;
     child->kernel_time = 0;
+
+    strncpy(child->name, parent->name, TASK_NAME_LEN);
 
     child->start_time = get_ticks();
 

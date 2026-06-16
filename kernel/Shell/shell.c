@@ -153,11 +153,34 @@ void shell_execute(char *input)
         else
             kprint("usage: memstory [ghosts | pid <n>]\n");
     }
+    
+    else if (strcmp(argv[0], "ps") == 0)
+    {
+        tasklife_ps();
+    }
+
     else if (strcmp(argv[0], "tasklife") == 0)
     {
         if (argc < 2)
-            kprintf("usage: tasklife <pid>\n");
-        else
+        {
+            kprintf("usage: tasklife <pid> || <name>\n");
+            return;
+        }
+
+        task_t *t = ready_queue;
+        int found = 0;
+        do
+        {
+            if (strcmp(t->name, argv[1]) == 0)
+            {
+                tasklife_dump(t->pid);
+                found = 1;
+                break;
+            }
+            t = t->next;
+        } while (t != ready_queue);
+
+        if (!found)
             tasklife_dump((uint32_t)katoi(argv[1]));
     }
     else

@@ -154,12 +154,12 @@ void shell_execute(char *input)
             kprint("usage: memstory [ghosts | pid <n>]\n");
     }
     else if (strcmp(argv[0], "tasklife") == 0)
-{
-    if (argc < 2)
-        kprintf("usage: tasklife <pid>\n");
-    else
-        tasklife_dump((uint32_t)atoi(argv[1]));
-}
+    {
+        if (argc < 2)
+            kprintf("usage: tasklife <pid>\n");
+        else
+            tasklife_dump((uint32_t)katoi(argv[1]));
+    }
     else
     {
         kprint("unknown command\n");

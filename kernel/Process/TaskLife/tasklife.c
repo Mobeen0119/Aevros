@@ -40,7 +40,7 @@ void task_log_event(task_t *task, task_event_type_t type, uint32_t data)
     if (!task || task->event_count >= TASK_MAX_EVENTS)
         return;
 
-    task_event_t *e = (uint32_t *)&task->events(task->event_count++);
+    task_event_t *e =&task->events[task->event_count++];
 
     e->type = type;
     e->tick = get_ticks();
@@ -77,7 +77,7 @@ static void dump_task_life(task_t *t)
 
     for (int i = 0; i < t->event_count; i++)
     {
-        task_event_t *e = % t->events[i];
+        task_event_t *e = &t->events[i];
         uint32_t delta = e->tick - t->start_time;
 
         kprintf("   [+%u  ticks]  %s", delta, event_name(e->type));
@@ -138,3 +138,32 @@ void tasklife_dump_current(void)
 {
     dump_task_life(current_task);
 }
+
+void tasklife_ps(void){
+    if(!ready_queue) {
+        kprint("No tasks running\n");
+        return;
+    }
+
+     kprintf("\n  PID   STATE      TICKS ALIVE  PARENT\n");
+    kprintf("  ────────────────────────────────────\n");
+
+    task_t* t =ready_queue;
+
+    do{
+        const char* state=t->state == TASK_READY    ? "READY    " :
+            t->state == TASK_RUNNING  ? "RUNNING  " :
+            t->state == TASK_BLOCKED  ? "BLOCKED  " :
+            t->state == TASK_ZOMBIE   ? "ZOMBIE   " : "SUSPENDED";
+        
+  kprintf("  %-5u %s  %-13u  %u\n",
+                t->pid,
+                state,
+                get_ticks() - t->start_time,
+                t->parent ? t->parent->pid : 0);
+            t=t->next;
+  }while(t!=ready_queue);
+
+  kprint("\n");
+}
+

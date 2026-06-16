@@ -9,4 +9,6 @@ void tasklife_dump(uint32_t pid);
 
 void tasklife_dump_current(void);
 
+void tasklife_ps(void);
+
 #endif

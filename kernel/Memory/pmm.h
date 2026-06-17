@@ -6,8 +6,6 @@
 
 extern uint32_t mem[1024]; // 4KB 
 
-void *memset(void *dest, uint8_t value, uint32_t size);
-void *memcpy(void *dest, const void *src, uint32_t size);
 
 void pmm_free(uint32_t address);
 uint32_t pmm_alloc();

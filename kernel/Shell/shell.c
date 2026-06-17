@@ -8,6 +8,7 @@
 #include "parser.h"
 #include "MemInfo/mem_info.h"
 #include "../Process/TaskLife/tasklife.h"
+#include "../Process/ForgePoint/forgepoint.h"
 
 void shell_prompt()
 {
@@ -81,6 +82,7 @@ void shell_execute(char *input)
 
         cmd_touch(argv[1]);
     }
+  
     else if (strcmp(argv[0], "write") == 0)
     {
         if (argc < 3)
@@ -131,14 +133,17 @@ void shell_execute(char *input)
         else
             kprint("usage: meminfo [pmm|heap|paging|task|buddy|slab]\n");
     }
+ 
     else if (argc > 1 && strcmp(argv[1], "buddy") == 0)
     {
         meminfo_buddy();
     }
+ 
     else if (argc > 1 && strcmp(argv[1], "slab") == 0)
     {
         meminfo_slab();
     }
+   
     else if (strcmp(argv[0], "memstory") == 0)
     {
         if (argc == 1)
@@ -153,7 +158,7 @@ void shell_execute(char *input)
         else
             kprint("usage: memstory [ghosts | pid <n>]\n");
     }
-    
+
     else if (strcmp(argv[0], "ps") == 0)
     {
         tasklife_ps();
@@ -183,6 +188,21 @@ void shell_execute(char *input)
         if (!found)
             tasklife_dump((uint32_t)katoi(argv[1]));
     }
+
+    else if (strcmp(argv[0], "forgepoint") == 0)
+    {
+        if (argc < 3)
+        {
+            kprintf("usage: forgepoint <save|restore> <name>\n");
+        }
+        else if (strcmp(argv[1], "save") == 0)
+            forgepoint_save(argv[2]);
+        else if (strcmp(argv[1], "restore") == 0)
+            forgepoint_restore(argv[2]);
+        else
+            kprintf("usage: forgepoint <save|restore> <name>\n");
+    }
+  
     else
     {
         kprint("unknown command\n");

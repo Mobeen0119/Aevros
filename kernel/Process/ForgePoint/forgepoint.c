@@ -145,3 +145,103 @@ int forgepoint_save(const char *name)
     return VFS_OK;
 }
 
+int forgepoint_restore(const char *name)
+{
+    if (!name)
+        return VFS_ERR;
+
+    char path[64];
+    build_path(name, path, sizeof(path));
+
+    int fd = sys_open(path, READ_ONLY);
+    if (fd < 0)
+    {
+        kprintf("forgepoint: no snapshot of '%s' \n", name);
+        return VFS_ERR;
+    }
+
+    fgpt_snapshot_t *snap = kmalloc(sizeof(fgpt_snapshot_t));
+
+    if (!snap)
+    {
+        sys_close(fd);
+        return VFS_ERR;
+    }
+
+    int got = sys_read(fd, (uint8_t *)snap, sizeof(fgpt_snapshot_t));
+    sys_close(fd);
+
+    if (got != sizeof(fgpt_snapshot_t) || snap->magic != FORGEPOINT_MAGIC)
+    {
+        kprintf("forgepoint: snapshot '%s' invalid or corrupt \n", name);
+        kfree(snap);
+        return VFS_ERR;
+    }
+    task_t *task = kmalloc(sizeof(task_t));
+    if (!task)
+    {
+        kfree(snap);
+        return VFS_ERR;
+    }
+
+    memset(task, 0, sizeof(task_t));
+
+    uint8_t *new_stack = kmalloc(4096);
+    if (!new_stack)
+    {
+        kfree(task);
+        kfree(snap);
+        return VFS_ERR;
+    }
+    task->pid = next_pid++;
+    task->state = TASK_READY;
+    task->parent = current_task;
+
+    strncpy(task->name, snap->name, TASK_NAME_LEN);
+
+    task->cr3 = current_task->cr3;
+
+    uint32_t stack_top = (uint32_t)new_stack + 4096;
+    task->kernel_stack = stack_top;
+    task->kernel_stack_base = (uint32_t)new_stack;
+
+    task->regs = snap->regs;
+    task->regs.esp = stack_top - snap->stack_used;
+    memcpy((void *)task->regs.esp, snap->stack_data, snap->stack_used);
+
+    uint32_t old_esp = stack_top - snap->stack_used;
+    (void)old_esp;
+
+    task->regs.ebp = snap->regs.ebp;
+
+    for (int i = 0; i < TASK_MAX_FDS; i++)
+    {
+        if (snap->fd_present[i] && current_task->fd_table[i])
+        {
+            task->fd_table[i] = current_task->fd_table[i];
+            task->fd_table[i]->inode->ref_count++;
+            task->fd_table[i]->offset = snap->fd_offset[i];
+        }
+    }
+
+    task->event_count = snap->event_count;
+    memcpy(task->events, snap->events, sizeof(task->events));
+    task->start_time = snap->start_time;
+
+    task->user_time = snap->user_time;
+    task->kernel_time = snap->kernel_time;
+
+    task_log_event(task, EVT_CREATED, 0);
+    kfree(snap);
+    task_add_ready(task);
+
+    kprintf("forgepoint: restored '%s' as pid %u (was tick %u, now tick %u)\n",
+            snap->name, task->pid, snap->saved_tick, get_ticks());
+
+    return task->pid;
+}
+
+void forgepoint_list(void)
+{
+    kprintf("forgepoint: listing not yet wired to directory scan ... use 'ls /' for now\n");
+}

@@ -55,7 +55,6 @@ static const char *skip_slash(const char *p)
     return p;
 }
 
-
 int match_seg(const char *name, const char *start, uint32_t len)
 {
     uint32_t i = 0;
@@ -242,12 +241,10 @@ int sys_open(const char *path, uint32_t flags)
         {
             current_task->fd_table[i] = file;
             inode->ref_count++;
+            task_log_event(current_task, EVT_FD_OPEN, (uint32_t)i);
             return i;
         }
     }
-    task_log_event(current_task, EVT_FD_OPEN, (uint32_t)file);
-
-    task_log_event(current_task, EVT_FD_CLOSE, (uint32_t)file);
     kfree_raw(file);
     return VFS_ERR;
 }
@@ -300,7 +297,7 @@ int sys_write(int fd, uint8_t *buf, uint32_t size)
 
 int sys_close(int fd)
 {
-    if (fd < 0 || fd >= 32)
+    if (fd < 0 || fd >= TASK_MAX_FDS)
         return VFS_ERR;
 
     file_t *file = current_task->fd_table[fd];
@@ -459,7 +456,7 @@ int vfs_mount(dentry_t *mount_point, dentry_t *root)
 
 int sys_readdir(int fd, dirent_t *dirent)
 {
-    if (fd < 0 || fd >= 32)
+    if (fd < 0 || fd >= TASK_MAX_FDS)
         return VFS_ERR;
 
     file_t *file = current_task->fd_table[fd];

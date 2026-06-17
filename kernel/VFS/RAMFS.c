@@ -106,15 +106,15 @@ int ramfs_expand(ramfs_inode_t *ram, uint32_t needed)
     uint32_t *new_data = kmalloc_raw(new_cap);
 
     if (!new_data)
-        return -1;
+        return VFS_ERR;
 
     memcpy(new_data, ram->data, ram->capacity);
     kfree_raw(ram->data);
 
-    ram->data = (uint8_t *)new_data;
+    ram->data = new_data;
     ram->capacity = new_cap;
 
-    return 0;
+    return VFS_OK;
 }
 
 dentry_t *ramfs_mkdir(dentry_t *parent, const char *name)

@@ -82,7 +82,7 @@ void shell_execute(char *input)
 
         cmd_touch(argv[1]);
     }
-  
+
     else if (strcmp(argv[0], "write") == 0)
     {
         if (argc < 3)
@@ -133,17 +133,17 @@ void shell_execute(char *input)
         else
             kprint("usage: meminfo [pmm|heap|paging|task|buddy|slab]\n");
     }
- 
+
     else if (argc > 1 && strcmp(argv[1], "buddy") == 0)
     {
         meminfo_buddy();
     }
- 
+
     else if (argc > 1 && strcmp(argv[1], "slab") == 0)
     {
         meminfo_slab();
     }
-   
+
     else if (strcmp(argv[0], "memstory") == 0)
     {
         if (argc == 1)
@@ -199,10 +199,12 @@ void shell_execute(char *input)
             forgepoint_save(argv[2]);
         else if (strcmp(argv[1], "restore") == 0)
             forgepoint_restore(argv[2]);
+        else if (strcmp(argv[1], "list") == 0)
+            forgepoint_list();
         else
             kprintf("usage: forgepoint <save|restore> <name>\n");
     }
-  
+
     else
     {
         kprint("unknown command\n");

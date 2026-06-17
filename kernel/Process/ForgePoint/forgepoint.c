@@ -243,5 +243,31 @@ int forgepoint_restore(const char *name)
 
 void forgepoint_list(void)
 {
-    kprintf("forgepoint: listing not yet wired to directory scan ... use 'ls /' for now\n");
+    int fd = sys_open("/", READ_ONLY);
+    if (fd < 0)
+    {
+        kprintf("forgepoint: cannot open root\n");
+        return;
+    }
+
+    dirent_t entry;
+    int found = 0;
+
+    kprintf("\n FORGEPOINTS \n");
+    kprintf("  ─────────────────\n");
+
+    while (sys_readdir(fd, &entry) == 1)
+    {
+        if (strncmp(entry.name, "forgepoint_", 11) == 0)
+        {
+            kprintf("   %s \n", entry.name);
+            found++;
+        }
+    }
+
+    if (!found)
+        kprintf("    (none saved yet)\n");
+
+    sys_close(fd);
+    kprintf("\n");
 }

@@ -4,14 +4,20 @@
 #include "../../Memory/kheap.h"
 #include "../../../Lib/kprintf.h"
 #include "../../../Lib/string.h"
+#include "../../Paging/paging.h"
 
-#define FORGEPOINT_MAGIC 0x46475054
+#define FORGEPOINT_MAGIC 0x46475054 // FGPT
+#define FP_MAX_PAGES 256
 
 typedef struct
 {
     uint32_t magic;
     char name[TASK_NAME_LEN];
     uint32_t saved_tick;
+
+    uint8_t is_user;
+    uint16_t cs_saved;
+    uint16_t ss_saved;
 
     register_t regs;
 
@@ -28,6 +34,11 @@ typedef struct
 
     uint32_t user_time;
     uint32_t kernel_time;
+
+    uint32_t page_count;
+    uint32_t page_vaddr[FP_MAX_PAGES];
+    uint32_t page_flags[FP_MAX_PAGES];
+    uint32_t page_data[FP_MAX_PAGES][4096];
 } fgpt_snapshot_t;
 
 static void build_path(const char *name, char *out, uint32_t outlen)
@@ -40,36 +51,18 @@ static void build_path(const char *name, char *out, uint32_t outlen)
     strncpy(out + strlen(out), ".fgp", outlen - strlen(out));
 }
 
+
 int forgepoint_save(const char *name)
 {
-    if (!name || !current_task)
+    if (!name)
         return VFS_ERR;
 
-    task_t *t = current_task;
-
-    task_t *target = NULL;
-    task_t *walk = ready_queue;
-
-    if (walk)
-    {
-        do
-        {
-            if (strcmp(walk->name, name) == 0)
-            {
-                target = walk;
-                break;
-            }
-            walk = walk->next;
-
-        } while (walk != ready_queue);
-    }
-
+    task_t *target = find_task_by_name(name);
     if (!target)
     {
         kprintf("forgepoint: task '%s' not found\n", name);
         return VFS_ERR;
     }
-
     if (target->kernel_stack_base == 0)
     {
         kprintf("forgepoint: task '%s' has no saveable kernel stack\n", name);
@@ -86,6 +79,10 @@ int forgepoint_save(const char *name)
     strncpy(snap->name, target->name, TASK_NAME_LEN);
 
     snap->saved_tick = get_ticks();
+
+    snap->is_user = (target->regs.cs & 0x3) ? 1 : 0;
+    snap->cs_saved = target->regs.cs;
+    snap->ss_saved = target->regs.ss;
 
     snap->regs = target->regs;
 
@@ -117,6 +114,19 @@ int forgepoint_save(const char *name)
     snap->user_time = target->user_time;
     snap->kernel_time = target->kernel_time;
 
+    if (snap->is_user)
+    {
+        if (snapshot_user_pages(target->cr3, snap) != 0)
+        {
+            kfree(snap);
+            return VFS_ERR;
+        }
+    }
+    else
+    {
+        snap->page_count = 0;
+    }
+
     char path[64];
     build_path(name, path, sizeof(path));
 
@@ -132,18 +142,21 @@ int forgepoint_save(const char *name)
     int written = sys_write(fd, (uint8_t *)snap, sizeof(fgpt_snapshot_t));
 
     sys_close(fd);
-    kfree(snap);
 
-    if (written != sizeof(fgpt_snapshot_t))
+    int ok = (written == (int)sizeof(fgpt_snapshot_t));
+    
+    if (!ok)
     {
         kprintf("forgepoint: short write, snapshot may be corrupt\n");
         return VFS_ERR;
     }
-
-    kprinf("forgepoint: saved '%s' -> %s (%u bytes)\n", name, path, written);
+    
+    kprintf("forgepoint: saved '%s' -> %s  (%d bytes, %u user pages, %s)\n",
+        name, path, written, snap->page_count, snap->is_user ? "user" : "kernel");
+    kfree(snap);
 
     return VFS_OK;
-}
+    }
 
 int forgepoint_restore(const char *name)
 {
@@ -156,7 +169,7 @@ int forgepoint_restore(const char *name)
     int fd = sys_open(path, READ_ONLY);
     if (fd < 0)
     {
-        kprintf("forgepoint: no snapshot of '%s' \n", name);
+        kprintf("forgepoint: no snapshot for '%s' \n", name);
         return VFS_ERR;
     }
 
@@ -171,7 +184,7 @@ int forgepoint_restore(const char *name)
     int got = sys_read(fd, (uint8_t *)snap, sizeof(fgpt_snapshot_t));
     sys_close(fd);
 
-    if (got != sizeof(fgpt_snapshot_t) || snap->magic != FORGEPOINT_MAGIC)
+    if (got != (int)sizeof(fgpt_snapshot_t) || snap->magic != FORGEPOINT_MAGIC)
     {
         kprintf("forgepoint: snapshot '%s' invalid or corrupt \n", name);
         kfree(snap);
@@ -209,10 +222,28 @@ int forgepoint_restore(const char *name)
     task->regs.esp = stack_top - snap->stack_used;
     memcpy((void *)task->regs.esp, snap->stack_data, snap->stack_used);
 
-    uint32_t old_esp = stack_top - snap->stack_used;
-    (void)old_esp;
-
     task->regs.ebp = snap->regs.ebp;
+
+    task->regs.cs = snap->cs_saved;
+    task->regs.ss = snap->ss_saved;
+
+    if (snap->is_user)
+    {
+        uint32_t new_cr3 = restore_user_pages(snap);
+        if (new_cr3)
+        {
+            kprintf("forgepoint: failed to rebuild address space for '%s'\n", name);
+            kfree(new_stack);
+            kfree(task);
+            kfree(snap);
+            return VFS_ERR;
+        }
+        task->cr3 = new_cr3;
+    }
+    else
+    {
+        asm volatile("mov %%cr3, %0" : "=r"(task->cr3));
+    }
 
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
@@ -232,11 +263,14 @@ int forgepoint_restore(const char *name)
     task->kernel_time = snap->kernel_time;
 
     task_log_event(task, EVT_CREATED, 0);
+
+    kprintf("forgepoint: restored '%s' as pid %u (%u user pages, %s, saved tick %u, now tick %u)\n",
+            snap->name, task->pid, snap->page_count,
+            snap->is_user ? "user" : "kernel",
+            snap->saved_tick, get_ticks());
+
     kfree(snap);
     task_add_ready(task);
-
-    kprintf("forgepoint: restored '%s' as pid %u (was tick %u, now tick %u)\n",
-            snap->name, task->pid, snap->saved_tick, get_ticks());
 
     return task->pid;
 }

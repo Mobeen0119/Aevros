@@ -113,13 +113,13 @@ static void clone_rollback(uint32_t *new_pd, int pd_built)
         if (!(new_pd[pd] & PAGE_PRESENT))
             continue;
 
-        uint32_t pt_phys = new_pd[pd] & (uint32_t)PAGE_RECURSIVE;
+        uint32_t pt_phys = new_pd[pd] & 0xFFFFF000;
         uint32_t *pt_virt = (uint32_t *)(pt_phys + 0xC0000000);
 
         for (int pt = 0; pt < 1024; pt++)
         {
             if (pt_virt[pt] & PAGE_PRESENT)
-                pmm_free(pt_virt[pt] & (uint32_t)PAGE_RECURSIVE);
+                pmm_free(pt_virt[pt] & 0xFFFFF000);
         }
         pmm_free(pt_phys);
     }
@@ -242,3 +242,4 @@ int map_page_in_directory(uint32_t tar_cr3, uint32_t vir,
 
     return 1;
 }
+

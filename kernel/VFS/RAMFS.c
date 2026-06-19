@@ -4,6 +4,8 @@
 #include "../Memory/pmm.h"
 #include "../Memory/kheap.h"
 #include "../../Lib/string.h"
+#include "../Process/task.h"
+
 
 vfs_ops_t ramfs_ops = {
     .read = ramfs_read,
@@ -65,13 +67,17 @@ dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
 
     ram->capacity = 4096;
     ram->data = kmalloc_raw(ram->capacity);
-    if (!ram->data){
-         kfree_raw(ram);
-    kfree_raw(inode);
-    kfree_raw(child);
-    return NULL;
+    if (!ram->data)
+    {
+        kfree_raw(ram);
+        kfree_raw(inode);
+        kfree_raw(child);
+        return NULL;
     }
-        
+
+    inode->created_tick = get_ticks();
+    inode->created_pid = current_task ? current_task->pid : 0;
+    
     inode->size = 0;
     inode->flags = VFS_FILE;
     inode->ops = &ramfs_ops;

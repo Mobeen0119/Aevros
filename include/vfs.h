@@ -60,6 +60,9 @@ typedef struct inode
     vfs_ops_t *ops;
     void *fs_private;
     dentry_t *dentry;
+
+    uint32_t created_tick;
+    uint32_t created_pid;   
 } inode_t;
 
 typedef struct vfs_mount

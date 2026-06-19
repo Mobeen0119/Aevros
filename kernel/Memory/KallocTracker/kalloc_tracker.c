@@ -22,14 +22,14 @@ void tracker_record(void *ptr, size_t size, const char *file, uint32_t line, con
     {
         if (!records[i].alive)
         {
-            records[i].ptr       = ptr;
-            records[i].size      = size;
-            records[i].file      = file;
-            records[i].line      = line;
-            records[i].func      = func;
-            records[i].pid       = current_task ? current_task->pid : 0;
+            records[i].ptr = ptr;
+            records[i].size = size;
+            records[i].file = file;
+            records[i].line = line;
+            records[i].func = func;
+            records[i].pid = current_task ? current_task->pid : 0;
             records[i].timestamp = get_ticks();
-            records[i].alive     = 1;
+            records[i].alive = 1;
             record_count++;
             return;
         }
@@ -62,8 +62,10 @@ static uint8_t pid_is_alive(uint32_t pid)
         return 1;
 
     task_t *t = ready_queue;
-    do {
-        if (!t) break;
+    do
+    {
+        if (!t)
+            break;
         if (t->pid == pid && t->state != TASK_ZOMBIE)
             return 1;
         t = t->next;
@@ -74,8 +76,8 @@ static uint8_t pid_is_alive(uint32_t pid)
 
 void tracker_dump(void)
 {
-    uint32_t now     = get_ticks();
-    uint32_t leaked  = 0;
+    uint32_t now = get_ticks();
+    uint32_t leaked = 0;
     uint32_t leaked_bytes = 0;
 
     kprintf("\n=== MemStory [%u/%u slots used] ===\n\n", record_count, TRACKER_MAX_ALLOCS);
@@ -85,8 +87,8 @@ void tracker_dump(void)
         if (!records[i].alive)
             continue;
 
-        uint8_t alive  = pid_is_alive(records[i].pid);
-        uint32_t age   = now - records[i].timestamp;
+        uint8_t alive = pid_is_alive(records[i].pid);
+        uint32_t age = now - records[i].timestamp;
         const char *status = alive ? "ALIVE" : "GHOST";
 
         kprintf("[%s] %s:%u %s()  size=%u  pid=%u  ptr=%x  age=%u ticks\n",
@@ -110,7 +112,7 @@ void tracker_dump(void)
 
 void tracker_dump_pid(uint32_t pid)
 {
-    uint32_t now   = get_ticks();
+    uint32_t now = get_ticks();
     uint32_t count = 0;
     uint32_t bytes = 0;
 
@@ -141,7 +143,7 @@ void tracker_dump_pid(uint32_t pid)
 
 void tracker_dump_ghosts(void)
 {
-    uint32_t now   = get_ticks();
+    uint32_t now = get_ticks();
     uint32_t total = 0;
     uint32_t count = 0;
 
@@ -193,4 +195,15 @@ uint32_t tracker_leaked_bytes(void)
     }
 
     return total;
+}
+
+alloc_record_t *tracker_find(void *ptr)
+{
+    for (int i = 0; i < TRACKER_MAX_ALLOCS; i++)
+    {
+        if (records[i].alive && records[i].ptr == ptr)
+            return &records[i];
+    }
+
+    return NULL;
 }

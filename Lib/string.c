@@ -108,6 +108,34 @@ char *strdup(const char *str)
     return copy;
 }
 
+uint32_t parse_hex(const char *s)
+{
+    uint32_t val = 0;
+
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))
+        s += 2;
+
+    while (*s)
+    {
+        char c = *s;
+        uint32_t digit;
+
+        if (c >= '0' && c <= '9')
+            digit = c - '0';
+        else if (c >= 'a' && c <= 'f')
+            digit = 10 + (c - 'a');
+        else if (c >= 'A' && c <= 'F')
+            digit = 10 + (c - 'A');
+        else
+            break; 
+
+        val = (val << 4) | digit;
+        s++;
+    }
+
+    return val;
+}
+
 int katoi(const char *s)
 {
     if (!s)

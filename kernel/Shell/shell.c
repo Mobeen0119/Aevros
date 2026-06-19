@@ -8,6 +8,7 @@
 #include "parser.h"
 #include "MemInfo/mem_info.h"
 #include "../Process/TaskLife/tasklife.h"
+#include "../Process/WhyAlive/whyalive.h"
 #include "../Process/ForgePoint/forgepoint.h"
 
 void shell_prompt()
@@ -153,7 +154,7 @@ void shell_execute(char *input)
             tracker_dump_ghosts();
 
         else if (strcmp(argv[1], "pid") == 0 && argc >= 3)
-            tracker_dump_pid((uint32_t)atoi(argv[2]));
+            tracker_dump_pid((uint32_t)katoi(argv[2]));
 
         else
             kprint("usage: memstory [ghosts | pid <n>]\n");
@@ -203,6 +204,22 @@ void shell_execute(char *input)
             forgepoint_list();
         else
             kprintf("usage: forgepoint <save|restore> <name>\n");
+    }
+
+    else if (strcmp(argv[0], "whyalive") == 0)
+    {
+        if (argc < 3)
+        {
+            kprintf("usage: whyalive <inode|task|alloc> <path|pid|addr>\n");
+        }
+        else if (strcmp(argv[1], "inode") == 0)
+            whyalive_inode_path(argv[2]);
+        else if (strcmp(argv[1], "task") == 0)
+            whyalive_task((uint32_t)katoi(argv[2]));
+        else if (strcmp(argv[1], "alloc") == 0)
+            whyalive_alloc((void *)(uintptr_t)parse_hex(argv[2]));
+        else
+            kprintf("usage: whyalive <inode|task|alloc> <path|pid|addr>\n");
     }
 
     else

@@ -77,65 +77,88 @@ void whyalive_inode_path(const char *path)
                             t->state == TASK_ZOMBIE ? "(ZOMBIE)" : "        ",
                             fd, flags_to_str(f->flags), f->offset);
                     found++;
-                   }   }
-                t = t->next;
+                }
             }
-            while (t != ready_queue)
-                ;
-        }
-        if (!found)
-            kprinf("   (nobody holds it .... ref_count is stale)\n");
-
-        kprintf("  VERDICT: ");
-        if ((uint32_t)found == inode->ref_count && found > 0)
-            kprintf("normal ... every reference accounted for\n\n");
-        else if (found == 0 && inode->ref_count > 0)
-            kprintf("LEAK ... ref_count=%u but no holder found,\n"
-                    "           a sys_close was missed somewhere\n\n",
-                    inode->ref_count);
-        else if ((uint32_t)found != inode->ref_count)
-            kprintf("MISMATCH ... %u holder(s) visible but ref_count=%u,\n"
-                    "           %d reference(s) unaccounted for\n\n",
-                    found, inode->ref_count,
-                    (int)inode->ref_count - found);
-        else
-            kprintf("inode has zero references ... safe to free\n\n");
+            t = t->next;
+        } while (t != ready_queue);
     }
+    if (!found)
+        kprintf("    no active holder found, ref_count may be stale\n");
 
+    kprintf("  VERDICT : ");
 
-void whyalive_task(uint32_t pid){
-    if(!ready_queue) {
+    if ((uint32_t)found == inode->ref_count && found > 0)
+    {
+        kprintf("[OK]      every reference is accounted for\n\n");
+    }
+    else if (found == 0 && inode->ref_count > 0)
+    {
+        kprintf("[LEAK]    ref_count=%u but no holder exists\n"
+                "          missing release detected, check close path\n\n",
+                inode->ref_count);
+    }
+    else if ((uint32_t)found != inode->ref_count)
+    {
+        kprintf("[MISMATCH] %u holder(s) visible but ref_count=%u\n"
+                "           %d reference(s) cannot be explained\n\n",
+                found,
+                inode->ref_count,
+                (int)inode->ref_count - found);
+    }
+    else
+    {
+        kprintf("[FREE]    inode has zero references\n"
+                "          safe to release\n\n");
+    }
+}
+
+void whyalive_task(uint32_t pid)
+{
+    if (!ready_queue)
+    {
         kprintf("whyalive: no tasks running \n");
         return;
     }
-    task_t *t=ready_queue;
+    task_t *t = ready_queue;
 
-    do{
+    do
+    {
         if (t->pid == pid)
         {
-            kprintf("\n  WHAT:    task  pid %u (%s)\n", t->pid, t->name);
-            kprintf("  CREATED: tick %u   parent pid %u\n",
+            kprintf("\n");
+            kprintf("  OBJECT  : task pid %u (%s)\n", t->pid, t->name);
+            kprintf("  ORIGIN  : tick %u, parent pid %u\n",
                     t->start_time, t->parent ? t->parent->pid : 0);
-            kprintf("  STATE:   %s\n", state_to_str(t->state));
+            kprintf("  STATE   : %s\n", state_to_str(t->state));
 
-            uint32_t alive = (t->destroy_time ? t->destroy_time : get_ticks())
-                             - t->start_time;
-            kprintf("  ALIVE:   %u ticks\n", alive);
+            uint32_t alive =
+                (t->destroy_time ? t->destroy_time : get_ticks()) - t->start_time;
 
-            kprintf("  WHY:\n");
+            kprintf("  LIFETIME: %u ticks\n", alive);
+
+            kprintf("  WHY     :\n");
+
             if (t->state == TASK_ZOMBIE)
             {
                 kprintf("    parent pid %u has not called waitpid(%u, ...)\n",
-                        t->parent ? t->parent->pid : 0, t->pid);
-                kprintf("  VERDICT: zombie awaiting reap ... becomes a permanent\n"
-                        "           leak only if parent never calls waitpid\n\n");
+                        t->parent ? t->parent->pid : 0,
+                        t->pid);
+
+                kprintf("  VERDICT : [ZOMBIE] task has exited but remains unreaped\n"
+                        "            resources will be released after waitpid()\n\n");
             }
             else
             {
-                kprintf("    task is %s and holding %d open fd(s)\n",
+                int fd_count = 0;
+                for (int i = 0; i < TASK_MAX_FDS; i++)
+                    if (t->fd_table[i])
+                        fd_count++;
+
+                kprintf("    task is %s with %d open fd(s)\n",
                         state_to_str(t->state),
-                        ({ int c=0; for(int i=0;i<TASK_MAX_FDS;i++) if(t->fd_table[i]) c++; c; }));
-                kprintf("  VERDICT: normal ... task is actively scheduled or runnable\n\n");
+                        fd_count);
+
+                kprintf("  VERDICT : [LIVE] task is active and resources are in use\n\n");
             }
             return;
         }
@@ -145,3 +168,48 @@ void whyalive_task(uint32_t pid){
     kprintf("whyalive: pid %u not found\n", pid);
 }
 
+void whyalive_alloc(void *ptr)
+{
+    if (!ptr)
+    {
+        kprintf("whyalive: missing pointer\n");
+        return;
+    }
+
+    alloc_record_t *rec = tracker_find(ptr);
+
+    if (!rec)
+    {
+        kprintf("whyalive: 0x%x is not a tracked live allocation.\n", (uint32_t)ptr);
+        return;
+    }
+    kprintf("\n");
+    kprintf("  OBJECT  : heap allocation (%u bytes)\n", rec->size);
+    kprintf("  ORIGIN  : %s:%u in %s() by pid %u\n",
+            rec->file, rec->line, rec->func, rec->pid);
+
+    uint8_t pid_alive = 0;
+    if (ready_queue)
+    {
+        task_t *t = ready_queue;
+        do
+        {
+            if (t->pid == rec->pid && t->state != TASK_ZOMBIE)
+            {
+                pid_alive = 1;
+                break;
+            }
+            t = t->next;
+        } while (t != ready_queue);
+    }
+
+    kprintf("  WHY     : owning pid %u is %s\n",
+            rec->pid, pid_alive ? "still alive" : "dead");
+
+    kprintf("  VERDICT : ");
+    if (pid_alive)
+        kprintf("[OK]     allocation is in active use\n\n");
+    else
+        kprintf("[GHOST]  owner exited but allocation still exists\n"
+                "          memory should have been released\n\n");
+}

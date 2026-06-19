@@ -12,6 +12,7 @@
 #include "../Process/ForgePoint/forgepoint.h"
 #include "../Process/StackMap/stackmap.h"
 #include "../Memory/MemFreeze/memfreeze.h"
+#include "../Process/OutLook/outlook.h"
 
 void shell_prompt()
 {
@@ -246,7 +247,10 @@ void shell_execute(char *input)
 
     else if (strcmp(argv[0], "fdleak") == 0)
         fdleak_scan();
-        
+    
+    else if (strcmp(argv[0], "outlook") == 0)
+         outlook_scan();
+
     else
     {
         kprint("unknown command\n");

@@ -11,6 +11,7 @@
 #include "../Process/WhyAlive/whyalive.h"
 #include "../Process/ForgePoint/forgepoint.h"
 #include "../Process/StackMap/stackmap.h"
+#include "../Memory/MemFreeze/memfreeze.h"
 
 void shell_prompt()
 {
@@ -229,6 +230,18 @@ void shell_execute(char *input)
             kprintf("used: stackmap \n");
         else
             stackmap_dump(argv[1]);
+    }
+
+    else if (strcmp(argv[0], "memfreeze") == 0)
+    {
+        if (argc < 2)
+            kprintf("usage: memfreeze <snap | diff>\n");
+        else if (strcmp(argv[1], "snap") == 0)
+            memfreeze_snap();
+        else if (strcmp(argv[1], "diff") == 0)
+            memfreeze_diff();
+        else
+            kprintf("usage: memfreeze <snap | diff>\n");
     }
 
     else

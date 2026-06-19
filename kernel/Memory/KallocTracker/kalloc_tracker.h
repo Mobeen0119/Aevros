@@ -30,4 +30,8 @@ void tracker_dump_pid(uint32_t pid);
 
 alloc_record_t *tracker_find(void* ptr);
 
+alloc_record_t* tracker_get_table(void);
+
+uint32_t tracker_table_size(void);
+
 #endif

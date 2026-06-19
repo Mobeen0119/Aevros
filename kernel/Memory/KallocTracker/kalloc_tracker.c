@@ -207,3 +207,11 @@ alloc_record_t *tracker_find(void *ptr)
 
     return NULL;
 }
+
+alloc_record_t* tracker_get_table(void){
+    return records;
+}
+
+uint32_t tracker_table_size(void){
+    return TRACKER_MAX_ALLOCS;
+}

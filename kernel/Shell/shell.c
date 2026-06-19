@@ -10,6 +10,7 @@
 #include "../Process/TaskLife/tasklife.h"
 #include "../Process/WhyAlive/whyalive.h"
 #include "../Process/ForgePoint/forgepoint.h"
+#include "../Process/StackMap/stackmap.h"
 
 void shell_prompt()
 {
@@ -220,6 +221,14 @@ void shell_execute(char *input)
             whyalive_alloc((void *)(uintptr_t)parse_hex(argv[2]));
         else
             kprintf("usage: whyalive <inode|task|alloc> <path|pid|addr>\n");
+    }
+
+    else if (strcmp(argv[0], "stackmap") == 0)
+    {
+        if (argc < 2)
+            kprintf("used: stackmap \n");
+        else
+            stackmap_dump(argv[1]);
     }
 
     else

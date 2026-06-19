@@ -244,6 +244,9 @@ void shell_execute(char *input)
             kprintf("usage: memfreeze <snap | diff>\n");
     }
 
+    else if (strcmp(argv[0], "fdleak") == 0)
+        fdleak_scan();
+        
     else
     {
         kprint("unknown command\n");

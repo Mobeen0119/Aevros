@@ -51,6 +51,117 @@ static void build_path(const char *name, char *out, uint32_t outlen)
     strncpy(out + strlen(out), ".fgp", outlen - strlen(out));
 }
 
+static task_t *find_task_by_name(const char *name)
+{
+    if (!ready_queue)
+        return NULL;
+
+    task_t *t = ready_queue;
+
+    do
+    {
+        if (strcmp(t->name, name) == 0)
+            return t;
+
+        t = t->next;
+    } while (t != ready_queue);
+
+    return NULL;
+}
+
+static int snapshot_user_pages(uint32_t cr3, fgpt_snapshot_t *snap)
+{
+    snap->page_count = 0;
+
+    asm volatile("cli");
+    map_page(TEMP_PD_VIRT, cr3, PAGE_PRESENT | PAGE_WRITE);
+    uint32_t *tar_pd = (uint32_t *)TEMP_PD_VIRT;
+
+    for (int pd = 0; pd < 768; pd++)
+    {
+        if (!(tar_pd[pd] & PAGE_PRESENT))
+            continue;
+
+        uint32_t pt_phy = tar_pd[pd] & 0xFFFFF000;
+        map_page(TEMP_PT_VIRT, pt_phy, PAGE_PRESENT | PAGE_WRITE);
+        uint32_t *tar_pt = (uint32_t *)TEMP_PT_VIRT;
+
+        for (int pt = 0; pt < 1024; pt++)
+        {
+            if (!(tar_pt[pt] & PAGE_PRESENT))
+                continue;
+
+            if (snap->page_count >= FP_MAX_PAGES)
+            {
+                unmap(TEMP_PT_VIRT);
+                unmap(TEMP_PD_VIRT);
+                kprintf("forgepoint: process exceeds %u page cap, aborting save\n", FP_MAX_PAGES);
+                return -1;
+            }
+
+            uint32_t phys = tar_pt[pt] & 0xFFFFF000;
+            uint32_t flags = tar_pt[pt] & 0xFFF;
+            uint32_t vaddr = (pd << 22) | (pt << 12);
+
+            uint32_t index = snap->page_count;
+            snap->page_vaddr[index] = vaddr;
+            snap->page_flags[index] = flags;
+
+            map_page(TEMP_SRC_PAGE, phys, PAGE_PRESENT | PAGE_WRITE);
+            memcpy(snap->page_data[index], (void *)TEMP_SRC_PAGE, 4096);
+            unmap(TEMP_SRC_PAGE);
+
+            snap->page_count++;
+        }
+
+        unmap(TEMP_PT_VIRT);
+    }
+    unmap(TEMP_PD_VIRT);
+    asm volatile("sti");
+    return 0;
+}
+
+static uint32_t restore_user_pages(fgpt_snapshot_t *snap)
+{
+    uint32_t *new_pd = (uint32_t *)alloc_page_aligned();
+
+    if (!new_pd)
+        return (void *)0;
+
+    memset(new_pd, 0, 4096);
+
+    uint32_t *current_pd = (uint32_t *)PAGE_RECURSIVE;
+
+    for (int i = 768; i < 1024; i++)
+    {
+        new_pd[i] = current_pd[i];
+    }
+
+    uint32_t new_pd_phys = (uint32_t)new_pd - 0xC0000000;
+
+    new_pd[1023] = new_pd_phys | PAGE_PRESENT | PAGE_WRITE;
+
+    for (uint32_t i = 0; i < snap->page_count; i++)
+    {
+        uint32_t phys = pmm_alloc();
+        if (!phys)
+        {
+            kprintf("forgepoint: out of memory restoring page %u/%u\n",
+                    i, snap->page_count);
+            return 0;
+        }
+        map_page(TEMP_DST_PAGE, phys, PAGE_PRESENT | PAGE_WRITE);
+        memcpy((void *)TEMP_DST_PAGE, snap->page_data[i], 4096);
+        unmap(TEMP_DST_PAGE);
+
+        if (!map_page_in_directory(new_pd_phys, snap->page_vaddr[i], phys, snap->page_flags[i]))
+        {
+            kprintf("forgepoint: failed mapping restored page %u\n", i);
+            return 0;
+        }
+    }
+    return new_pd_phys;
+}
 
 int forgepoint_save(const char *name)
 {
@@ -144,19 +255,19 @@ int forgepoint_save(const char *name)
     sys_close(fd);
 
     int ok = (written == (int)sizeof(fgpt_snapshot_t));
-    
+
     if (!ok)
     {
         kprintf("forgepoint: short write, snapshot may be corrupt\n");
         return VFS_ERR;
     }
-    
+
     kprintf("forgepoint: saved '%s' -> %s  (%d bytes, %u user pages, %s)\n",
-        name, path, written, snap->page_count, snap->is_user ? "user" : "kernel");
+            name, path, written, snap->page_count, snap->is_user ? "user" : "kernel");
     kfree(snap);
 
     return VFS_OK;
-    }
+}
 
 int forgepoint_restore(const char *name)
 {
@@ -230,7 +341,7 @@ int forgepoint_restore(const char *name)
     if (snap->is_user)
     {
         uint32_t new_cr3 = restore_user_pages(snap);
-        if (new_cr3)
+        if (!new_cr3)
         {
             kprintf("forgepoint: failed to rebuild address space for '%s'\n", name);
             kfree(new_stack);

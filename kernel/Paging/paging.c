@@ -130,13 +130,15 @@ uint32_t clone_page_directory(uint32_t src_cr3)
 {
 
     (void)src_cr3;
+    asm volatile("cli");
 
     uint32_t *current_pd = (uint32_t *)PAGE_RECURSIVE;
 
     uint32_t *new_pd = (uint32_t *)alloc_page_aligned();
 
-    if (!new_pd)
-        return 0;
+    if (!new_pd){
+        asm volatile("sti");
+        return 0; }
 
     memset(new_pd, 0, 4096);
 
@@ -191,18 +193,20 @@ uint32_t clone_page_directory(uint32_t src_cr3)
 
     new_pd[1023] = new_pd_phys | PAGE_PRESENT | PAGE_WRITE;
 
+    asm volatile("sti");
+
     return new_pd_phys;
 }
 
 int map_page_in_directory(uint32_t tar_cr3, uint32_t vir,
                           uint32_t phy, uint32_t flags)
 {
+    asm volatile("cli");
 
     uint32_t pd_index = vir >> 22;
     uint32_t pt_index = (vir >> 12) & 0x3FF;
 
     map_page(TEMP_PD_VIRT, tar_cr3, PAGE_PRESENT | PAGE_WRITE);
-
     uint32_t *tar_pd = (uint32_t *)TEMP_PD_VIRT;
 
     uint32_t pt_phys;
@@ -210,20 +214,18 @@ int map_page_in_directory(uint32_t tar_cr3, uint32_t vir,
     if (!(tar_pd[pd_index] & PAGE_PRESENT))
     {
         uint32_t new_pt_phy = pmm_alloc();
-
         if (!new_pt_phy)
         {
             unmap(TEMP_PD_VIRT);
+            asm volatile("sti");
             return 0;
         }
 
         map_page(TEMP_SRC_PAGE, new_pt_phy, PAGE_PRESENT | PAGE_WRITE);
-
         memset((void *)TEMP_SRC_PAGE, 0, 4096);
         unmap(TEMP_SRC_PAGE);
 
         tar_pd[pd_index] = new_pt_phy | flags | PAGE_PRESENT;
-
         pt_phys = new_pt_phy;
     }
     else
@@ -232,14 +234,12 @@ int map_page_in_directory(uint32_t tar_cr3, uint32_t vir,
     }
 
     map_page(TEMP_SRC_PAGE, pt_phys, PAGE_PRESENT | PAGE_WRITE);
-
     uint32_t *tar_pt = (uint32_t *)TEMP_SRC_PAGE;
-
     tar_pt[pt_index] = phy | flags | PAGE_PRESENT;
 
     unmap(TEMP_PD_VIRT);
     unmap(TEMP_SRC_PAGE);
 
+    asm volatile("sti");
     return 1;
 }
-

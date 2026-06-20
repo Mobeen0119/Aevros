@@ -1,4 +1,4 @@
-#include "../include/screen.h"
+#include "../Include/screen.h"
 #define ROW 25
 #define COL 80
 #define VGA_COLOR 0x04

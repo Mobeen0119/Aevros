@@ -14,7 +14,7 @@ uint32_t create_user_space(void)
 
     memset(new_pd, 0, 4096);
 
-    for (uint32_t i = 0; i < 8; i++)
+    for (uint32_t i = 768; i < 1024; i++)
         new_pd[i] = kernel_pd[i];
 
     new_pd[1023] = pd_phy | PAGE_PRESENT | PAGE_WRITE;
@@ -48,17 +48,13 @@ void destroy_user_space(uint32_t cr3)
                 continue;
 
             uint32_t phy_frame = pt[pt_index] & 0xFFFFF000;
-
             pmm_free(phy_frame);
-
             pt[pt_index] = 0;
         }
         unmap(TEMP_PT_VIRT);
         pmm_free(pt_phy);
-
         pd[pd_index] = 0;
     }
     unmap(TEMP_PD_VIRT);
-
     pmm_free(cr3);
 }

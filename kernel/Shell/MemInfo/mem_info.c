@@ -17,7 +17,7 @@ static char *fmt_bytes(uint32_t bytes, char *buf, int bufsz)
         ksnprintf(buf, bufsz, "%u MB (%u KB)", bytes / (1024 * 1024), bytes / 1024);
 
     else if (bytes >= 1024)
-        ksnprintf(buf, bufsz, "%U KB", bytes / 1024);
+        ksnprintf(buf, bufsz, "%u KB", bytes / 1024);
 
     else
         ksnprintf(buf, bufsz, "%u B", bytes);

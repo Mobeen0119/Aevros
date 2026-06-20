@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stdarg.h>
-#include "../include/screen.h"
+#include "../Include/screen.h"
 
 static void print_decimal(int num)
 {

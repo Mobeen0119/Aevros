@@ -45,7 +45,7 @@ int devfs_register(const char *name, inode_t *inode)
     {
         dentry_t *d = (dentry_t *)kmalloc_raw(sizeof(dentry_t));
         memset(d, 0, sizeof(dentry_t));
-        d->name = (char *)name;
+        d->name = strdup(name);
         d->inode = inode;
         d->parent = devfs_root;
         uint32_t bucket = dentry_hash(name);

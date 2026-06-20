@@ -7,6 +7,6 @@
 void shell_start(void);
 void shell_execute(char* input);
 
-int parse_command(char* input,char* argv[]);
+int tokenize(char* input, char* argv[]);
 
 #endif

@@ -12,22 +12,22 @@ void paging_init()
     uint32_t *pd = (uint32_t *)PD_ADDR;
     memset(pd, 0, 4096);
 
-    uint32_t *pt_low = (uint32_t *)PT_BASE;
-    for (int i = 0; i < 1024; i++)
-        pt_low[i] = (i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
-    pd[0] = PT_BASE | PAGE_PRESENT | PAGE_WRITE;
-
     for (int t = 0; t < 8; t++)
     {
-        uint32_t *pt = (uint32_t *)(PT_BASE + (t + 1) * 4096);
+        uint32_t *pt = (uint32_t *)(PT_BASE + t * 4096);
         for (int i = 0; i < 1024; i++)
             pt[i] = ((t * 0x400000) + i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
-        pd[768 + t] = ((uint32_t)pt) | PAGE_PRESENT | PAGE_WRITE;
+        pd[t] = (PT_BASE + t * 4096) | PAGE_PRESENT | PAGE_WRITE;
     }
 
     pd[1023] = PD_ADDR | PAGE_PRESENT | PAGE_WRITE;
 
     asm volatile("mov %0, %%cr3" ::"r"((uint32_t)pd) : "memory");
+
+    uint32_t cr0;
+    asm volatile("mov %%cr0, %0" : "=r"(cr0));
+    cr0 |= 0x80000000;
+    asm volatile("mov %0, %%cr0" ::"r"(cr0) : "memory");
 }
 
 void map_page(uint32_t virt, uint32_t phys, uint32_t flags)
@@ -55,7 +55,6 @@ void map_page(uint32_t virt, uint32_t phys, uint32_t flags)
     }
     else
     {
-
         pd[pd_idx] |= (flags & PAGE_USER);
     }
 
@@ -90,7 +89,7 @@ void *alloc_page_aligned()
     if (!phy)
         return NULL;
 
-    return (void *)(phy + 0xC0000000);
+    return (void *)phy;
 }
 
 void memcpy_page_physical(uint32_t dst, uint32_t src)
@@ -115,7 +114,7 @@ static void clone_rollback(uint32_t *new_pd, int pd_built)
             continue;
 
         uint32_t pt_phys = new_pd[pd] & 0xFFFFF000;
-        uint32_t *pt_virt = (uint32_t *)(pt_phys + 0xC0000000);
+        uint32_t *pt_virt = (uint32_t *)pt_phys;
 
         for (int pt = 0; pt < 1024; pt++)
         {
@@ -124,7 +123,7 @@ static void clone_rollback(uint32_t *new_pd, int pd_built)
         }
         pmm_free(pt_phys);
     }
-    pmm_free((uint32_t)new_pd - 0xC0000000);
+    pmm_free((uint32_t)new_pd);
 }
 
 uint32_t clone_page_directory(uint32_t src_cr3)
@@ -159,7 +158,7 @@ uint32_t clone_page_directory(uint32_t src_cr3)
         }
 
         memset(new_pt, 0, 4096);
-        uint32_t new_pt_phys = ((uint32_t)new_pt - 0xC0000000);
+        uint32_t new_pt_phys = (uint32_t)new_pt;
         new_pd[pd] = new_pt_phys | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
 
         for (int pt = 0; pt < 1024; pt++)
@@ -182,7 +181,7 @@ uint32_t clone_page_directory(uint32_t src_cr3)
         pd_built++;
     }
 
-    uint32_t new_pd_phys = ((uint32_t)new_pd - 0xC0000000);
+    uint32_t new_pd_phys = (uint32_t)new_pd;
     new_pd[1023] = new_pd_phys | PAGE_PRESENT | PAGE_WRITE;
 
     return new_pd_phys;

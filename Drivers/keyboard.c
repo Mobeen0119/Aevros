@@ -30,7 +30,6 @@ volatile char keyboard_getchar()
 void keyboard_handler()
 {
     const char scan_code = inb(0x60);
-    kprintf("SC=%x ", scan_code);
 
     if (scan_code & KEY_RELEASE)
     {
@@ -42,7 +41,6 @@ void keyboard_handler()
     if (letter != 0)
     {
         keyboard_push(letter);
-        kprintf("PUSH=%c head=%d tail=%d\n", letter, keyb_head, keyb_tail);
     }
 
     outb(0x20, 0x20);

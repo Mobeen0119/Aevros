@@ -13,7 +13,7 @@ flush:
     mov es, ax
     mov fs, ax
     mov gs, ax
-    mov ss, ax      ; safe here — our GDT is now loaded, 0x10 is valid
+    mov ss, ax      
     sti
     ret
 	

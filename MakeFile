@@ -1,23 +1,30 @@
-CC=gcc
-ASM=nasm
-LD=ld
+CC = gcc
+ASM = nasm
+LD = ld
 
-CFLAGS=-m32 -ffreestanding -fno-builtin -fno-stack-protector -nostdlib
-ASMFLAGS=-f elf32
+CFLAGS = -m32 -ffreestanding -fno-builtin -fno-stack-protector -nostdlib -Wall -Wextra
+ASMFLAGS = -f elf32
+LDFLAGS = -m elf_i386 -T linker.ld
 
-LDFLAGS=-m elf_i386 -T linker.ld
+SRC_C := $(shell find kernel Drivers Lib -name '*.c' 2>/dev/null)
+SRC_ASM := $(shell find kernel Drivers boot -name '*.asm' -o -name '*.s' 2>/dev/null)
 
-KERNEL_OBJS=kernel/main.o boot/boot.o
+OBJS := $(SRC_C:.c=.o) $(SRC_ASM:.asm=.o) $(SRC_ASM:.s=.o) boot/boot.o
+
+EXTRA_OBJS := $(wildcard build_tmp/*.o)
 
 all: kernel.elf iso
 
-kernel.elf: $(KERNEL_OBJS)
-	$(LD) $(LDFLAGS) -o kernel.elf $(KERNEL_OBJS)
+kernel.elf: $(OBJS) $(EXTRA_OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(EXTRA_OBJS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 %.o: %.asm
+	$(ASM) $(ASMFLAGS) $< -o $@
+
+%.o: %.s
 	$(ASM) $(ASMFLAGS) $< -o $@
 
 iso: kernel.elf
@@ -27,4 +34,7 @@ iso: kernel.elf
 	grub-mkrescue -o forgeos.iso iso/
 
 clean:
-	rm -rf *.o kernel.elf iso forgeos.iso
+	rm -f $(OBJS) kernel.elf iso/boot/kernel.elf forgeos.iso
+	rm -rf iso
+
+.PHONY: all iso clean

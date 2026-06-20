@@ -1,6 +1,7 @@
 #include "stackmap.h"
 #include "../task.h"
 #include "../../../Lib/kprintf.h"
+#include "../../../Lib/string.h"
 
 #define STACKMAP_MAX_FRAMES 12
 
@@ -43,7 +44,7 @@ void stackmap_dump(const char *name)
     task_t *t = ready_queue;
     do
     {
-        if (t->name == name)
+        if (strcmp(t->name, name) == 0)
         {
             uint32_t base = t->kernel_stack_base;
             uint32_t top = t->kernel_stack;

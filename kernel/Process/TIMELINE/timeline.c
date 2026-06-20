@@ -67,7 +67,7 @@ void timeline_dump(void)
             merged[count].tick = t->events[i].tick;
             merged[count].pid = t->pid;
             strncpy(merged[count].name, t->name, TASK_NAME_LEN);
-            merged[count].type = t->events->type;
+            merged[count].type = t->events[i].type;
             merged[count].data = t->events[i].data;
             count++;
         }

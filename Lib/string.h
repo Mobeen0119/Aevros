@@ -1,5 +1,7 @@
+#ifndef STRING_H
+#define STRING_H
+
 #include <stdint.h>
-#include "../kernel/Memory/kheap.h"
 
 uint32_t strlen(const char *str);
 
@@ -20,3 +22,5 @@ int katoi(const char *s);
 uint32_t parse_hex(const char *s);
 
 void strncpy(char *dest, const char *src, int len);
+
+#endif

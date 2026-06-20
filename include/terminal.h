@@ -1,3 +1,6 @@
+#ifndef TERMINAL_H
+#define TERMINAL_H
+
 #include <stdint.h>
 #define WIDTH 80
 #define HEIGHT 25
@@ -24,3 +27,5 @@ extern uint16_t *const vga_memory;
 
 void terminal_readline(char* out);
 void render();
+
+#endif

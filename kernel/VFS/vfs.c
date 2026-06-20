@@ -3,7 +3,7 @@
 #include "../Process/task.h"
 #include "../../Include/vfs.h"
 #include "../../Include/ramfs.h"
-#include "../../LIB/string.h"
+#include "../../Lib/string.h"
 #include "../Dev/dev.h"
 #include "../Memory/pmm.h"
 #include "../Process/TaskLife/tasklife.h"

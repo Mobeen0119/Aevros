@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "../include/terminal.h"
+#include "../Include/terminal.h"
 #include "../Drivers/keyboard.h"
 #include "../Include/screen.h"
 #include "../Lib/kprintf.h"

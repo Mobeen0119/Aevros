@@ -1,6 +1,7 @@
 #include "quarantine.h"
 #include "../TaskLife/tasklife.h"
 #include "../../../Lib/kprintf.h"
+#include "../../../Lib/string.h"
 
 #define QUARANTINE_FD_THRESHOLD_OPENS 9
 #define QUARANTINE_FD_THRESHOLD_CLOSES 1
@@ -88,7 +89,7 @@ void quarantine_release(const char *name)
     task_t *t = ready_queue;
     do
     {
-        if (t->name == name && t->state == TASK_QUARANTINED)
+        if (strcmp(t->name, name) == 0 && t->state == TASK_QUARANTINED)
         {
             t->state = TASK_READY;
             kprintf("quarantine: pid %u ..... %s resumed\n", t->pid, name);

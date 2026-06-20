@@ -1,6 +1,6 @@
 #include "pit.h"
-#include "../../Kernel/io.h"
-#include "../../Kernel/Paging/isr.h"
+#include "../../kernel/io.h"
+#include "../../kernel/Paging/isr.h"
 #include "../../kernel/Process/task.h"
 #include "../../Lib/kprintf.h"
 #include "../../Include/screen.h"

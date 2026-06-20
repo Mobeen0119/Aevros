@@ -2,6 +2,7 @@
 #include "../../Include/screen.h"
 #include "../../Lib/string.h"
 #include "../Process/task.h"
+#include "../../Lib/kprintf.h"
 
 void cmd_cd(char *path)
 {

@@ -1,5 +1,6 @@
 #include "tasklife.h"
 #include "../../../Lib/kprintf.h"
+#include "../../../Lib/string.h"
 #include "../../Memory/kheap.h"
 
 static const char *event_name(task_event_type_t t)

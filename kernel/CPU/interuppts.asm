@@ -54,7 +54,7 @@ irq%1_handler:
     pusha
     push ds
     push esp
-    call irq_handler
+    call isr_handler
     add esp, 4
     pop ds
     popa

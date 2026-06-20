@@ -95,7 +95,8 @@ typedef struct task
 
     uint8_t event_count;
     uint32_t destroy_time;
-    char name[TASK_NAME_LEN];    
+    char name[TASK_NAME_LEN]; 
+    uint8_t is_user;     
 
 } task_t;
 

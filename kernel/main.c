@@ -25,7 +25,9 @@
 #include "Dev/dev.h"
 #include "../Drivers/tty.h"
 #include "../Drivers/PIT/pit.h"
+#include "../Lib/kprintf.h"
 #include "pic.h"
+#include "io.h"
 
 void test_leaky_task()
 {
@@ -33,16 +35,15 @@ void test_leaky_task()
     if (fd >= 0)
     {
         sys_write(fd, (uint8_t *)"leaked data", 11);
-       
     }
 
     while (1)
-        asm volatile("hlt");   
+        asm volatile("hlt");
 }
 
 void test_forking_task()
 {
-    int pid = do_fork(NULL);  
+    int pid = do_fork(NULL);
     (void)pid;
 
     while (1)
@@ -51,12 +52,10 @@ void test_forking_task()
 
 void user_program()
 {
-    kprint("User Program");
-    volatile char *v = (volatile char *)0xB8000;
+    volatile int counter = 0;
     while (1)
     {
-        v[12] = 'U';
-        v[13] = 0x0C;
+        counter++;
     }
 }
 
@@ -79,20 +78,34 @@ void kernel_main()
     buddy_init(0x800000, 0x2000000);
     slab_init_all();
 
-    tracker_init();     
+    tracker_init();
 
     vfs_init();
-    ramfs_init();        
+    ramfs_init();
 
     tty_init();
     devfs_init();
     init_tasking();
 
-    task_create_user(user_program);
+    kprintf("BEFORE TASK CREATE\n");
 
+    task_create_user(user_program);
+    kprintf("AFTER TASK CREATE\n");
     pit_init(100);
     asm volatile("sti");
+    kprintf("STI DONE\n");
 
+    kprintf("polling 0x60 directly...\n");
+    asm volatile("cli");
+    while (1)
+    {
+        uint8_t status = inb(0x64);
+        if (status & 0x1)
+        {
+            uint8_t sc = inb(0x60);
+            kprintf("POLL SC=%x\n", sc);
+        }
+    }
     kprint("\nForgeOS ready. Try: ps, memstory, fdleak, outlook\n");
     shell_start();
 

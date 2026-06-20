@@ -14,7 +14,7 @@ uint32_t create_user_space(void)
 
     memset(new_pd, 0, 4096);
 
-    for (uint32_t i = 0; i < 1023; i++)
+    for (uint32_t i = 768; i < 1023; i++)
         new_pd[i] = kernel_pd[i];
 
     new_pd[0] |= PAGE_USER;

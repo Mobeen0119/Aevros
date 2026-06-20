@@ -24,16 +24,20 @@ void isr_handler(struct registers *r)
         return;
     }
 
-    if (r->int_no == 33)
-    {
-        keyboard_handler();
-        outb(0x20, 0x20);
-        return;
-    }
-
+    
     if (r->int_no == 32)
     {
+        kprintf("\nYH TW isr ha \n");
+        outb(0x20, 0x20);
         schedule();
+        return;
+    }
+    
+    if (r->int_no == 33)
+    {
+        kprint("\nyh b\n");
+         kprintf("###KEY33###\n");
+        keyboard_handler();
         outb(0x20, 0x20);
         return;
     }
@@ -70,6 +74,9 @@ void isr_handler(struct registers *r)
         forge_panic(name, r);
         return;
     }
+
+     if (r->int_no >= 40)
+        outb(0xA0, 0x20);   
 
     outb(0x20, 0x20);
 }

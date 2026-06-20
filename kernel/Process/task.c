@@ -88,15 +88,13 @@ void init_tasking()
 
 task_t *task_create_kernel(void (*entry_point)())
 {
-    task_t *new_task = (task_t *)kmalloc_raw(sizeof(task_t));
-    kprint("KERNEL CALL\n");
-    strncpy(new_task->name, "kernel", TASK_NAME_LEN);
-    
     task_t *t = create_process(entry_point, 0, 0);
     if (t)
+    {
+        strncpy(t->name, "kernel", TASK_NAME_LEN);
         task_add_ready(t);
+    }
     return t;
-
 }
 
 task_t *task_create_user(void (*entry_point)())
@@ -185,6 +183,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;
     new_task->kernel_stack_base = (uint32_t)stack_base;
+    new_task->is_user = (page_dir != 0) ? 1 : 0;
 
     if (!ready_queue)
     {
@@ -213,42 +212,28 @@ void schedule(void)
     if (!next || next == prev)
         return;
 
-    kprintf("SCHED: prev=%x next=%x eip=%x first_run=%d\n",
-            prev, next, next->regs.eip, next->first_run);
+   if (next->first_run)
+{
+    next->first_run = 0;
+    task_log_event(next, EVT_FIRST_RUN, 0);
 
-    if (next->first_run)
-    {
+    current_task = next;
+    tss.esp0 = next->kernel_stack;
 
-        next->first_run = 0;
-        task_log_event(next, EVT_FIRST_RUN, 0); /* add this */
+    asm volatile("mov %0, %%cr3" :: "r"(next->cr3) : "memory");
 
-        current_task = next;
-        tss.esp0 = next->kernel_stack;
+    asm volatile(
+        "mov %0, %%esp    \n"
+        "pop %%edi        \n"
+        "pop %%esi        \n"
+        "pop %%ebx        \n"
+        "pop %%ebp        \n"
+        "iret             \n"
+        :: "r"(next->regs.esp)
+        : "memory"
+    );
 
-        asm volatile("mov %0, %%cr3" ::"r"(next->cr3) : "memory");
-
-        uint32_t eip = next->regs.eip;
-        uint32_t esp = next->regs.esp;
-
-        asm volatile(
-            "mov $0x23, %%ax  \n"
-            "mov %%ax,  %%ds  \n"
-            "mov %%ax,  %%es  \n"
-            "mov %%ax,  %%fs  \n"
-            "mov %%ax,  %%gs  \n"
-            "push $0x23       \n" // SS
-            "push %1          \n" // ESP
-            "pushf            \n"
-            "pop  %%ecx       \n"
-            "or   $0x200,%%ecx\n"
-            "push %%ecx       \n" // EFLAGS
-            "push $0x1B       \n" // CS
-            "push %0          \n" // EIP
-            "iret             \n" ::"r"(eip),
-            "r"(esp)
-            : "eax", "ecx");
     }
-
     else
     {
         switch_current_task(prev, next);

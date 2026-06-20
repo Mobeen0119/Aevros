@@ -2,6 +2,7 @@
 #include "../include/terminal.h"
 #include "../Drivers/keyboard.h"
 #include "../Include/screen.h"
+#include "../Lib/kprintf.h"
 
 uint16_t *const vga_memory = (uint16_t *)0xB8000;
 
@@ -160,9 +161,12 @@ void terminal_readline(char *out)
 
     input_length = cursor_x = 0;
 
+   kprintf("READLINE STARTED\n");  
+
     while (1)
     {
         c = keyboard_getchar();
+        kprintf("GOT=%c\n", c);
 
         if (c == '\n')
         {

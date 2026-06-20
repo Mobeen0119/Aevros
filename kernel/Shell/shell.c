@@ -14,6 +14,7 @@
 #include "../Memory/MemFreeze/memfreeze.h"
 #include "../Process/OutLook/outlook.h"
 #include "../Process/Quarantine/Quarantine.h"
+#include "../Process/Blast/blast.h"
 
 void shell_prompt()
 {
@@ -269,7 +270,15 @@ void shell_execute(char *input)
         else
             kprintf("usage: quarantine [check|release <name>]\n");
     }
-  
+
+    else if (strcmp(argv[0], "blast") == 0)
+    {
+        if (argc < 2)
+            kprintf("usage: blast <pid>\n");
+        else
+            blast_radius((uint32_t)atoi(argv[1]));
+    }
+
     else
     {
         kprint("unknown command\n");

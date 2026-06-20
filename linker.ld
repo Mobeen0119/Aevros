@@ -2,32 +2,35 @@ ENTRY(_start)
 
 SECTIONS
 {
-    . = 0x00100000;
+    . = 0xC0100000;
 
-    .text : {
+    .text ALIGN(4K) : AT(ADDR(.text) - 0xC0000000)
+    {
         *(.text*)
     }
 
-    .rodata : {
+    .rodata ALIGN(4K) : AT(ADDR(.rodata) - 0xC0000000)
+    {
         *(.rodata*)
     }
 
-    .data : {
+    .data ALIGN(4K) : AT(ADDR(.data) - 0xC0000000)
+    {
         *(.data*)
     }
 
-    .bss : {
+    .bss ALIGN(4K) : AT(ADDR(.bss) - 0xC0000000)
+    {
         *(COMMON)
         *(.bss*)
     }
 
-/DISCARD/ : {
-    *(.eh_frame*)
-    *(.got*)    
-    *(.got.plt*)       
-    *(.got*)            
-    *(.note.gnu.property)
-    *(.note*)
-    *(.comment)
-}
+    /DISCARD/ : {
+        *(.eh_frame*)
+        *(.got*)
+        *(.got.plt*)
+        *(.note.gnu.property)
+        *(.note*)
+        *(.comment)
+    }
 }

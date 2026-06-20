@@ -27,8 +27,8 @@ void isr_handler(struct registers *r)
     
     if (r->int_no == 32)
     {
-        kprintf("\nYH TW isr ha \n");
         outb(0x20, 0x20);
+        kprintf("\nYH TW isr ha \n");
         schedule();
         return;
     }

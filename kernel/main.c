@@ -95,17 +95,7 @@ void kernel_main()
     asm volatile("sti");
     kprintf("STI DONE\n");
 
-    kprintf("polling 0x60 directly...\n");
-    asm volatile("cli");
-    while (1)
-    {
-        uint8_t status = inb(0x64);
-        if (status & 0x1)
-        {
-            uint8_t sc = inb(0x60);
-            kprintf("POLL SC=%x\n", sc);
-        }
-    }
+
     kprint("\nForgeOS ready. Try: ps, memstory, fdleak, outlook\n");
     shell_start();
 

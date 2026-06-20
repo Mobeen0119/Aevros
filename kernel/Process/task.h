@@ -41,7 +41,9 @@ typedef enum
     EVT_SIGNAL,
     EVT_BLOCKED,
     EVT_WOKE,
-    EVT_EXITED
+    EVT_EXITED,
+    EVT_QUARANTINED
+
 } task_event_type_t;
 
 typedef struct
@@ -57,7 +59,8 @@ typedef enum
     TASK_RUNNING,
     TASK_BLOCKED,
     TASK_ZOMBIE,
-    TASK_SUSPENDED
+    TASK_SUSPENDED,
+    TASK_QUARANTINED
 
 } task_state_t;
 

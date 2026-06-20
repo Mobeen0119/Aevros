@@ -13,6 +13,7 @@
 #include "../Process/StackMap/stackmap.h"
 #include "../Memory/MemFreeze/memfreeze.h"
 #include "../Process/OutLook/outlook.h"
+#include "../Process/Quarantine/Quarantine.h"
 
 void shell_prompt()
 {
@@ -254,6 +255,21 @@ void shell_execute(char *input)
     else if (strcmp(argv[0], "timeline") == 0)
         timeline_dump();
 
+    else if (strcmp(argv[0], "quarantine") == 0)
+    {
+        if (argc == 1)
+            quarantine_list();
+
+        else if (strcmp(argv[1], "check") == 0)
+            quarantine_check_and_act();
+
+        else if (strcmp(argv[1], "release") == 0 && argc >= 3)
+            quarantine_release(argv[2]);
+
+        else
+            kprintf("usage: quarantine [check|release <name>]\n");
+    }
+  
     else
     {
         kprint("unknown command\n");

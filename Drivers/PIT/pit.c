@@ -3,7 +3,9 @@
 #include "../../Kernel/Paging/isr.h"
 #include "../../kernel/Process/task.h"
 #include "../../Include/screen.h"
+#include "../../kernel/Process/Quarantine/Quarantine.h"
 #define TIME_SLICE 60
+#define QUARANTINE_SCAN_INTERVAL 600
 
 volatile uint32_t timer_clicks = 0;
 
@@ -24,5 +26,8 @@ int timer_callback(register_t *regs)
     if (++timer_clicks % TIME_SLICE == 0)
         schedule();
 
-    return 0;
+    if (timer_clicks % QUARANTINE_SCAN_INTERVAL == 0)
+        quarantine_check_and_act();
+
+  return 0;
 }

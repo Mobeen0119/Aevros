@@ -6,19 +6,13 @@
 #include "../../../Lib/kprintf.h"
 #include "../../../Lib/string.h"
 
-#define RISK_FD_RATE_TICKS 200
-#define RISK_ALLOC_RATE_TICKS 300
-#define RISK_ZOMBIE_AGE 80
-#define RISK_STACK_PERCENT 70
-#define MAX_RISKS 16
-#define MAX_SEEN_SITES 32
+#define RISK_FD_RATE_TICKS    200
+#define RISK_ZOMBIE_AGE        80
+#define RISK_STACK_PERCENT     70
+#define MAX_RISKS               16
+#define MAX_SEEN_SITES          32
 
-typedef enum
-{
-    RISK_HIGH,
-    RISK_MED,
-    RISK_LOW
-} risk_level_t;
+typedef enum { RISK_HIGH, RISK_MED, RISK_LOW } risk_level_t;
 
 typedef enum
 {
@@ -31,34 +25,35 @@ typedef enum
 typedef struct
 {
     risk_level_t level;
-    risk_kind_t kind;
-
-    uint32_t pid;
-    char name[TASK_NAME_LEN];
-    const char *file;
-    uint32_t line;
-    uint32_t n1, n2;
+    risk_kind_t  kind;
+    uint32_t     pid;
+    char         name[TASK_NAME_LEN];
+    const char  *file;
+    uint32_t     line;
+    uint32_t     n1, n2;
 } risk_t;
 
 static risk_t risks[MAX_RISKS];
-static int risk_count = 0;
+static int    risk_count = 0;
 
-static void add_risk(risk_level_t level, risk_kind_t kind, uint32_t pid, const char *name,
-                     const char *file, uint32_t line, uint32_t n1, uint32_t n2)
+static void add_risk(risk_level_t level, risk_kind_t kind,
+                     uint32_t pid, const char *name,
+                     const char *file, uint32_t line,
+                     uint32_t n1, uint32_t n2)
 {
     if (risk_count >= MAX_RISKS)
         return;
 
     risk_t *r = &risks[risk_count++];
     r->level = level;
-    r->kind = kind;
-    r->pid = pid;
+    r->kind  = kind;
+    r->pid   = pid;
     if (name)
         strncpy(r->name, name, TASK_NAME_LEN);
-    r->file = file;
-    r->line = line;
-    r->n1 = n1;
-    r->n2 = n2;
+    r->file  = file;
+    r->line  = line;
+    r->n1    = n1;
+    r->n2    = n2;
 }
 
 static void check_fd_rates(task_t *t, uint32_t now)
@@ -67,7 +62,6 @@ static void check_fd_rates(task_t *t, uint32_t now)
 
     for (int i = 0; i < t->event_count; i++)
     {
-
         uint32_t age = now - t->events[i].tick;
         if (age > RISK_FD_RATE_TICKS)
             continue;
@@ -79,34 +73,18 @@ static void check_fd_rates(task_t *t, uint32_t now)
     }
 
     if (opens >= 4 && closes <= opens / 4)
-    {
-        char what[48], why[96];
-        kprintf_to_buf(what, sizeof(what), "pid %u (%s) fd usage", t->pid, t->name);
-
-        kprintf_to_buf(why, sizeof(why),
-                       "opened %d fd(s) in last %u ticks, closed only %d -- "
-                       "missing sys_close calls likely",
-                       opens, RISK_FD_RATE_TICKS, closes);
-
         add_risk(RISK_HIGH, RISK_KIND_FD, t->pid, t->name,
                  NULL, 0, (uint32_t)opens, (uint32_t)closes);
-    }
 }
 
-static struct
-{
-    const char *file;
-    uint32_t line;
-} seen_sites[MAX_SEEN_SITES];
+static struct { const char *file; uint32_t line; } seen_sites[MAX_SEEN_SITES];
 static int seen_count = 0;
 
 static int already_seen(const char *file, uint32_t line)
 {
     for (int i = 0; i < seen_count; i++)
-    {
         if (seen_sites[i].line == line && strcmp(seen_sites[i].file, file) == 0)
             return 1;
-    }
     return 0;
 }
 
@@ -120,7 +98,7 @@ static void mark_seen(const char *file, uint32_t line)
     }
 }
 
-static void check_alloc_rates(uint32_t now)
+static void check_alloc_rates(void)
 {
     seen_count = 0;
 
@@ -135,14 +113,14 @@ static void check_alloc_rates(uint32_t now)
             continue;
 
         uint32_t count_here = 0;
-
         for (uint32_t j = 0; j < size; j++)
         {
-
-            if (table[j].alive && table[j].line == table[i].line &&
+            if (table[j].alive &&
+                table[j].line == table[i].line &&
                 strcmp(table[j].file, table[i].file) == 0)
                 count_here++;
         }
+
         mark_seen(table[i].file, table[i].line);
 
         if (count_here >= 6)
@@ -161,7 +139,6 @@ static void check_zombies(task_t *t, uint32_t now)
         return;
 
     risk_level_t level = (age > RISK_ZOMBIE_AGE * 3) ? RISK_HIGH : RISK_MED;
-
     add_risk(level, RISK_KIND_ZOMBIE, t->pid, t->name,
              NULL, 0, age, t->parent ? t->parent->pid : 0);
 }
@@ -172,44 +149,24 @@ static void check_stack_pressure(task_t *t)
         return;
 
     uint32_t used = t->kernel_stack - t->regs.esp;
-    if (used > 4096)
-        used = 4096;
+    if (used > 4096) used = 4096;
     uint32_t pct = (used * 100) / 4096;
 
     if (pct < RISK_STACK_PERCENT)
         return;
 
-    char what[48], why[96];
-
     risk_level_t level = (pct > 90) ? RISK_HIGH : RISK_MED;
-
     add_risk(level, RISK_KIND_STACK, t->pid, t->name, NULL, 0, pct, 0);
 }
 
 static const char *level_str(risk_level_t l)
 {
-    switch (l)
-    {
-    case RISK_HIGH:
-        return "HIGH";
-    case RISK_MED:
-        return "MED";
-    default:
-        return "LOW";
-    }
+    switch (l) { case RISK_HIGH: return "HIGH"; case RISK_MED: return "MED"; default: return "LOW"; }
 }
 
 static int level_rank(risk_level_t l)
 {
-    switch (l)
-    {
-    case RISK_HIGH:
-        return 0;
-    case RISK_MED:
-        return 1;
-    default:
-        return 2;
-    }
+    switch (l) { case RISK_HIGH: return 0; case RISK_MED: return 1; default: return 2; }
 }
 
 static void print_risk(risk_t *r)
@@ -242,15 +199,12 @@ static void print_risk(risk_t *r)
 void outlook_scan(void)
 {
     risk_count = 0;
-
     uint32_t now = get_ticks();
 
     if (ready_queue)
     {
         task_t *t = ready_queue;
-
-        do
-        {
+        do {
             check_fd_rates(t, now);
             check_zombies(t, now);
             check_stack_pressure(t);
@@ -258,9 +212,9 @@ void outlook_scan(void)
         } while (t != ready_queue);
     }
 
-    check_alloc_rates(now);
+    check_alloc_rates();
 
-    kprintf("\n  OutLook:\n\n");
+    kprintf("\n  outlook:\n\n");
 
     if (risk_count == 0)
     {
@@ -270,17 +224,17 @@ void outlook_scan(void)
 
     for (int i = 0; i < risk_count - 1; i++)
         for (int j = 0; j < risk_count - i - 1; j++)
-            if (level_rank(risks[j].level) > level_rank(risks[j + 1].level))
+            if (level_rank(risks[j].level) > level_rank(risks[j+1].level))
             {
                 risk_t tmp = risks[j];
-                risks[j] = risks[j + 1];
-                risks[j + 1] = tmp;
+                risks[j] = risks[j+1];
+                risks[j+1] = tmp;
             }
 
     for (int i = 0; i < risk_count; i++)
         print_risk(&risks[i]);
 
-    kprintf("\n  Most Likely next Failure: ");
+    kprintf("\n  most likely next failure: ");
     print_risk(&risks[0]);
     kprintf("\n");
 }

@@ -21,11 +21,11 @@
 #include "Memory/MemFreeze/memfreeze.h"
 #include "Memory/buddy.h"
 #include "Memory/slab.h"
+#include "../Include/shell.h"
 #include "Dev/dev.h"
 #include "../Drivers/tty.h"
 #include "../Drivers/PIT/pit.h"
 #include "pic.h"
-
 
 void test_leaky_task()
 {
@@ -94,6 +94,7 @@ void kernel_main()
     asm volatile("sti");
 
     kprint("\nForgeOS ready. Try: ps, memstory, fdleak, outlook\n");
+    shell_start();
 
     while (1)
         asm volatile("hlt");

@@ -84,8 +84,8 @@ void kprintf(const char *format, ...)
             break;
 
         case 'u':
-            uint32_t unum = va_arg(args, uint32_t);
-            print_decimal((int)unum); 
+            uint32_t mnum = va_arg(args, uint32_t);
+            print_decimal((int)mnum); 
             break;
 
         default:

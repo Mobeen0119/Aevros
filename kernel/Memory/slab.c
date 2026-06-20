@@ -2,9 +2,14 @@
 #include <stddef.h>
 #include "buddy.h"
 #include "slab.h"
+#include "../../Include/screen.h"
 
 #define SLAB_SLOTS_PER_CACHE 32
 #define SLAB_NUM_CACHES 3
+
+slab_t cache_32b;
+slab_t cache_64b;
+slab_t cache_128b;
 
 static slab_t *const slab_caches[SLAB_NUM_CACHES] = {
     &cache_32b,

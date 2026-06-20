@@ -5,6 +5,7 @@
 #include "../../../Lib/kprintf.h"
 #include "../../../Lib/string.h"
 #include "../../Paging/paging.h"
+#include "../../Memory/pmm.h"
 
 #define FORGEPOINT_MAGIC 0x46475054 // FGPT
 #define FP_MAX_PAGES 256
@@ -126,7 +127,7 @@ static uint32_t restore_user_pages(fgpt_snapshot_t *snap)
     uint32_t *new_pd = (uint32_t *)alloc_page_aligned();
 
     if (!new_pd)
-        return (void *)0;
+        return 0;
 
     memset(new_pd, 0, 4096);
 

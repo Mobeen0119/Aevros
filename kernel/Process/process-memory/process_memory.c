@@ -1,6 +1,7 @@
 #include "process_memory.h"
 #include "../../Paging/paging.h"
 #include "../../Memory/pmm.h"
+#include "../../../Lib/string.h"
 
 uint32_t create_user_space(void)
 {

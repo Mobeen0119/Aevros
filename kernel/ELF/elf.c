@@ -3,6 +3,7 @@
 #include "elf.h"
 #include "../Memory/pmm.h"
 #include "../Paging/paging.h"
+#include "../../Lib/string.h"
 
 int elf_validate(Elf32_Header *hdr)
 {

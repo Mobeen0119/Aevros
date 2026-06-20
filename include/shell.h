@@ -4,7 +4,7 @@
 #define MAX_INPUT 128
 #define MAX_ARG 16
 
-void shell_start();
+void shell_start(void);
 void shell_execute(char* input);
 
 int parse_command(char* input,char* argv[]);

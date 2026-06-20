@@ -2,6 +2,7 @@
 #include "paging.h"
 #include "../Memory/pmm.h"
 #include "../../Lib/kprintf.h"
+#include "../../Lib/string.h"
 #include "../Process/task.h"
 #define PD_ADDR 0x9000
 #define PT_BASE 0xA000

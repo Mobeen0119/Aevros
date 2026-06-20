@@ -117,7 +117,7 @@ int ramfs_expand(ramfs_inode_t *ram, uint32_t needed)
     memcpy(new_data, ram->data, ram->capacity);
     kfree_raw(ram->data);
 
-    ram->data = new_data;
+    ram->data = (uint8_t*)new_data;
     ram->capacity = new_cap;
 
     return VFS_OK;

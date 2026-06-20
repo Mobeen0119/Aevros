@@ -43,7 +43,7 @@ void whyalive_inode_path(const char *path)
         return;
     }
 
-    dentry_t *d = vfs_lookup(vfs_read, path);
+    dentry_t *d = vfs_lookup(vfs_root, path);
     if (!d || !d->inode)
     {
         kprintf("whyalive: '%s' not found\n", path);

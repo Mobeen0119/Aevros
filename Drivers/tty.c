@@ -2,8 +2,10 @@
 #include "../Include/screen.h"
 #include "keyboard.h"
 #include "../kernel/Memory/kheap.h"
+#include "../Lib/string.h"
 #include "../kernel/Dev/dev.h"
 #include "../kernel/Memory/pmm.h"
+
 
 static vfs_ops_t tty_ops = {
     .read = (read_fn)tty_read,

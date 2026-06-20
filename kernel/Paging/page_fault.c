@@ -3,6 +3,7 @@
 #include "../Process/task.h"
 #include "../Paging/isr.h"
 #include "../../Lib/kprintf.h"
+#include "../Process/TaskLife/tasklife.h"
 
 static inline uint32_t read_cr2()
 {

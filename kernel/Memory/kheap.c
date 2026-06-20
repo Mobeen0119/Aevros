@@ -29,7 +29,7 @@ void *kmalloc_raw(size_t size)
         if (!hdr)
             return NULL;
         hdr->type = SLAB;
-        hdr->infor.cache = &cache_32b;
+        hdr->infor.cache = (struct slab_cache *)&cache_32b;
         return (void *)(hdr + 1);
     }
 
@@ -39,7 +39,7 @@ void *kmalloc_raw(size_t size)
         if (!hdr)
             return NULL;
         hdr->type = SLAB;
-        hdr->infor.cache = &cache_64b;
+        hdr->infor.cache = (struct slab_cache *)&cache_64b;
         return (void *)(hdr + 1);
     }
 
@@ -49,7 +49,7 @@ void *kmalloc_raw(size_t size)
         if (!hdr)
             return NULL;
         hdr->type = SLAB;
-        hdr->infor.cache = &cache_128b;
+        hdr->infor.cache = (struct slab_cache *)&cache_128b;
         return (void *)(hdr + 1);
     }
 
@@ -58,7 +58,7 @@ void *kmalloc_raw(size_t size)
     hdr = (block_header_t *)buddy_alloc(order);
     if (!hdr)
         return NULL;
-        
+
     hdr->type = BUDDY;
     hdr->infor.order = order;
 
@@ -74,7 +74,7 @@ void kfree_raw(void *ptr)
 
     if (hdr->type == SLAB)
     {
-        slab_free(hdr->infor.cache, hdr);
+        slab_free((slab_t *)hdr->infor.cache, hdr);
     }
     else if (hdr->type == BUDDY)
     {

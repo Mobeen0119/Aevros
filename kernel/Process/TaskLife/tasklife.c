@@ -71,7 +71,7 @@ static void dump_task_life(task_t *t)
                 get_ticks() - t->start_time);
 
     if (t->parent)
-        krpintf("  parent    : pid %u\n", t->parent->pid);
+        kprintf("  parent    : pid %u\n", t->parent->pid);
     kprintf("  events     : %u / %u\n", t->event_count, TASK_MAX_EVENTS);
     kprintf("  ─────────────────────────────\n");
 

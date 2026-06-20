@@ -9,6 +9,7 @@
 #include "../../Lib/string.h"
 
 #include "../../Include/vfs.h"
+#include "TaskLife/tasklife.h"
 
 static inline uint32_t read_cr3()
 {

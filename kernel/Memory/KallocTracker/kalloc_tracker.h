@@ -27,6 +27,7 @@ uint32_t tracker_live_count(void);
 
 uint32_t tracker_leaked_bytes(void);
 void tracker_dump_pid(uint32_t pid);
+void tracker_dump_ghosts(void);
 
 alloc_record_t *tracker_find(void* ptr);
 

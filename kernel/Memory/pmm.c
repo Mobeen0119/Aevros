@@ -1,4 +1,5 @@
 #include "pmm.h"
+#include "../../Lib/string.h"
 
 
 #define FRAME_SIZE 4096

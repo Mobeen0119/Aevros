@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "blast.h"
 #include "../task.h"
 #include "../../../Include/vfs.h"

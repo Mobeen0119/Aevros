@@ -10,14 +10,14 @@
 static inline uint32_t read_cr2(void)
 {
     uint32_t v;
-    asm volatile("mov %%cr2, %0" : "=3"(v));
+    asm volatile("mov %%cr2, %0" : "=r"(v));
 
     return v;
 }
 
 static void print_stack_trace(uint32_t ebp)
 {
-    kpring("---stack trace : \n");
+    kprint("---stack trace : \n");
 
     for (int i = 0; i < 8 && ebp; i++)
     {

@@ -1,36 +1,23 @@
-SHELL := /usr/bin/env bash
-CC = gcc
-ASM = nasm
-LD = ld
+CC=gcc
+ASM=nasm
+LD=ld
 
-CFLAGS = -m32 -ffreestanding -fno-builtin -fno-stack-protector \
-         -nostdlib -nostdinc -fno-pic -fno-pie \
-         -fno-asynchronous-unwind-tables \
-         -fno-exceptions -fno-rttiASMFLAGS = -f elf32
-		 
-LDFLAGS = -m elf_i386 -T linker.ld
+CFLAGS=-m32 -ffreestanding -fno-builtin -fno-stack-protector -nostdlib
+ASMFLAGS=-f elf32
 
-C_SRCS := $(shell find kernel -type f -name '*.c' | sort)
-ASM_SRCS := $(shell find kernel boot -type f \( -name '*.asm' -o -name '*.s' \) ! -name 'boot.s' | sort)
+LDFLAGS=-m elf_i386 -T linker.ld
 
-C_OBJS := $(C_SRCS:.c=.o)
-ASM_OBJS := $(ASM_SRCS:.asm=.o)
-ASM_OBJS := $(ASM_OBJS:.s=.o)
+KERNEL_OBJS=kernel/main.o boot/boot.o
 
-KERNEL_OBJS := boot/boot.o $(C_OBJS) $(ASM_OBJS)
-
-all: kernel.elf
+all: kernel.elf iso
 
 kernel.elf: $(KERNEL_OBJS)
-	$(LD) $(LDFLAGS) -o $@ $^
+	$(LD) $(LDFLAGS) -o kernel.elf $(KERNEL_OBJS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 %.o: %.asm
-	$(ASM) $(ASMFLAGS) $< -o $@
-
-%.o: %.s
 	$(ASM) $(ASMFLAGS) $< -o $@
 
 iso: kernel.elf
@@ -40,4 +27,4 @@ iso: kernel.elf
 	grub-mkrescue -o forgeos.iso iso/
 
 clean:
-	rm -rf *.o kernel.elf iso forgeos.iso build_tmp
+	rm -rf *.o kernel.elf iso forgeos.iso

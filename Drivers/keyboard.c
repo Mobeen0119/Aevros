@@ -10,8 +10,8 @@ unsigned char keyb[128] = {
     'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 0, '*', 0, ' ', 0
 };
 
-char keyboard_buffer[128];
-int keyb_head = 0, keyb_tail = 0;
+volatile int keyb_head = 0, keyb_tail = 0;
+volatile char keyboard_buffer[128];
 
 void keyboard_push(char c)
 {
@@ -19,17 +19,15 @@ void keyboard_push(char c)
     keyb_head = (keyb_head + 1) % 128;
 }
 
-char keyboard_getchar()
+volatile char keyboard_getchar()
 {
     while (keyb_head == keyb_tail)
-        ;
+        asm volatile("hlt");  
 
     char c = keyboard_buffer[keyb_tail];
     keyb_tail = (keyb_tail + 1) % 128;
-
     return c;
 }
-
 void keyboard_handler()
 {
     const char scan_code = inb(0x60);

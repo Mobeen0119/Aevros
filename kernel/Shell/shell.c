@@ -7,6 +7,7 @@
 #include "builtins.h"
 #include "parser.h"
 #include "MemInfo/mem_info.h"
+#include "../../Lib/kprintf.h"
 #include "../Process/TaskLife/tasklife.h"
 #include "../Process/WhyAlive/whyalive.h"
 #include "../Process/ForgePoint/forgepoint.h"
@@ -15,6 +16,8 @@
 #include "../Process/OutLook/outlook.h"
 #include "../Process/Quarantine/Quarantine.h"
 #include "../Process/Blast/blast.h"
+#include "../Process/TIMELINE/timeline.h"
+#include "../Process/FDLeak/fdleak.h"
 
 void shell_prompt()
 {
@@ -276,7 +279,7 @@ void shell_execute(char *input)
         if (argc < 2)
             kprintf("usage: blast <pid>\n");
         else
-            blast_radius((uint32_t)atoi(argv[1]));
+            blast_radius((uint32_t)katoi(argv[1]));
     }
 
     else
@@ -285,7 +288,7 @@ void shell_execute(char *input)
     }
 }
 
-void shell_start()
+void shell_start(void)
 {
     char input[MAX_INPUT];
 

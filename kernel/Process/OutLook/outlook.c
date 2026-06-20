@@ -260,7 +260,7 @@ void outlook_scan(void)
 
     check_alloc_rates(now);
 
-    kprintf("\n  outlook:\n\n");
+    kprintf("\n  OutLook:\n\n");
 
     if (risk_count == 0)
     {

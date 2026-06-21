@@ -1,4 +1,6 @@
 #include "string.h"
+#include <stddef.h>
+#include "../kernel/Memory/kheap.h"
 
 void *memset(void *dest, uint8_t value, uint32_t size)
 {

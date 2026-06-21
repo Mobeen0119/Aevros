@@ -8,13 +8,7 @@
 #include "../io.h"
 #include "../Paging/paging.h"
 
-#include "isr.h"
-#include "page_fault.h"
 #include "Forge_Panic/forge_panic.h"
-#include "../Process/task.h"
-#include "../../Lib/kprintf.h"
-#include "../../Drivers/keyboard.h"
-#include "../io.h"
 
 void isr_handler(struct registers *r)
 {
@@ -28,15 +22,12 @@ void isr_handler(struct registers *r)
     if (r->int_no == 32)
     {
         outb(0x20, 0x20);
-        kprintf("\nYH TW isr ha \n");
         schedule();
         return;
     }
-    
+
     if (r->int_no == 33)
     {
-        kprint("\nyh b\n");
-         kprintf("###KEY33###\n");
         keyboard_handler();
         outb(0x20, 0x20);
         return;

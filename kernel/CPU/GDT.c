@@ -1,8 +1,8 @@
 #include "GDT.h"
 #include "TSS.h"
 #include "../../Lib/string.h"
-#include "../Memory/pmm.h"
 #include "../../Lib/kprintf.h"
+#include "../Memory/pmm.h"
 
 struct gdt_entry_struct gdt_entries[6];
 
@@ -26,6 +26,8 @@ void gdt_gate_set(int32_t num, uint32_t base, uint32_t limit, uint8_t acc, uint8
     gdt_entries[num].access = acc;
 }
 
+static uint8_t debug_dump[16];
+
 void gdt_init()
 {
     memset(gdt_entries, 0, sizeof(gdt_entries));
@@ -37,17 +39,20 @@ void gdt_init()
     gdt_gate_set(4, 0, 0xFFFFFFFF, 0xF2, 0xCF);
     write_tss(5, 0x10, 0);
 
-    kprintf("GDT1: base_low=%x mid=%x high=%x limit_low=%x flags=%x access=%x\n",
-            gdt_entries[1].base_low, gdt_entries[1].base_middle, gdt_entries[1].base_high,
-            gdt_entries[1].limit_low, gdt_entries[1].Limit_high_flags, gdt_entries[1].access);
-
     gdt_ptr.limit = (uint16_t)(sizeof(gdt_entries) - 1);
     gdt_ptr.base = (uint32_t)&gdt_entries;
-    gdt_flush((uint32_t)&gdt_ptr);
+
+    memcpy(debug_dump, &gdt_ptr, 6);
+    memcpy(debug_dump + 6, &gdt_entries[1], 8);
 
     gdt_flush((uint32_t)&gdt_ptr);
     load_tss();
+        kprintf("GDT bytes: %x %x %x %x %x %x\n",
+            ((uint8_t*)&gdt_entries[1])[0], ((uint8_t*)&gdt_entries[1])[1],
+            ((uint8_t*)&gdt_entries[1])[2], ((uint8_t*)&gdt_entries[1])[3],
+            ((uint8_t*)&gdt_entries[1])[4], ((uint8_t*)&gdt_entries[1])[5]);
 }
+
 void update_tss(uint32_t stack)
 {
     tss.esp0 = stack;

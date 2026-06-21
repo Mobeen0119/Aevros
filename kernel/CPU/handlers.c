@@ -1,8 +1,7 @@
-
-#include "../../Lib/kprintf.h" 
+#include "../../Lib/kprintf.h"
 #include "../Process/task.h"
 #include "../io.h"
-
+#include "../../Drivers/keyboard.h"
 
 void irq_handler(register_t *r)
 {
@@ -13,5 +12,5 @@ void irq_handler(register_t *r)
     if (r->int_no == 32)
         schedule();
     else if (r->int_no == 33)
-        kprint("Keyboard IRQ\n");
+        keyboard_handler();
 }

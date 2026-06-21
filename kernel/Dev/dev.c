@@ -2,6 +2,7 @@
 #include "../../Lib/string.h"
 #include "../../Include/vfs.h"
 #include "../Memory/pmm.h"
+#include "../Memory/kheap.h"
 
 static devfs_device_t devfs_table[MAX_DEVICES];
 static int devfs_count = 0;

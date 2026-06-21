@@ -17,6 +17,7 @@
 #include "../Process/Quarantine/Quarantine.h"
 #include "../Process/Blast/blast.h"
 #include "../Process/TIMELINE/timeline.h"
+#include "../Memory/KallocTracker/kalloc_tracker.h"
 #include "../Process/FDLeak/fdleak.h"
 
 void shell_prompt()

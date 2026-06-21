@@ -3,6 +3,7 @@
 #include "../../Process/task.h"
 #include "../../../Lib/kprintf.h"
 #include "../../../Lib/string.h"
+#include "../kheap.h"
 
 static alloc_record_t *frozen = NULL;
 static uint32_t frozen_count = 0;

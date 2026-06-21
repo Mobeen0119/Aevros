@@ -161,12 +161,9 @@ void terminal_readline(char *out)
 
     input_length = cursor_x = 0;
 
-   kprintf("READLINE STARTED\n");  
-
     while (1)
     {
         c = keyboard_getchar();
-        kprintf("GOT=%c\n", c);
 
         if (c == '\n')
         {

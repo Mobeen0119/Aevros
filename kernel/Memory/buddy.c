@@ -19,7 +19,7 @@ void buddy_init(uint32_t start, uint32_t end)
     buddy_total_mem = end - start;
 
     if (addr & (block_size - 1))
-        addr = (addr + block_size) & ~(block_size - 1);
+        addr = (addr + block_size-1) & ~(block_size - 1);
 
     while (addr + block_size <= end)
     {

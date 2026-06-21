@@ -15,7 +15,6 @@
 #include "../../Drivers/PIT/pit.h"
 #include "TaskLife/tasklife.h"
 
-
 task_t *current_task = 0, *ready_queue = 0;
 
 int next_pid = 0;
@@ -38,7 +37,7 @@ void init_tasking()
     current_task = (task_t *)kmalloc_raw(sizeof(task_t));
     if (!current_task)
         return;
-    
+
     strncpy(current_task->name, "shell", TASK_NAME_LEN);
 
     memset(current_task, 0, sizeof(task_t));
@@ -103,17 +102,20 @@ task_t *task_create_user(void (*entry_point)())
     if (!page_dir)
         return NULL;
 
-    uint32_t user_stack_top = 0xBFFFF000;
+    uint32_t user_stack_top = 0xBFFF0000;
 
     uint32_t phys = pmm_alloc();
-    if (!phys)
+    uint32_t phys2 = pmm_alloc();
+    if (!phys || !phys2)
     {
+        if (phys)  pmm_free(phys);
+        if (phys2) pmm_free(phys2);
         destroy_user_space(page_dir);
         return NULL;
     }
 
-    map_page_in_directory(page_dir, user_stack_top, phys,
-                          PAGE_PRESENT | PAGE_WRITE | PAGE_USER);
+    map_page_in_directory(page_dir, user_stack_top, phys, PAGE_PRESENT | PAGE_USER | PAGE_WRITE);
+    map_page_in_directory(page_dir, user_stack_top - 4096, phys2, PAGE_PRESENT | PAGE_USER | PAGE_WRITE);
 
     task_t *task = create_process(entry_point, 0, page_dir);
     if (!task)
@@ -122,8 +124,8 @@ task_t *task_create_user(void (*entry_point)())
         return NULL;
     }
 
-    task->regs.esp = user_stack_top + 4096;
-    task->regs.ebp = task->regs.esp;
+    uint32_t *frame = (uint32_t *)task->regs.esp;
+    frame[7] = user_stack_top + 4096 - 16;   /* overwrite the pushed user ESP slot */
 
     task_add_ready(task);
     kprint("TASK USER CREATED\n");
@@ -212,27 +214,24 @@ void schedule(void)
     if (!next || next == prev)
         return;
 
-   if (next->first_run)
-{
-    next->first_run = 0;
-    task_log_event(next, EVT_FIRST_RUN, 0);
+    if (next->first_run)
+    {
+        next->first_run = 0;
+        task_log_event(next, EVT_FIRST_RUN, 0);
 
-    current_task = next;
-    tss.esp0 = next->kernel_stack;
+        current_task = next;
+        tss.esp0 = next->kernel_stack;
 
-    asm volatile("mov %0, %%cr3" :: "r"(next->cr3) : "memory");
+        asm volatile("mov %0, %%cr3" ::"r"(next->cr3) : "memory");
 
-    asm volatile(
-        "mov %0, %%esp    \n"
-        "pop %%edi        \n"
-        "pop %%esi        \n"
-        "pop %%ebx        \n"
-        "pop %%ebp        \n"
-        "iret             \n"
-        :: "r"(next->regs.esp)
-        : "memory"
-    );
-
+        asm volatile(
+            "mov %0, %%esp    \n"
+            "pop %%edi        \n"
+            "pop %%esi        \n"
+            "pop %%ebx        \n"
+            "pop %%ebp        \n"
+            "iret             \n" ::"r"(next->regs.esp)
+            : "memory");
     }
     else
     {

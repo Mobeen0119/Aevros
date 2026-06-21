@@ -12,12 +12,12 @@ void paging_init()
     uint32_t *pd = (uint32_t *)PD_ADDR;
     memset(pd, 0, 4096);
 
-    for (int t = 0; t < 8; t++)
+    for (int t = 0; t < 10; t++)
     {
         uint32_t *pt = (uint32_t *)(PT_BASE + t * 4096);
         for (int i = 0; i < 1024; i++)
-            pt[i] = ((t * 0x400000) + i * 0x1000) | PAGE_PRESENT | PAGE_WRITE;
-        pd[t] = (PT_BASE + t * 4096) | PAGE_PRESENT | PAGE_WRITE;
+            pt[i] = ((t * 0x400000) + i * 0x1000) | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
+        pd[t] = (PT_BASE + t * 4096) | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
     }
 
     pd[1023] = PD_ADDR | PAGE_PRESENT | PAGE_WRITE;

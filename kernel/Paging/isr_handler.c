@@ -19,19 +19,21 @@ void isr_handler(struct registers *r)
     }
 
     
-    if (r->int_no == 32)
-    {
-        outb(0x20, 0x20);
-        schedule();
-        return;
-    }
+   if (r->int_no == 32)
+{
+    outb(0x20, 0x20);
+    kprintf("T");
+    schedule();
+    return;
+}
 
-    if (r->int_no == 33)
-    {
-        keyboard_handler();
-        outb(0x20, 0x20);
-        return;
-    }
+  if (r->int_no == 33)
+{
+    kprintf("###KEY33###\n");
+    keyboard_handler();
+    outb(0x20, 0x20);
+    return;
+}
 
     if (r->int_no < 32)
     {

@@ -70,6 +70,13 @@ void kernel_main()
 
     asm volatile("cli");
 
+    kprintf("OFFSETS: first_run=%u cr3=%u esp=%u kstack=%u\n",
+        (unsigned)__builtin_offsetof(task_t, first_run),
+        (unsigned)__builtin_offsetof(task_t, cr3),
+        (unsigned)__builtin_offsetof(task_t, regs.esp),
+        (unsigned)__builtin_offsetof(task_t, kernel_stack));
+
+
     gdt_init();
     idt_init();
     pic_remap();

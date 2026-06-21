@@ -218,27 +218,10 @@ void schedule(void)
     {
         next->first_run = 0;
         task_log_event(next, EVT_FIRST_RUN, 0);
-
-        current_task = next;
-        tss.esp0 = next->kernel_stack;
-
-        asm volatile("mov %0, %%cr3" ::"r"(next->cr3) : "memory");
-
-        asm volatile(
-            "mov %0, %%esp    \n"
-            "pop %%edi        \n"
-            "pop %%esi        \n"
-            "pop %%ebx        \n"
-            "pop %%ebp        \n"
-            "iret             \n" ::"r"(next->regs.esp)
-            : "memory");
     }
-    else
-    {
-        switch_current_task(prev, next);
-    }
+
+    switch_current_task(prev, next);
 }
-
 void sys_exit(int status)
 {
     task_t *dead = current_task;

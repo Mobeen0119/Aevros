@@ -38,9 +38,9 @@ void init_tasking()
     if (!current_task)
         return;
 
-    strncpy(current_task->name, "shell", TASK_NAME_LEN);
-
     memset(current_task, 0, sizeof(task_t));
+
+    strncpy(current_task->name, "shell", TASK_NAME_LEN);
     current_task->pid = next_pid++;
     current_task->state = TASK_RUNNING;
     current_task->cwd = vfs_root;
@@ -285,6 +285,10 @@ void sys_exit(int status)
         dead->parent->state = TASK_READY;
 
     current_task = pick_next_task();
+    if (dead->kernel_stack_base)
+        kfree_raw((void *)(dead->kernel_stack_base));
+    kfree_raw(dead);
+
     schedule();
 
     __builtin_unreachable();

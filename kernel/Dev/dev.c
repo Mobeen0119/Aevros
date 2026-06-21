@@ -38,7 +38,12 @@ int devfs_register(const char *name, inode_t *inode)
         if (match_seg(devfs_table[i].name, name, strlen(name)))
             return VFS_ERR;
     }
-    devfs_table[devfs_count].name = strdup(name);
+
+    char *dup = strdup(name);
+    if (!dup)
+        return VFS_ERR;
+
+    devfs_table[devfs_count].name = dup;
     devfs_table[devfs_count].inode = inode;
 
     devfs_count++;

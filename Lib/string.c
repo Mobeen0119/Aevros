@@ -158,7 +158,7 @@ int katoi(const char *s)
     else if (*s == '+')
         s++;
 
-    while (*s >= '0' && *s >= 9)
+    while (*s >= '0' && *s <= '9')
     {
         result = result * 10 + (*s - '0');
         s++;

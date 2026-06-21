@@ -6,6 +6,16 @@
 
 #define MAX_ORDER 10
 
+#define SLAB_NUM_CACHES 3
+extern slab_t cache_32b;
+extern slab_t cache_64b;
+extern slab_t cache_128b;
+static slab_t *const slab_caches[SLAB_NUM_CACHES] = {
+    &cache_32b,
+    &cache_64b,
+    &cache_128b
+};
+
 int size_to_order(size_t size)
 {
     int order = 0;
@@ -21,41 +31,17 @@ int size_to_order(size_t size)
 
 void *kmalloc_raw(size_t size)
 {
-    block_header_t *hdr;
-
     if (size <= 32)
-    {
-        hdr = (block_header_t *)slab_alloc(&cache_32b);
-        if (!hdr)
-            return NULL;
-        hdr->type = SLAB;
-        hdr->infor.cache = (struct slab_cache *)&cache_32b;
-        return (void *)(hdr + 1);
-    }
+        return slab_alloc(&cache_32b);
 
     if (size <= 64)
-    {
-        hdr = (block_header_t *)slab_alloc(&cache_64b);
-        if (!hdr)
-            return NULL;
-        hdr->type = SLAB;
-        hdr->infor.cache = (struct slab_cache *)&cache_64b;
-        return (void *)(hdr + 1);
-    }
+        return slab_alloc(&cache_64b);
 
     if (size <= 128)
-    {
-        hdr = (block_header_t *)slab_alloc(&cache_128b);
-        if (!hdr)
-            return NULL;
-        hdr->type = SLAB;
-        hdr->infor.cache = (struct slab_cache *)&cache_128b;
-        return (void *)(hdr + 1);
-    }
+        return slab_alloc(&cache_128b);
 
     int order = size_to_order(size);
-
-    hdr = (block_header_t *)buddy_alloc(order);
+    block_header_t *hdr = (block_header_t *)buddy_alloc(order);
     if (!hdr)
         return NULL;
 
@@ -70,13 +56,22 @@ void kfree_raw(void *ptr)
     if (!ptr)
         return;
 
-    block_header_t *hdr = ((block_header_t *)ptr) - 1;
-
-    if (hdr->type == SLAB)
+    for (int i = 0; i < SLAB_NUM_CACHES; i++)
     {
-        slab_free((slab_t *)hdr->infor.cache, hdr);
+        slab_t *cache = slab_caches[i];
+        uint32_t start = (uint32_t)cache->first_slot;
+        uint32_t end   = start + 4096;
+        uint32_t p     = (uint32_t)ptr;
+
+        if (p >= start && p < end)
+        {
+            slab_free(cache, ptr);
+            return;
+        }
     }
-    else if (hdr->type == BUDDY)
+
+    block_header_t *hdr = ((block_header_t *)ptr) - 1;
+    if (hdr->type == BUDDY)
     {
         buddy_free(hdr, hdr->infor.order);
     }

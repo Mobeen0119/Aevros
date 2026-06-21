@@ -39,7 +39,7 @@ switch_current_task:
     pop ebx
     pop ebp
 
-    iret
+    ret
 
 read_eip:
     mov eax, [esp]

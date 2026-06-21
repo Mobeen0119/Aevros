@@ -5,11 +5,26 @@
 #include "buddy.h"
 
 static uint32_t buddy_total_mem = 0;
+static uint32_t buddy_start = 0;
+static uint32_t buddy_end = 0;
 
 buddy_block_t *free_lists[MAX_ORDER + 1];
 
+static int buddy_in_range(void *ptr)
+{
+    uintptr_t p = (uintptr_t)ptr;
+    return (p >= buddy_start && p < buddy_end);
+}
+
+static int buddy_valid_order(int order)
+{
+    return (order >= 0 && order <= MAX_ORDER);
+}
+
 void buddy_init(uint32_t start, uint32_t end)
 {
+    buddy_start = start;
+    buddy_end = end;
 
     for (int i = 0; i <= MAX_ORDER; i++)
         free_lists[i] = NULL;
@@ -40,10 +55,14 @@ void buddy_init(uint32_t start, uint32_t end)
 
 void *buddy_alloc(int order)
 {
+    if (!buddy_valid_order(order))
+        return NULL;
+
     if (free_lists[order])
     {
         buddy_block_t *block = free_lists[order];
         free_lists[order] = block->next;
+        block->next = NULL;
         return (void *)block;
     }
 
@@ -70,6 +89,11 @@ void *buddy_alloc(int order)
 
 void add_to_list(void *ptr, int order)
 {
+    if (!ptr || !buddy_valid_order(order))
+        return;
+    if (!buddy_in_range(ptr))
+        return;
+
     buddy_block_t *block = (buddy_block_t *)ptr;
     block->next = free_lists[order];
     free_lists[order] = block;
@@ -77,10 +101,13 @@ void add_to_list(void *ptr, int order)
 
 void remove_from_list(void *ptr, int order)
 {
+    if (!ptr || !buddy_valid_order(order))
+        return;
+
     buddy_block_t *target = (buddy_block_t *)ptr;
     buddy_block_t *current = free_lists[order];
 
-    if (!current || !target)
+    if (!current)
         return;
 
     if (current == target)
@@ -97,12 +124,23 @@ void remove_from_list(void *ptr, int order)
 
 void buddy_free(void *ptr, int order)
 {
+    if (!ptr || !buddy_valid_order(order))
+        return;
+    if (!buddy_in_range(ptr))
+        return;
+
     uintptr_t address = (uintptr_t)ptr;
     uintptr_t size = ((uintptr_t)1 << order) * 4096;
+
+    if (address & (size - 1))
+        return;
 
     while (order < MAX_ORDER)
     {
         uintptr_t buddy_address = address ^ size;
+
+        if (buddy_address < buddy_start || buddy_address >= buddy_end)
+            break;
 
         buddy_block_t *current = free_lists[order];
         buddy_block_t *prev = NULL;

@@ -94,6 +94,8 @@ void *alloc_page_aligned()
 
 void memcpy_page_physical(uint32_t dst, uint32_t src)
 {
+    asm volatile("cli");
+
     map_page(TEMP_SRC_PAGE, src, PAGE_PRESENT | PAGE_WRITE);
     map_page(TEMP_DST_PAGE, dst, PAGE_PRESENT | PAGE_WRITE);
 
@@ -101,6 +103,8 @@ void memcpy_page_physical(uint32_t dst, uint32_t src)
 
     unmap(TEMP_SRC_PAGE);
     unmap(TEMP_DST_PAGE);
+
+    asm volatile("sti");
 }
 
 static void clone_rollback(uint32_t *new_pd, int pd_built)

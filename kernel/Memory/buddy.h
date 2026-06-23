@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#define MAX_ORDER 10
+#define MAX_ORDER 16
 
 typedef enum
 {
@@ -37,6 +37,8 @@ void buddy_init(uint32_t start, uint32_t end);
 void *buddy_alloc(int order);
 
 void add_to_list(void *ptr, int order);
+
+void buddy_debug_list(int order);
 
 void remove_from_list(void *ptr, int order);
 

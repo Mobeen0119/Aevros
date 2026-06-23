@@ -14,7 +14,7 @@ mkdir -p "$BUILD_DIR"
 echo "🔨 Forging ForgeOS..."
 
 if ! command -v nasm >/dev/null 2>&1; then
-    echo "❌ nasm is required for assembly. Install nasm and rerun."
+    echo "nasm is required for assembly. Install nasm and rerun."
     exit 1
 fi
 

@@ -4,7 +4,7 @@
 #include "../../../Lib/kprintf.h"
 #include "../../../Lib/string.h"
 
-#define TIMELINE_MAX 256
+#define TIMELINE_MAX 512
 
 typedef struct
 {
@@ -55,7 +55,7 @@ void timeline_dump(void)
 
     if (!ready_queue)
     {
-        kprintf("timeline: no Tasks running\n");
+        kprintf("timeline: No Tasks running\n");
         return;
     }
 

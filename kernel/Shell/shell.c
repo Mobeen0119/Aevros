@@ -19,6 +19,7 @@
 #include "../Process/TIMELINE/timeline.h"
 #include "../Memory/KallocTracker/kalloc_tracker.h"
 #include "../Process/FDLeak/fdleak.h"
+#include "../Memory/buddy.h"
 
 void shell_prompt()
 {
@@ -162,7 +163,7 @@ void shell_execute(char *input)
         else if (strcmp(argv[1], "ghosts") == 0)
             tracker_dump_ghosts();
 
-        else if (strcmp(argv[1], "pid") == 0 && argc >= 3)
+        else if (strcmp(argv[1], "pid") == 0 && argc <= 3)
             tracker_dump_pid((uint32_t)katoi(argv[2]));
 
         else
@@ -229,6 +230,12 @@ void shell_execute(char *input)
             whyalive_alloc((void *)(uintptr_t)parse_hex(argv[2]));
         else
             kprintf("usage: whyalive <inode|task|alloc> <path|pid|addr>\n");
+    }
+
+    else if (strcmp(argv[0], "buddydbg") == 0)
+    {
+        for (int o = 0; o <= MAX_ORDER; o++)
+            buddy_debug_list(o);
     }
 
     else if (strcmp(argv[0], "stackmap") == 0)

@@ -62,6 +62,7 @@ void cmd_cat(char *path)
 
 void cmd_echo(char *text)
 {
+    
     kprint(text);
     kprint("\n");
 }

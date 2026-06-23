@@ -64,8 +64,9 @@ static inline void user_exit(int code)
 void user_program()
 {
     volatile int counter = 0;
-    for (int i = 0; i < 1000; i++) counter++;
-    user_exit(0);   // traps to ring 0 via int 0x80, where it's now SAFE to call sys_exit()
+    for (int i = 0; i < 1000; i++)
+        counter++;
+    user_exit(0); // traps to ring 0 via int 0x80, where it's now SAFE to call sys_exit()
 }
 
 void kernel_main()
@@ -79,12 +80,7 @@ void kernel_main()
 
     asm volatile("cli");
 
-    kprintf("OFFSETS: first_run=%u cr3=%u esp=%u kstack=%u\n",
-        (unsigned)__builtin_offsetof(task_t, first_run),
-        (unsigned)__builtin_offsetof(task_t, cr3),
-        (unsigned)__builtin_offsetof(task_t, regs.esp),
-        (unsigned)__builtin_offsetof(task_t, kernel_stack));
-
+ 
 
     gdt_init();
     idt_init();
@@ -92,6 +88,10 @@ void kernel_main()
     pmm_init(0x200000, 0x200000);
     paging_init();
     buddy_init(0x800000, 0x2000000);
+    kprintf("--- buddy state right after init ---\n");
+    for (int o = 0; o <= MAX_ORDER; o++)
+        buddy_debug_list(o);
+        
     slab_init_all();
 
     tracker_init();
@@ -110,7 +110,6 @@ void kernel_main()
     pit_init(100);
     asm volatile("sti");
     kprintf("STI DONE\n");
-
 
     kprint("\nForgeOS ready. Try: ps, memstory, fdleak, outlook\n");
     shell_start();

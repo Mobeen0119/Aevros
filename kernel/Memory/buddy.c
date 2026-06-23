@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "pmm.h"
 #include "buddy.h"
+#include "../../Lib/kprintf.h"
 
 static uint32_t buddy_total_mem = 0;
 static uint32_t buddy_start = 0;
@@ -51,6 +52,31 @@ void buddy_init(uint32_t start, uint32_t end)
             addr += 4096;
         }
     }
+}
+
+void buddy_debug_list(int order)
+{
+    buddy_block_t *b = free_lists[order];
+    uint32_t count = 0;
+    const uint32_t LIMIT = 100000;
+
+    kprintf("order %d list: head=0x%x\n", order, (uint32_t)b);
+
+    while (b && count < LIMIT)
+    {
+        if (!buddy_in_range(b))
+        {
+            kprintf("  [%u] 0x%x  <-- OUT OF RANGE!\n", count, (uint32_t)b);
+            break;
+        }
+        b = b->next;
+        count++;
+    }
+
+    if (count >= LIMIT)
+        kprintf("order %d: hit LIMIT (%u) -- list is cyclic or absurdly long\n", order, LIMIT);
+    else
+        kprintf("order %d: %u nodes, terminated cleanly\n", order, count);
 }
 
 void *buddy_alloc(int order)

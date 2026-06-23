@@ -172,9 +172,8 @@ void terminal_readline(char *out)
         }
         else if (c == '\b' && i > 0)
         {
-            i--;
-            input_line[i] = '\0';
             handle_backspace();
+            i=input_length;
         }
         else
         {

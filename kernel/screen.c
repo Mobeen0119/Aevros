@@ -1,70 +1,75 @@
 #include "../Include/screen.h"
+#include "../Include/terminal.h"
 #define ROW 25
 #define COL 80
 #define VGA_COLOR 0x04
 
-unsigned short *vga_buffer = (unsigned short *)0xB8000;
+extern struct Line buffer[MAX_LINES];
+
+extern int scroll_top;
+extern void render(void);
 
 int cursor_x = 0, cursor_y = 0;
 
+static int out_col = 0;
+
 void kclear_screen()
 {
-    for (int i = 0; i < ROW * COL; i++)
-    {
-        vga_buffer[i] =
-            (' ' | (VGA_COLOR << 8));
-    }
-    cursor_x = 0;
+    buffer_init();
+
     cursor_y = 0;
+    scroll_top = 0;
+    out_col = 0;
+
+    render();
 }
 
-void kprint_at(const char *str, int row, int col)
-{
-    if (row >= ROW || col >= COL)
-        return;
+// void kprint_at(const char *str, int row, int col)
+// {
+//     if (row >= ROW || col >= COL)
+//         return;
 
-    int ind = (row * COL) + col;
+//     int ind = (row * COL) + col;
 
-    for (int i = 0; str[i] != '\0'; i++)
-    {
-        if (col + i >= COL) break;
-        
-        vga_buffer[ind + i] = (unsigned short)VGA_COLOR << 8 | str[i];
-    }
-}
+//     for (int i = 0; str[i] != '\0'; i++)
+//     {
+//         if (col + i >= COL)
+//             break;
+
+//         buffer[ind + i] = (unsigned short)VGA_COLOR << 8 | str[i];
+//     }
+// }
 
 void kput_char(char c)
 {
 
     if (c == '\n')
     {
-        cursor_x++;
-        cursor_y = 0;
+        out_col = 0;
+        cursor_y++;
+        if (cursor_y >= MAX_LINES)
+            cursor_y = cursor_y % MAX_LINES;
+
+        while (cursor_y >= scroll_top + HEIGHT)
+            scroll_top++;
         return;
     }
 
-    if (cursor_y >= ROW)
+    if (out_col >= WIDTH)
     {
-        cursor_y = 0;
-        cursor_x++;
+        out_col = 0;
+        cursor_y++;
+        if (cursor_y >= MAX_LINES)
+            cursor_y = cursor_y % MAX_LINES;
+
+        while (cursor_y >= scroll_top + HEIGHT)
+            scroll_top++;
     }
-    if (cursor_x >= COL)
-    {
-        cursor_x = 0;
-    }
 
-   int ind = cursor_x * COL + cursor_y;
-
-    vga_buffer[ind] = ((unsigned short)VGA_COLOR << 8) | c;
-
-    cursor_y++;
-
-    if(cursor_x>=ROW) cursor_x=0;
+    buffer[cursor_y].text[out_col] = c;
+    buffer[cursor_y].colors[out_col] = current_color;
+    out_col++;
 }
-
-
-
-
 
 void kprint(const char *str)
 {
@@ -72,4 +77,5 @@ void kprint(const char *str)
     {
         kput_char(*str++);
     }
+    render();
 }

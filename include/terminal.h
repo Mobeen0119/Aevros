@@ -24,8 +24,10 @@ extern struct Line buffer[MAX_LINES];
 extern uint16_t *const vga_memory;
 
 
+void buffer_init();
 
-void terminal_readline(char* out);
+
 void render();
+void terminal_readline(char* out);
 
 #endif

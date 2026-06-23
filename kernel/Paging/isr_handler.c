@@ -28,7 +28,6 @@ void isr_handler(struct registers *r)
 
   if (r->int_no == 33)
 {
-    kprintf("###KEY33###\n");
     keyboard_handler();
     outb(0x20, 0x20);
     return;

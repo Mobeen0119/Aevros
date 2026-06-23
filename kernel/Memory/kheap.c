@@ -13,8 +13,7 @@ extern slab_t cache_128b;
 static slab_t *const slab_caches[SLAB_NUM_CACHES] = {
     &cache_32b,
     &cache_64b,
-    &cache_128b
-};
+    &cache_128b};
 
 int size_to_order(size_t size)
 {
@@ -40,6 +39,8 @@ void *kmalloc_raw(size_t size)
     if (size <= 128)
         return slab_alloc(&cache_128b);
 
+    size_t total = size + sizeof(block_header_t);
+
     int order = size_to_order(size);
     block_header_t *hdr = (block_header_t *)buddy_alloc(order);
     if (!hdr)
@@ -60,8 +61,8 @@ void kfree_raw(void *ptr)
     {
         slab_t *cache = slab_caches[i];
         uint32_t start = (uint32_t)cache->first_slot;
-        uint32_t end   = start + 4096;
-        uint32_t p     = (uint32_t)ptr;
+        uint32_t end = start + 4096;
+        uint32_t p = (uint32_t)ptr;
 
         if (p >= start && p < end)
         {

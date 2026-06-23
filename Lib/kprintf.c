@@ -55,45 +55,134 @@ void kprintf(const char *format, ...)
         }
         i++;
 
+        int left_align = 0;
+
+        if (format[i] == '-')
+        {
+            left_align = 1;
+            i++;
+        }
+        int width = 0;
+
+        while (format[i] >= '0' && format[i] <= '9')
+        {
+            width = width * 10 + (format[i] - '0');
+            i++;
+        }
+
+        char temp[64];
+        int len = 0;
+
         switch (format[i])
         {
         case 'c':
-            char c = (char)va_arg(args, int);
-            kput_char(c);
+        {
+            temp[0] = (char)va_arg(args, int);
+            len = 1;
             break;
-
+        }
         case 's':
+        {
             char *s = va_arg(args, char *);
             if (!s)
-                kprint("NULL");
-            kprint(s);
+                s = "NULL";
+            while (s[len] && len < (int)sizeof(temp) - 1)
+            {
+                temp[len] = s[len];
+                len++;
+            }
             break;
-
+        }
         case 'd':
+        {
             int num = va_arg(args, int);
-            print_decimal(num);
-            break;
+            int neg = 0;
+            if (num < 0)
+            {
+                neg = 1;
+                num = -num;
+            }
 
-        case 'x':
-            uint32_t unum = va_arg(args, uint32_t);
-            print_hex(unum);
+            char rev[32];
+            int r = 0;
+            if (num == 0)
+                rev[r++] = '0';
+            while (num > 0)
+            {
+                rev[r++] = '0' + (num % 10);
+                num /= 10;
+            }
+            if (neg)
+                temp[len++] = '-';
+            while (r--)
+                temp[len++] = rev[r];
             break;
+        }
+        case 'u':
+        {
+            uint32_t num = va_arg(args, uint32_t);
+            char rev[32];
+            int r = 0;
+            if (num == 0)
+                rev[r++] = '0';
+
+            while (num > 0)
+            {
+                rev[r++] = '0' + (num % 10);
+                num /= 10;
+            }
+
+            while (r--)
+                temp[len++] = rev[r];
+            break;
+        }
+        case 'x':
+        {
+            uint32_t num = va_arg(args, uint32_t);
+            const char *hex = "0123456789ABCDEF";
+            char rev[32];
+
+            int r = 0;
+            if (num == 0)
+                rev[r++] = '0';
+            while (num > 0)
+            {
+                rev[r++] = hex[num & 0xF];
+                num >>= 4;
+            }
+
+            while (r--)
+                temp[len++] = rev[r];
+            break;
+        }
 
         case '%':
-            kput_char('%');
-            break;
-
-        case 'u':
-            uint32_t mnum = va_arg(args, uint32_t);
-            print_decimal((int)mnum); 
+            temp[len++] = '%';
             break;
 
         default:
-            kput_char('%');
-            kput_char(format[i]);
+            temp[len++] = '%';
+            if (format[i])
+                temp[len++] = format[i];
             break;
         }
+
+        int pad = width - len;
+      
+        if (pad > 0 && !left_align)
+        {
+            for (int p = 0; p < pad; p++)
+                kput_char(' ');
+        }
+
+        for (int k = 0; k < len; k++)
+            kput_char(temp[k]);
+
+        if (pad > 0 && left_align)
+            for (int p = 0; p < pad; p++)
+                kput_char(' ');
     }
+
     va_end(args);
 }
 
@@ -107,7 +196,8 @@ void ksnprintf(char *buff, int bufsz, const char *fmt, ...)
     {
         if (fmt[i] != '%')
         {
-            buff[pos++]=fmt[i]; continue;
+            buff[pos++] = fmt[i];
+            continue;
         }
 
         i++;
@@ -127,7 +217,7 @@ void ksnprintf(char *buff, int bufsz, const char *fmt, ...)
                 temp[t++] = '0' + (n % 10);
                 n /= 10;
             }
-           for (int j = t - 1; j >= 0 && pos < bufsz - 1; j--)
+            for (int j = t - 1; j >= 0 && pos < bufsz - 1; j--)
                 buff[pos++] = temp[j];
             break;
         }
@@ -148,9 +238,9 @@ void ksnprintf(char *buff, int bufsz, const char *fmt, ...)
                 tmp[t++] = '0' + (n % 10);
                 n /= 10;
             }
-         for (int j = t - 1; j >= 0 && pos < bufsz - 1; j--)
-             buff[pos++] = tmp[j];
-         break;
+            for (int j = t - 1; j >= 0 && pos < bufsz - 1; j--)
+                buff[pos++] = tmp[j];
+            break;
         }
         case 's':
         {
@@ -174,8 +264,8 @@ void ksnprintf(char *buff, int bufsz, const char *fmt, ...)
                 tmp[t++] = hex[n & 0xF];
                 n >>= 4;
             }
-           for (int j = t - 1; j >= 0 && pos < bufsz - 1; j--)
-              buff[pos++] = tmp[j];
+            for (int j = t - 1; j >= 0 && pos < bufsz - 1; j--)
+                buff[pos++] = tmp[j];
             break;
         }
         case '%':

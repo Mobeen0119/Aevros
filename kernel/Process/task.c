@@ -19,6 +19,20 @@ task_t *current_task = 0, *ready_queue = 0;
 
 int next_pid = 0;
 
+void task_inherit_fds(task_t *child, task_t *parent)
+{
+    for (int i = 0; i < TASK_MAX_FDS; i++)
+    {
+        child->fd_table[i] = parent->fd_table[i];
+
+        if (child->fd_table[i] &&
+            child->fd_table[i]->inode)
+        {
+            child->fd_table[i]->inode->ref_count++;
+        }
+    }
+}
+
 extern void jump_user_mode(uint32_t entry, uint32_t stack);
 
 extern void switch_current_task(task_t *prev, task_t *next);
@@ -146,6 +160,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     new_task->parent = current_task;
     new_task->first_run = 1;
 
+    
     uint8_t *stack_base = kmalloc_raw(4096);
     if (!stack_base)
     {
@@ -173,22 +188,23 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     *(--sp) = 0x202;
     *(--sp) = cs;
     *(--sp) = (uint32_t)entry_point;
-
+    
     *(--sp) = 0;
     *(--sp) = 0;
     *(--sp) = 0;
     *(--sp) = 0;
-
+    
     new_task->cr3 = page_dir ? page_dir : read_cr3();
     new_task->regs.esp = (uint32_t)sp;
     new_task->regs.ebp = stack_top;
     new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;
+
+    
     new_task->kernel_stack_base = (uint32_t)stack_base;
     new_task->is_user = (page_dir != 0) ? 1 : 0;
-
-    kprintf("Task created: pid=%d esp=%x eip=%x cr3=%x kstack=%x is_user=%d\n",
-            new_task->pid, new_task->regs.esp, new_task->regs.eip, new_task->cr3, new_task->kernel_stack, new_task->is_user);
+    task_inherit_fds(new_task,current_task);
+    
     return new_task;
 }
 
@@ -208,6 +224,7 @@ void schedule(void)
 
 void sys_exit(int status)
 {
+    
     task_t *dead = current_task;
     if (!dead)
         return;
@@ -249,6 +266,7 @@ void sys_exit(int status)
     schedule();  
     __builtin_unreachable();
 }
+
 int sys_waitpid(int target_pid, int *status)
 {
 

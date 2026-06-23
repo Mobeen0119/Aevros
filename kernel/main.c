@@ -63,10 +63,17 @@ static inline void user_exit(int code)
 
 void user_program()
 {
-    volatile int counter = 0;
-    for (int i = 0; i < 1000; i++) counter++;
-    asm volatile("mov $1, %eax\n int $0x80");  
-    while (1) asm volatile("hlt"); 
+    
+
+
+kprintf("seven");
+    volatile char a[4423];
+    a[0] = 'X';
+
+    static char msg[] = "OK\n";
+    syscall(SYS_WRITE, 1, (int)msg, 3);
+
+    syscall(SYS_EXIT, 0, 0, 0);
 }
 
 void kernel_main()
@@ -80,7 +87,6 @@ void kernel_main()
 
     asm volatile("cli");
 
- 
 
     gdt_init();
     idt_init();
@@ -88,7 +94,6 @@ void kernel_main()
     pmm_init(0x200000, 0x200000);
     paging_init();
     buddy_init(0x800000, 0x2000000);
-    kprintf("--- buddy state right after init ---\n");
         
     slab_init_all();
 

@@ -11,8 +11,7 @@
 #define SYS_WAITPID 7
 #define SYS_EXEC 8
 
-
-static inline int syscall(int num,int arg1,int arg2,int arg3);
+int syscall(int num,int arg1,int arg2,int arg3);
 
 void syscall_handler(register_t *regs);
 
@@ -20,6 +19,5 @@ void init_syscalls();
 
 
 void sys_print(char *user_string);
-int sys_fork(register_t *regs);
 
 #endif

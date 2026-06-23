@@ -94,7 +94,7 @@ void timeline_dump(void)
 
     kprintf("\n  TimeLine: \n\n");
 
-    for (int i = 0; i < count; i++)
+    for (int i = 0; i < count-1; i++)
     {
         timeline_entry_t *e = &merged[i];
 

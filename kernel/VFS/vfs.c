@@ -275,6 +275,7 @@ int sys_read(int fd, uint8_t *buf, uint32_t size)
 
 int sys_write(int fd, uint8_t *buf, uint32_t size)
 {
+    
     if (fd < 0 || fd >= TASK_MAX_FDS || !current_task->fd_table[fd])
         return VFS_ERR;
 

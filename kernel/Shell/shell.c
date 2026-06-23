@@ -282,27 +282,6 @@ void shell_execute(char *input)
             kprintf("usage: quarantine [check|release <name>]\n");
     }
 
-    else if (strcmp(argv[0], "test3") == 0)
-    {
-        kprintf("about to strcmp\n");
-        int r = strcmp("timeline", "timeline");
-        kprintf("strcmp returned %d\n", r);
-    }
-
-    else if (strcmp(argv[0], "test2") == 0)
-    {
-        char name[TASK_NAME_LEN];
-        for (int i = 0; i < TASK_NAME_LEN; i++)
-            name[i] = 'X';
-
-        char copy[TASK_NAME_LEN];
-        strncpy(copy, name, TASK_NAME_LEN);
-
-        kprintf("before print\n");
-        kprintf("name=%s\n", copy);
-        kprintf("after print\n");
-    }
-
     else if (strcmp(argv[0], "blast") == 0)
     {
         if (argc < 2)

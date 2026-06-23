@@ -5,11 +5,9 @@
 #include "../Paging/isr.h"
 #include "../../Include/screen.h"
 #include "../Process/exec.h"
+#include "../../Lib/kprintf.h"
 
-
-
-
-static inline int syscall(int num, int arg1, int arg2, int arg3)
+int syscall(int num, int arg1, int arg2, int arg3)
 {
     int ret;
 
@@ -28,12 +26,14 @@ void syscall_handler(register_t *regs)
     uint32_t a2 = regs->ecx;
     uint32_t a3 = regs->edx;
 
+
     uint32_t res = -1;
 
     switch (num)
     {
     case SYS_WRITE:
         res = sys_write(a1, (uint8_t *)a2, a3);
+        kprintf("CP-WRITE-AFTER res=%d\n", (int)res);
         break;
 
     case SYS_READ:
@@ -59,9 +59,9 @@ void syscall_handler(register_t *regs)
     case SYS_WAITPID:
         res = sys_waitpid(a1, (int *)a2);
         break;
-    
+
     case SYS_EXEC:
-        res=sys_exec((const char*)a1);
+        res = sys_exec((const char *)a1);
         break;
 
     default:
@@ -70,7 +70,6 @@ void syscall_handler(register_t *regs)
     }
     regs->eax = res;
 }
-
 
 void sys_print(char *user_string)
 {

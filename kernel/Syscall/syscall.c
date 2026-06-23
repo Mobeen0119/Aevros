@@ -7,12 +7,7 @@
 #include "../Process/exec.h"
 
 
-extern void isr128();
 
-void init_syscalls()
-{
-    idt_gate_set(128, (uint32_t)isr128, 0xEE);
-}
 
 static inline int syscall(int num, int arg1, int arg2, int arg3)
 {

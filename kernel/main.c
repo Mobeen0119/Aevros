@@ -64,9 +64,9 @@ static inline void user_exit(int code)
 void user_program()
 {
     volatile int counter = 0;
-    for (int i = 0; i < 1000; i++)
-        counter++;
-    user_exit(0); // traps to ring 0 via int 0x80, where it's now SAFE to call sys_exit()
+    for (int i = 0; i < 1000; i++) counter++;
+    asm volatile("mov $1, %eax\n int $0x80");  
+    while (1) asm volatile("hlt"); 
 }
 
 void kernel_main()
@@ -89,8 +89,6 @@ void kernel_main()
     paging_init();
     buddy_init(0x800000, 0x2000000);
     kprintf("--- buddy state right after init ---\n");
-    for (int o = 0; o <= MAX_ORDER; o++)
-        buddy_debug_list(o);
         
     slab_init_all();
 

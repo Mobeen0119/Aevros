@@ -7,9 +7,9 @@ syscall_asm_handler:
 
     pusha
 
-    xor eax,eax ; Clear eax to use it for storing the segment selector for the user data segment
+    xor eax,eax 
     mov ax, ds 
-    push eax ; Push the segment selector for the user data segment
+    push eax
 
     mov ax,0x10 ;kernel data segment selector
     mov ds,ax
@@ -19,15 +19,15 @@ syscall_asm_handler:
 
     push esp ; ptr to Saved register
     call syscall_handler
-    add esp, 4 ; Clean up stack after the call
+    add esp, 4
 
-    pop eax ; Pop the segment selector for the user data segment
+    pop eax 
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
 
     popa
-    add esp, 8 ; Clean up the two values we pushed at the start
+    add esp, 8 
     
     iretd

@@ -4,7 +4,7 @@
 #include "../../../Lib/kprintf.h"
 #include "../../../Lib/string.h"
 
-#define TIMELINE_MAX 512
+#define TIMELINE_MAX 4096
 
 typedef struct
 {
@@ -55,7 +55,7 @@ void timeline_dump(void)
 
     if (!ready_queue)
     {
-        kprintf("timeline: No Tasks running\n");
+        kprintf("Timeline: No Tasks running\n");
         return;
     }
 
@@ -80,7 +80,7 @@ void timeline_dump(void)
         return;
     }
 
-    for (int i = 1; i < count; i++)
+    for (int i = 1; i < count-1; i++)
     {
         timeline_entry_t key = merged[i];
         int j = i - 1;
@@ -93,6 +93,7 @@ void timeline_dump(void)
     }
 
     kprintf("\n  TimeLine: \n\n");
+
     for (int i = 0; i < count; i++)
     {
         timeline_entry_t *e = &merged[i];
@@ -128,5 +129,17 @@ void timeline_dump(void)
     }
 
     kprintf("\n  %d events across %u task(s)\n\n", count,
-            ({ uint32_t c=0; task_t *x=ready_queue; do{c++; x=x->next;}while(x!=ready_queue); c; }));
+            ({
+                uint32_t c = 0;
+                task_t *x = ready_queue;
+                if(!x) return;
+                do
+                {
+                    c++;
+                    x = x->next;
+                } while (x != ready_queue);
+                c;
+            }));
+    
 }
+       

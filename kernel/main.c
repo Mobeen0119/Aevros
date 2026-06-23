@@ -28,6 +28,7 @@
 #include "../Lib/kprintf.h"
 #include "pic.h"
 #include "io.h"
+#include "Syscall/syscall.h"
 
 void test_leaky_task()
 {
@@ -50,13 +51,21 @@ void test_forking_task()
         asm volatile("hlt");
 }
 
+static inline void user_exit(int code)
+{
+    asm volatile("mov %0, %%eax\n"
+                 "mov %1, %%ebx\n"
+                 "int $0x80"
+                 :
+                 : "i"(SYS_EXIT), "r"(code)
+                 : "eax", "ebx");
+}
+
 void user_program()
 {
     volatile int counter = 0;
-    while (1)
-    {
-        counter++;
-    }
+    for (int i = 0; i < 1000; i++) counter++;
+    user_exit(0);   // traps to ring 0 via int 0x80, where it's now SAFE to call sys_exit()
 }
 
 void kernel_main()
@@ -96,7 +105,7 @@ void kernel_main()
 
     kprintf("BEFORE TASK CREATE\n");
 
-    task_create_kernel(user_program);
+    task_create_user(user_program);
     kprintf("AFTER TASK CREATE\n");
     pit_init(100);
     asm volatile("sti");

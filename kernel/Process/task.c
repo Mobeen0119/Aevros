@@ -125,7 +125,7 @@ task_t *task_create_user(void (*entry_point)())
     }
 
     uint32_t *frame = (uint32_t *)task->regs.esp;
-    frame[1] = user_stack_top + 4096 - 16;
+    frame[7] = user_stack_top + 4096 - 16;
 
     task_add_ready(task);
     kprint("TASK USER CREATED\n");
@@ -200,11 +200,6 @@ void schedule(void)
     if (!next || next == prev)
         return;
 
-    if (next->first_run)
-    {
-        next->first_run = 0;
-        task_log_event(next, EVT_FIRST_RUN, 0);
-    }
 
 
     kprintf("Context switch occurred\n");

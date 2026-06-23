@@ -40,6 +40,8 @@ switch_current_task:
     je .resume_normal
 
     mov dword [ecx + FIRST_RUN_OFFSET], 0
+    mov al, 'F'
+    out 0xE9, al
     pop edi
     pop esi
     pop ebx

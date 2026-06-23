@@ -125,7 +125,7 @@ task_t *task_create_user(void (*entry_point)())
     }
 
     uint32_t *frame = (uint32_t *)task->regs.esp;
-    frame[7] = user_stack_top + 4096 - 16;   /* overwrite the pushed user ESP slot */
+    frame[1] = user_stack_top + 4096 - 16;
 
     task_add_ready(task);
     kprint("TASK USER CREATED\n");
@@ -174,10 +174,10 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     *(--sp) = cs;
     *(--sp) = (uint32_t)entry_point;
 
-    *(--sp) = 0; // ebp
-    *(--sp) = 0; // ebx
-    *(--sp) = 0; // esi
-    *(--sp) = 0; // edi
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
 
     new_task->cr3 = page_dir ? page_dir : read_cr3();
     new_task->regs.esp = (uint32_t)sp;
@@ -187,22 +187,8 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     new_task->kernel_stack_base = (uint32_t)stack_base;
     new_task->is_user = (page_dir != 0) ? 1 : 0;
 
-    if (!ready_queue)
-    {
-        ready_queue = new_task;
-        new_task->next = new_task;
-    }
-    else
-    {
-        task_t *temp = ready_queue;
-        while (temp->next != ready_queue)
-            temp = temp->next;
-        temp->next = new_task;
-        new_task->next = ready_queue;
-    }
-
-    kprintf("STACK BASE=%x STACK TOP=%x EIP=%x\n",
-            stack_base, stack_top, entry_point);
+    kprintf("Task created: pid=%d esp=%x eip=%x cr3=%x kstack=%x is_user=%d\n",
+            new_task->pid, new_task->regs.esp, new_task->regs.eip, new_task->cr3, new_task->kernel_stack, new_task->is_user);
     return new_task;
 }
 
@@ -220,8 +206,11 @@ void schedule(void)
         task_log_event(next, EVT_FIRST_RUN, 0);
     }
 
+
+    kprintf("Context switch occurred\n");
     switch_current_task(prev, next);
 }
+
 void sys_exit(int status)
 {
     task_t *dead = current_task;
@@ -352,6 +341,7 @@ void task_add_ready(task_t *task)
         temp->next = task;
         task->next = ready_queue;
     }
+    kprintf("Task added to scheduler: pid=%d\n", task->pid);
 }
 
 void task_remove_ready(task_t *task)
@@ -393,7 +383,10 @@ task_t *pick_next_task(void)
     do
     {
         if (temp->state == TASK_READY || temp->state == TASK_RUNNING)
+        {
+            kprintf("Task selected by scheduler: pid=%d\n", temp->pid);
             return temp;
+        }
         temp = temp->next;
     } while (temp != current_task);
 

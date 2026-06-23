@@ -14,8 +14,10 @@ volatile char keyboard_buffer[128];
 
 void keyboard_push(char c)
 {
+    int next = (keyb_head + 1) % 128;
+    if (next == keyb_tail) return; 
     keyboard_buffer[keyb_head] = c;
-    keyb_head = (keyb_head + 1) % 128;
+    keyb_head = next;
 }
 
 volatile char keyboard_getchar()
@@ -32,16 +34,9 @@ void keyboard_handler()
     const char scan_code = inb(0x60);
 
     if (scan_code & KEY_RELEASE)
-    {
-        outb(0x20, 0x20);
         return;
-    }
 
     char letter = keyb[scan_code];
     if (letter != 0)
-    {
         keyboard_push(letter);
-    }
-
-    outb(0x20, 0x20);
 }

@@ -214,7 +214,6 @@ void sys_exit(int status)
 
     task_log_event(dead, EVT_EXITED, (uint32_t)status);
     dead->destroy_time = get_ticks();
-
     dead->exit_code = status;
     dead->state = TASK_ZOMBIE;
 
@@ -222,28 +221,19 @@ void sys_exit(int status)
         task_log_event(dead->parent, EVT_CHILD_DIED, dead->pid);
 
     for (int i = 0; i < 32; i++)
-    {
         if (dead->fd_table[i])
-        {
             sys_close(i);
-        }
-    }
 
     if (dead->next == dead)
     {
         kprint("System Halted : All Processes exited\n");
-        while (1)
-            asm volatile("hlt");
+        while (1) asm volatile("hlt");
     }
 
     task_t *temp = ready_queue;
-    while (temp->next != dead)
-        temp = temp->next;
-
+    while (temp->next != dead) temp = temp->next;
     temp->next = dead->next;
-
-    if (ready_queue == dead)
-        ready_queue = dead->next;
+    if (ready_queue == dead) ready_queue = dead->next;
 
     if (dead->cr3)
         destroy_user_space(dead->cr3);
@@ -251,16 +241,14 @@ void sys_exit(int status)
     if (dead->parent && dead->parent->state == TASK_BLOCKED)
         dead->parent->state = TASK_READY;
 
-    current_task = pick_next_task();
+
     if (dead->kernel_stack_base)
         kfree_raw((void *)(dead->kernel_stack_base));
     kfree_raw(dead);
 
-    schedule();
-
+    schedule();  
     __builtin_unreachable();
 }
-
 int sys_waitpid(int target_pid, int *status)
 {
 
@@ -377,11 +365,9 @@ task_t *pick_next_task(void)
     task_t *temp = current_task->next;
     do
     {
-        if (temp->state == TASK_READY || temp->state == TASK_RUNNING)
-        {
-            kprintf("Task selected by scheduler: pid=%d\n", temp->pid);
+         if (temp != current_task)   
+                kprintf("Task selected by scheduler: pid=%d\n", temp->pid);
             return temp;
-        }
         temp = temp->next;
     } while (temp != current_task);
 

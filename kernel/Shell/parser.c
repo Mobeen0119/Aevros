@@ -1,6 +1,5 @@
 #include "../../Include/shell.h"
 
-
 static int strcmp_cmd(char *a, char *b)
 {
     while (*a && *b)
@@ -38,14 +37,15 @@ int tokenize(char *input, char *argv[])
     while (*input)
     {
 
-        if (*input == ' ')
+        while(*input == ' ')
             input++;
+
         if (*input == '\0')
             break;
 
         argv[argc++] = input;
 
-        while (*input && *input == ' ')
+        while (*input && *input != ' ')
             input++;
 
         if (*input)

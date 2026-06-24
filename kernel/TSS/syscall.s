@@ -7,27 +7,27 @@ syscall_asm_handler:
 
     pusha
 
-    xor eax,eax 
-    mov ax, ds 
+    xor eax, eax
+    mov ax, ds
     push eax
 
-    mov ax,0x10 ;kernel data segment selector
-    mov ds,ax
-    mov es,ax
-    mov fs,ax
-    mov gs,ax
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
 
-    push esp ; ptr to Saved register
+    push esp
     call syscall_handler
     add esp, 4
 
-    pop eax 
+    pop eax
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
 
     popa
-    add esp, 8 
-    
+    add esp, 8
+
     iretd

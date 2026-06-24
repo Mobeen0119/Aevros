@@ -5,17 +5,15 @@
 #include "../Paging/isr.h"
 #include "../../Include/screen.h"
 #include "../Process/exec.h"
-#include "../../Lib/kprintf.h"
 
 int syscall(int num, int arg1, int arg2, int arg3)
 {
     int ret;
-
     asm volatile(
-        "int $0x80" : "=a"(ret) : "a"(num),   // EAX
-                                  "b"(arg1),  // EBX
-                                  "c"(arg2),  // ECX
-                                  "d"(arg3)); // EDX
+        "int $0x80" : "=a"(ret) : "a"(num),
+                                  "b"(arg1),
+                                  "c"(arg2),
+                                  "d"(arg3));
     return ret;
 }
 
@@ -26,13 +24,12 @@ void syscall_handler(register_t *regs)
     uint32_t a2 = regs->ecx;
     uint32_t a3 = regs->edx;
 
-    uint32_t res = -1;
+    uint32_t res = (uint32_t)-1;
 
     switch (num)
     {
     case SYS_WRITE:
         res = sys_write(a1, (uint8_t *)a2, a3);
-        kprintf("CP-WRITE-AFTER res=%d\n", (int)res);
         break;
 
     case SYS_READ:
@@ -48,17 +45,12 @@ void syscall_handler(register_t *regs)
         break;
 
     case SYS_FORK:
-    {
-        uint32_t start_tick = get_ticks();
         res = do_fork(regs);
-        uint32_t elapsed = get_ticks() - start_tick;
-        if (elapsed > 50)
-            kprintf("WARNING: do_fork took %u ticks\n", elapsed);
         break;
-    }
+
     case SYS_EXIT:
         sys_exit(a1);
-        break;
+        break; 
 
     case SYS_WAITPID:
         res = sys_waitpid(a1, (int *)a2);
@@ -79,9 +71,6 @@ void sys_print(char *user_string)
 {
     if (!user_string)
         return;
-
     for (int i = 0; user_string[i]; i++)
-    {
         kput_char(user_string[i]);
-    }
 }

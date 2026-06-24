@@ -6,10 +6,8 @@
 #include "TaskLife/tasklife.h"
 #include "process-memory/process_memory.h"
 #include "../../Lib/string.h"
-#include "../../Lib/kprintf.h"
 
 extern uint32_t read_cr3(void);
-
 extern uint32_t read_eip(void);
 
 int do_fork(register_t *state_at_interuppt)
@@ -54,10 +52,9 @@ int do_fork(register_t *state_at_interuppt)
     uintptr_t kstack_lo  = parent->kernel_stack_base;
     uintptr_t kstack_hi  = parent->kernel_stack;
 
-    if (frame_addr < kstack_lo ||
-        frame_addr + sizeof(register_t) > kstack_hi)
+    if (frame_addr < kstack_lo || frame_addr + sizeof(register_t) > kstack_hi)
     {
-        kprintf("do_fork: state_at_interuppt (0x%x) not within parent kstack [0x%x-0x%x], aborting\n",
+        kprintf("do_fork: bad frame ptr 0x%x not in parent kstack [0x%x-0x%x]\n",
                 (uint32_t)frame_addr, (uint32_t)kstack_lo, (uint32_t)kstack_hi);
         destroy_user_space(child->cr3);
         kfree_raw(new_stack);
@@ -93,13 +90,9 @@ int do_fork(register_t *state_at_interuppt)
 
     if (state_at_interuppt->ebp >= state_at_interuppt->esp &&
         state_at_interuppt->ebp < parent->kernel_stack)
-    {
         child->regs.ebp = state_at_interuppt->ebp + stack_delta;
-    }
     else
-    {
         child->regs.ebp = state_at_interuppt->ebp;
-    }
 
     child->cwd = parent->cwd;
     if (child->cwd)
@@ -127,7 +120,6 @@ int do_fork(register_t *state_at_interuppt)
     child->kernel_time = 0;
     strncpy(child->name, parent->name, TASK_NAME_LEN - 1);
     child->name[TASK_NAME_LEN - 1] = '\0';
-
     child->start_time = get_ticks();
 
     task_log_event(parent, EVT_FORKED, child->pid);

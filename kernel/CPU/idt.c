@@ -39,26 +39,17 @@ void idt_gate_set(int n, unsigned int handler, unsigned char type)
 
 void idt_init()
 {
-
     idtp.limit = (sizeof(struct IDT_entry) * 256) - 1;
-
     idtp.base = (unsigned int)&idt;
 
     for (int i = 0; i < 256; i++)
-    {
-
         idt_gate_set(i, (unsigned int)default_handler, 0x8E);
-    }
 
-    idt_gate_set(13, (unsigned int)isr13, 0x8E); // General Protection Fault
-    idt_gate_set(14, (unsigned int)isr14, 0x8E); // Page Fault
-
-idt_gate_set(32, (unsigned int)irq0_handler, 0x8E);   
-idt_gate_set(33, (unsigned int)irq1_handler, 0x8E);
-
-    // idt_gate_set(33, (unsigned int)isr_handler, 0x8E);
+    idt_gate_set(13, (unsigned int)isr13, 0x8E);
+    idt_gate_set(14, (unsigned int)isr14, 0x8E);
+    idt_gate_set(32, (unsigned int)irq0_handler, 0x8E);
+    idt_gate_set(33, (unsigned int)irq1_handler, 0x8E);
 
     idt_gate_set(0x80, (unsigned int)syscall_asm_handler, 0xEE);
-
     idt_load((unsigned int)&idtp);
 }

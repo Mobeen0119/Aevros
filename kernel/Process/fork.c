@@ -6,6 +6,7 @@
 #include "TaskLife/tasklife.h"
 #include "process-memory/process_memory.h"
 #include "../../Lib/string.h"
+#include "../../Lib/kprintf.h"
 
 extern uint32_t read_cr3(void);
 extern uint32_t read_eip(void);

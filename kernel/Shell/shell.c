@@ -247,6 +247,10 @@ void shell_execute(char *input)
             stackmap_dump(argv[1]);
     }
 
+    else if (strcmp(argv[0], "ticks") == 0)
+    {
+        kprintf("ticks=%u\n", get_ticks());
+    }
     else if (strcmp(argv[0], "memfreeze") == 0)
     {
         if (argc < 2)

@@ -24,13 +24,13 @@ void pit_init(uint32_t frequency)
 int timer_callback(register_t *regs)
 {
     (void)regs;
-    kprintf("yh tw chal rha"); 
-    
-    if (++timer_clicks % TIME_SLICE == 0)
+    ++timer_clicks;
+
+    if (timer_clicks % TIME_SLICE == 0)
         schedule();
 
     if (timer_clicks % QUARANTINE_SCAN_INTERVAL == 0)
         quarantine_check_and_act();
 
-  return 0;
+    return 0;
 }

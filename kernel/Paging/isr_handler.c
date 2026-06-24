@@ -7,6 +7,7 @@
 #include "../../Drivers/keyboard.h"
 #include "../io.h"
 #include "../Paging/paging.h"
+#include "../../Drivers/PIT/pit.h"
 
 #include "Forge_Panic/forge_panic.h"
 
@@ -18,20 +19,18 @@ void isr_handler(struct registers *r)
         return;
     }
 
-    
-   if (r->int_no == 32)
-{
-    outb(0x20, 0x20);
-    schedule();
-    return;
-}
+    if (r->int_no == 32)
+    {
+        timer_callback(r);
+        return;
+    }
 
-  if (r->int_no == 33)
-{
-    keyboard_handler();
-    outb(0x20, 0x20);
-    return;
-}
+    if (r->int_no == 33)
+    {
+        keyboard_handler();
+        outb(0x20, 0x20);
+        return;
+    }
 
     if (r->int_no < 32)
     {
@@ -50,24 +49,23 @@ void isr_handler(struct registers *r)
             "segment not present",
             "stack segment fault",
             "general protection fault",
-            "page fault",     
+            "page fault",
             "reserved",
             "x87 float fault",
             "alignment check",
             "machine check",
-            "SIMD float fault"
-        };
+            "SIMD float fault"};
 
         const char *name = (r->int_no < 20)
-                         ? exceptions[r->int_no]
-                         : "unknown exception";
+                               ? exceptions[r->int_no]
+                               : "unknown exception";
 
         forge_panic(name, r);
         return;
     }
 
-     if (r->int_no >= 40)
-        outb(0xA0, 0x20);   
+    if (r->int_no >= 40)
+        outb(0xA0, 0x20);
 
     outb(0x20, 0x20);
 }

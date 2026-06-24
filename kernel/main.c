@@ -65,11 +65,34 @@ void user_program()
 {
     syscall(SYS_WRITE, 1, (int)"seven\n", 6);
     syscall(SYS_EXIT, 0, 0, 0);
+
+    while (1) { }
+}
+void fork_test_program(void)
+{
+    int result = syscall(SYS_FORK, 0, 0, 0);
+
+    if (result == 0)
+    {
+        syscall(SYS_WRITE, 1, (int)"child running\n", 14);
+        syscall(SYS_EXIT, 42, 0, 0);
+    }
+    else if (result > 0)
+    {
+        syscall(SYS_WRITE, 1, (int)"parent: forked child\n", 22);
+        syscall(SYS_EXIT, 0, 0, 0);
+    }
+    else
+    {
+        syscall(SYS_WRITE, 1, (int)"fork failed\n", 12);
+        syscall(SYS_EXIT, 1, 0, 0);
+    }
     while (1) { }
 }
 
 void kernel_main()
 {
+
     volatile char *v = (volatile char *)0xB8000;
     for (int i = 0; i < 80 * 25 * 2; i += 2)
     {

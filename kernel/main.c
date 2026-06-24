@@ -61,19 +61,17 @@ static inline void user_exit(int code)
                  : "eax", "ebx");
 }
 
-void user_program()
+void fork_test_program(void)
 {
-    
 
+    static char msg[] = "BEFORE FORK\n";
 
-kprintf("seven");
-    volatile char a[4423];
-    a[0] = 'X';
+    syscall(SYS_WRITE, 1, (int)msg, sizeof(msg)-1);
 
-    static char msg[] = "OK\n";
-    syscall(SYS_WRITE, 1, (int)msg, 3);
+    int r = syscall(SYS_FORK, 0, 0, 0);
 
-    syscall(SYS_EXIT, 0, 0, 0);
+    while (1)
+        asm volatile("hlt");
 }
 
 void kernel_main()
@@ -108,7 +106,7 @@ void kernel_main()
 
     kprintf("BEFORE TASK CREATE\n");
 
-    task_create_user(user_program);
+    task_create_user(fork_test_program);
     kprintf("AFTER TASK CREATE\n");
     pit_init(100);
     asm volatile("sti");

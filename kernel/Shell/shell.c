@@ -20,6 +20,7 @@
 #include "../Memory/KallocTracker/kalloc_tracker.h"
 #include "../Process/FDLeak/fdleak.h"
 #include "../Memory/buddy.h"
+#include "../selftest.h"
 
 void shell_prompt()
 {
@@ -289,6 +290,9 @@ void shell_execute(char *input)
         else
             blast_radius((uint32_t)katoi(argv[1]));
     }
+
+    else if (strcmp(argv[0], "selftest") == 0)
+        selftest_run();
 
     else
     {

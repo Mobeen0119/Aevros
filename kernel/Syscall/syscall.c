@@ -26,7 +26,6 @@ void syscall_handler(register_t *regs)
     uint32_t a2 = regs->ecx;
     uint32_t a3 = regs->edx;
 
-
     uint32_t res = -1;
 
     switch (num)
@@ -49,9 +48,14 @@ void syscall_handler(register_t *regs)
         break;
 
     case SYS_FORK:
+    {
+        uint32_t start_tick = get_ticks();
         res = do_fork(regs);
+        uint32_t elapsed = get_ticks() - start_tick;
+        if (elapsed > 50)
+            kprintf("WARNING: do_fork took %u ticks\n", elapsed);
         break;
-
+    }
     case SYS_EXIT:
         sys_exit(a1);
         break;

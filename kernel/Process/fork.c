@@ -7,33 +7,44 @@
 #include "process-memory/process_memory.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
+#include "../io.h"
 
 extern uint32_t read_cr3(void);
 extern uint32_t read_eip(void);
 
 int do_fork(register_t *state_at_interuppt)
 {
+    outb(0xE9, 'a');
     if (!current_task || !state_at_interuppt)
+    {
+        outb(0xE9, 'b');
         return -VFS_ENOMEM;
+    }
 
     task_t *parent = current_task;
-
     task_t *child = (task_t *)kmalloc_raw(sizeof(task_t));
+    outb(0xE9, 'c');
     if (!child)
+    {
+        outb(0xE9, 'd');
         return VFS_ERR;
+    }
 
     memset(child, 0, sizeof(task_t));
-
     child->cr3 = clone_page_directory(parent->cr3);
+    outb(0xE9, 'e');
     if (!child->cr3)
     {
+        outb(0xE9, 'f');
         kfree_raw(child);
         return VFS_ERR;
     }
 
     uint8_t *new_stack = (uint8_t *)kmalloc_raw(4096);
+    outb(0xE9, 'g');
     if (!new_stack)
     {
+        outb(0xE9, 'x');
         destroy_user_space(child->cr3);
         kfree_raw(child);
         return -VFS_ENOMEM;
@@ -48,13 +59,16 @@ int do_fork(register_t *state_at_interuppt)
     uint32_t stack_top = (uint32_t)new_stack + 4096;
     child->kernel_stack = stack_top;
     child->kernel_stack_base = (uint32_t)new_stack;
+    outb(0xE9, 'h');
 
     uintptr_t frame_addr = (uintptr_t)state_at_interuppt;
-    uintptr_t kstack_lo  = parent->kernel_stack_base;
-    uintptr_t kstack_hi  = parent->kernel_stack;
+    uintptr_t kstack_lo = parent->kernel_stack_base;
+    uintptr_t kstack_hi = parent->kernel_stack;
+    outb(0xE9, 'i');
 
     if (frame_addr < kstack_lo || frame_addr + sizeof(register_t) > kstack_hi)
     {
+        outb(0xE9, 'B'); 
         kprintf("do_fork: bad frame ptr 0x%x not in parent kstack [0x%x-0x%x]\n",
                 (uint32_t)frame_addr, (uint32_t)kstack_lo, (uint32_t)kstack_hi);
         destroy_user_space(child->cr3);
@@ -62,42 +76,51 @@ int do_fork(register_t *state_at_interuppt)
         kfree_raw(child);
         return -VFS_ENOMEM;
     }
+    outb(0xE9, 'j');
 
-    child->regs = *state_at_interuppt;
+    memcpy(&child->regs, state_at_interuppt, sizeof(register_t));
+    outb(0xE9, 'k');
     child->regs.eax = 0;
 
     if (state_at_interuppt->esp > parent->kernel_stack ||
         state_at_interuppt->esp < parent->kernel_stack_base)
     {
+        outb(0xE9, 'L');
         destroy_user_space(child->cr3);
         kfree_raw(child);
         kfree_raw(new_stack);
         return -VFS_ENOMEM;
     }
+    outb(0xE9, 'l');
 
     uint32_t stack_used = parent->kernel_stack - state_at_interuppt->esp;
     if (stack_used == 0 || stack_used > 4096)
     {
+        outb(0xE9, 'M');
         destroy_user_space(child->cr3);
         kfree_raw(new_stack);
         kfree_raw(child);
         return -VFS_ENOMEM;
     }
+    outb(0xE9, 'm');
 
     child->regs.esp = stack_top - stack_used;
+    outb(0xE9, 'n');
     memcpy((void *)child->regs.esp, (void *)state_at_interuppt->esp, stack_used);
+    outb(0xE9, 'o');
 
     uint32_t stack_delta = child->regs.esp - state_at_interuppt->esp;
-
     if (state_at_interuppt->ebp >= state_at_interuppt->esp &&
         state_at_interuppt->ebp < parent->kernel_stack)
         child->regs.ebp = state_at_interuppt->ebp + stack_delta;
     else
         child->regs.ebp = state_at_interuppt->ebp;
+    outb(0xE9, 'p');
 
     child->cwd = parent->cwd;
     if (child->cwd)
         child->cwd->ref_count++;
+    outb(0xE9, 'q');
 
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
@@ -111,22 +134,28 @@ int do_fork(register_t *state_at_interuppt)
         child->fd_table[i] = parent->fd_table[i];
         child->fd_table[i]->inode->ref_count++;
     }
+    outb(0xE9, 'r');
 
     child->signal_mask = parent->signal_mask;
     child->pending_signals = 0;
     memcpy(child->signal_handlers, parent->signal_handlers, sizeof(parent->signal_handlers));
     memcpy(child->rlimits, parent->rlimits, sizeof(parent->rlimits));
+    outb(0xE9, 's');
 
     child->user_time = 0;
     child->kernel_time = 0;
     strncpy(child->name, parent->name, TASK_NAME_LEN - 1);
     child->name[TASK_NAME_LEN - 1] = '\0';
     child->start_time = get_ticks();
+    outb(0xE9, 't');
 
     task_log_event(parent, EVT_FORKED, child->pid);
     task_log_event(child, EVT_CREATED, parent->pid);
+    outb(0xE9, 'u');
 
     int pid = child->pid;
     task_add_ready(child);
+    outb(0xE9, 'v');
+
     return pid;
 }

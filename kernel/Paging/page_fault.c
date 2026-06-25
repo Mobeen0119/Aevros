@@ -4,6 +4,7 @@
 #include "../Paging/isr.h"
 #include "../../Lib/kprintf.h"
 #include "../Process/TaskLife/tasklife.h"
+#include "../io.h"
 
 static inline uint32_t read_cr2()
 {
@@ -14,6 +15,7 @@ static inline uint32_t read_cr2()
 
 void page_fault_handler(struct registers *reg)
 {
+    outb(0xE9, 'F');
 
     kprintf("PAGE FAULT!\n");
 

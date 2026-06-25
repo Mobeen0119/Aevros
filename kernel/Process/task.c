@@ -122,8 +122,10 @@ task_t *task_create_user(void (*entry_point)())
     uint32_t phys2 = pmm_alloc();
     if (!phys || !phys2)
     {
-        if (phys)  pmm_free(phys);
-        if (phys2) pmm_free(phys2);
+        if (phys)
+            pmm_free(phys);
+        if (phys2)
+            pmm_free(phys2);
         destroy_user_space(page_dir);
         return NULL;
     }
@@ -139,7 +141,7 @@ task_t *task_create_user(void (*entry_point)())
     }
 
     uint32_t *frame = (uint32_t *)task->regs.esp;
-    frame[7] = user_stack_top + 4096 - 16;
+    frame[8] = user_stack_top + 4096 - 16;
 
     task_add_ready(task);
     kprint("TASK USER CREATED\n");
@@ -160,7 +162,6 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     new_task->parent = current_task;
     new_task->first_run = 1;
 
-    
     uint8_t *stack_base = kmalloc_raw(4096);
     if (!stack_base)
     {
@@ -188,23 +189,22 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     *(--sp) = 0x202;
     *(--sp) = cs;
     *(--sp) = (uint32_t)entry_point;
-    
+    *(--sp) = 0; // edi
+    *(--sp) = 0; // esi
+    *(--sp) = 0; // ebx
+    *(--sp) = 0; // ebp
     *(--sp) = 0;
-    *(--sp) = 0;
-    *(--sp) = 0;
-    *(--sp) = 0;
-    
+
     new_task->cr3 = page_dir ? page_dir : read_cr3();
     new_task->regs.esp = (uint32_t)sp;
     new_task->regs.ebp = stack_top;
     new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;
 
-    
     new_task->kernel_stack_base = (uint32_t)stack_base;
     new_task->is_user = (page_dir != 0) ? 1 : 0;
-    task_inherit_fds(new_task,current_task);
-    
+    task_inherit_fds(new_task, current_task);
+
     return new_task;
 }
 
@@ -216,55 +216,77 @@ void schedule(void)
     if (!next || next == prev)
         return;
 
-
-
     kprintf("Context switch occurred\n");
     switch_current_task(prev, next);
 }
 
-void sys_exit(int status)
+__attribute__((noinline)) void sys_exit(int status)
 {
-    
+    outb(0xE9, 'q');
     task_t *dead = current_task;
     if (!dead)
+    {
+        outb(0xE9, 'Z');
         return;
+    }
 
     task_log_event(dead, EVT_EXITED, (uint32_t)status);
+    outb(0xE9, 'r');
+
     dead->destroy_time = get_ticks();
     dead->exit_code = status;
     dead->state = TASK_ZOMBIE;
+    outb(0xE9, 's');
 
     if (dead->parent)
         task_log_event(dead->parent, EVT_CHILD_DIED, dead->pid);
+    outb(0xE9, 't');
 
     for (int i = 0; i < 32; i++)
         if (dead->fd_table[i])
             sys_close(i);
+    outb(0xE9, 'u');
 
     if (dead->next == dead)
     {
+        outb(0xE9, 'H'); 
         kprint("System Halted : All Processes exited\n");
-        while (1) asm volatile("hlt");
+        while (1)
+            asm volatile("hlt");
     }
+    outb(0xE9, 'v');
 
     task_t *temp = ready_queue;
-    while (temp->next != dead) temp = temp->next;
+    while (temp->next != dead)
+        temp = temp->next;
+    outb(0xE9, 'w');
+
     temp->next = dead->next;
-    if (ready_queue == dead) ready_queue = dead->next;
+    if (ready_queue == dead)
+        ready_queue = dead->next;
+    outb(0xE9, 'x');
 
     if (dead->cr3)
         destroy_user_space(dead->cr3);
+    outb(0xE9, 'y');
 
     if (dead->parent && dead->parent->state == TASK_BLOCKED)
         dead->parent->state = TASK_READY;
+    outb(0xE9, 'z');
 
+    // task_t *next = current_task;
+    // outb(0xE9, 'n');
 
-    if (dead->kernel_stack_base)
-        kfree_raw((void *)(dead->kernel_stack_base));
-    kfree_raw(dead);
+    // outb(0xE9, 'm');
 
-    schedule();  
-    __builtin_unreachable();
+    // outb(0xE9, 'a');
+    // outb(0xE9, 'b');
+    // outb(0xE9, 'c');
+
+    // outb(0xE9, 'E');
+    // switch_current_task(NULL, next);
+    // outb(0xE9, '!');
+    // __builtin_unreachable();
 }
 
 int sys_waitpid(int target_pid, int *status)
@@ -383,13 +405,24 @@ task_t *pick_next_task(void)
     task_t *temp = current_task->next;
     do
     {
-         if (temp != current_task)   
-                kprintf("Task selected by scheduler: pid=%d\n", temp->pid);
+        if (temp == current_task)
+            break;
+
+        if (temp->state == TASK_READY)
+        {
+            kprintf("Task selected by scheduler: pid=%d\n", temp->pid);
             return temp;
+        }
         temp = temp->next;
     } while (temp != current_task);
 
-    return current_task;
+    if (current_task->state == TASK_READY)
+    {
+        kprintf("No other ready task, continuing with: pid=%d\n", current_task->pid);
+        return current_task;
+    }
+
+    return ready_queue;
 }
 
 uint32_t get_ticks(void)

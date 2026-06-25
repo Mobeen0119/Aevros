@@ -9,10 +9,11 @@ global irq1_handler
 global isr14
 global default_handler
 
-
 isr13:
     cli
-    push dword 13        
+    mov al, 'G'
+    out 0xE9, al
+    push dword 13
     pusha
     push ds
     push esp
@@ -20,12 +21,14 @@ isr13:
     add esp, 4
     pop ds
     popa
-    add esp, 4            
+    add esp, 4
     sti
     iret
 
-
 default_handler:
+    push 0xDE  
+    mov al, 'D'
+    out 0xE9, al
     pusha
 .loop:
     hlt
@@ -33,8 +36,7 @@ default_handler:
 
 isr14:
     cli
-    push dword 0
-    push dword 14
+    push dword 14          
     pusha
     push ds
     push esp

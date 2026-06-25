@@ -107,10 +107,13 @@ void memcpy_page_physical(uint32_t dst, uint32_t src)
     asm volatile("sti");
 }
 
-static void clone_rollback(uint32_t *new_pd, int pd_built)
+static void clone_rollback(uint32_t new_pd_phys, int pd_built)
 {
-    if (!new_pd)
+    if (!new_pd_phys)
         return;
+
+    map_page(TEMP_PD_VIRT, new_pd_phys, PAGE_PRESENT | PAGE_WRITE);
+    uint32_t *new_pd = (uint32_t *)TEMP_PD_VIRT;
 
     for (int pd = 0; pd < pd_built; pd++)
     {
@@ -118,16 +121,22 @@ static void clone_rollback(uint32_t *new_pd, int pd_built)
             continue;
 
         uint32_t pt_phys = new_pd[pd] & 0xFFFFF000;
-        uint32_t *pt_virt = (uint32_t *)pt_phys;
+
+        map_page(TEMP_PT_VIRT, pt_phys, PAGE_PRESENT | PAGE_WRITE);
+        uint32_t *pt_virt = (uint32_t *)TEMP_PT_VIRT;
 
         for (int pt = 0; pt < 1024; pt++)
         {
             if (pt_virt[pt] & PAGE_PRESENT)
                 pmm_free(pt_virt[pt] & 0xFFFFF000);
         }
+
+        unmap(TEMP_PT_VIRT);
         pmm_free(pt_phys);
     }
-    pmm_free((uint32_t)new_pd);
+
+    unmap(TEMP_PD_VIRT);
+    pmm_free(new_pd_phys);
 }
 
 uint32_t clone_page_directory(uint32_t src_cr3)
@@ -135,11 +144,13 @@ uint32_t clone_page_directory(uint32_t src_cr3)
     (void)src_cr3;
 
     uint32_t *current_pd = (uint32_t *)PAGE_RECURSIVE;
-    uint32_t *new_pd = (uint32_t *)alloc_page_aligned();
 
-    if (!new_pd)
+    uint32_t new_pd_phys = pmm_alloc();
+    if (!new_pd_phys)
         return 0;
 
+    map_page(TEMP_PD_VIRT, new_pd_phys, PAGE_PRESENT | PAGE_WRITE);
+    uint32_t *new_pd = (uint32_t *)TEMP_PD_VIRT;
     memset(new_pd, 0, 4096);
 
     for (int i = 0; i < 8; i++)
@@ -153,16 +164,19 @@ uint32_t clone_page_directory(uint32_t src_cr3)
             continue;
 
         uint32_t *src_pt = (uint32_t *)((uint8_t *)RECURSIVE_PT_BASE + pd * 0x1000);
-        uint32_t *new_pt = (uint32_t *)alloc_page_aligned();
 
-        if (!new_pt)
+        uint32_t new_pt_phys = pmm_alloc();
+        if (!new_pt_phys)
         {
-            clone_rollback(new_pd, pd_built);
+            unmap(TEMP_PD_VIRT);
+            clone_rollback(new_pd_phys, pd_built);
             return 0;
         }
 
+        map_page(TEMP_PT_VIRT, new_pt_phys, PAGE_PRESENT | PAGE_WRITE);
+        uint32_t *new_pt = (uint32_t *)TEMP_PT_VIRT;
         memset(new_pt, 0, 4096);
-        uint32_t new_pt_phys = (uint32_t)new_pt;
+
         new_pd[pd] = new_pt_phys | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
 
         for (int pt = 0; pt < 1024; pt++)
@@ -175,19 +189,23 @@ uint32_t clone_page_directory(uint32_t src_cr3)
 
             if (!new_phy)
             {
-                clone_rollback(new_pd, pd_built + 1);
+                unmap(TEMP_PT_VIRT);
+                unmap(TEMP_PD_VIRT);
+                clone_rollback(new_pd_phys, pd_built + 1);
                 return 0;
             }
 
             memcpy_page_physical(new_phy, src_phy);
             new_pt[pt] = new_phy | PAGE_PRESENT | PAGE_WRITE | PAGE_USER;
         }
+
+        unmap(TEMP_PT_VIRT);
         pd_built++;
     }
 
-    uint32_t new_pd_phys = (uint32_t)new_pd;
     new_pd[1023] = new_pd_phys | PAGE_PRESENT | PAGE_WRITE;
 
+    unmap(TEMP_PD_VIRT);
     return new_pd_phys;
 }
 

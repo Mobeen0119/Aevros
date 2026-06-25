@@ -63,11 +63,15 @@ static inline void user_exit(int code)
 
 void user_program()
 {
+    outb(0xE9, 'U');
     syscall(SYS_WRITE, 1, (int)"seven\n", 6);
+    outb(0xE9, 'W');
     syscall(SYS_EXIT, 0, 0, 0);
-
+    outb(0xE9, 'X');
     while (1) { }
 }
+
+
 void fork_test_program(void)
 {
     int result = syscall(SYS_FORK, 0, 0, 0);
@@ -87,11 +91,12 @@ void fork_test_program(void)
         syscall(SYS_WRITE, 1, (int)"fork failed\n", 12);
         syscall(SYS_EXIT, 1, 0, 0);
     }
-    while (1) { }
+    while(1) { }
 }
 
 void kernel_main()
 {
+    outb(0xE9,'@');
 
     volatile char *v = (volatile char *)0xB8000;
     for (int i = 0; i < 80 * 25 * 2; i += 2)
@@ -109,6 +114,14 @@ void kernel_main()
     pmm_init(0x200000, 0x200000);
     paging_init();
     buddy_init(0x800000, 0x2000000);
+    kprintf("OFFSETS: cr3=%u esp=%u ebp=%u eip=%u kstack=%u first_run=%u\n",
+   
+        (unsigned)offsetof(task_t, cr3),
+    (unsigned)offsetof(task_t, regs.esp),
+    (unsigned)offsetof(task_t, regs.ebp),
+    (unsigned)offsetof(task_t, regs.eip),
+    (unsigned)offsetof(task_t, kernel_stack),
+    (unsigned)offsetof(task_t, first_run));
         
     slab_init_all();
 
@@ -123,13 +136,13 @@ void kernel_main()
 
     kprintf("BEFORE TASK CREATE\n");
 
-    task_create_user(fork_test_program);
+     task_create_user(user_program);
     kprintf("AFTER TASK CREATE\n");
     pit_init(100);
     asm volatile("sti");
     kprintf("STI DONE\n");
 
-    kprint("\nForgeOS ready. Try: ps, memstory, fdleak, outlook\n");
+    kprintf("\nForgeOS ready. Try: ps, memstory, fdleak, outlook\n");
     shell_start();
 
     while (1)

@@ -7,15 +7,22 @@ extern tss
 CR3_OFFSET          equ 0
 ESP_OFFSET          equ 28
 EBP_OFFSET          equ 24
-KERNEL_STACK_OFFSET equ 72
-FIRST_RUN_OFFSET    equ 228
+EIP_OFFSET          equ 56
+KERNEL_STACK_OFFSET equ 76
+FIRST_RUN_OFFSET    equ 232
 
 switch_current_task:
+    mov al, '1'
+    out 0xE9, al
+
     mov eax, [esp+4]
     mov ecx, [esp+8]
 
     test eax, eax
-    jz .load_next
+    jz load_next
+
+    mov al, '2'
+    out 0xE9, al
 
     pushf
     push ebp
@@ -24,40 +31,69 @@ switch_current_task:
     push edi
 
     mov [eax + ESP_OFFSET], esp
+    mov [eax + EBP_OFFSET], ebp
 
-.load_next:
+load_next:
+    mov al, '3'
+    out 0xE9, al
+
     mov [current_task], ecx
 
     mov edx, [ecx + CR3_OFFSET]
     mov cr3, edx
 
+    mov al, '4'
+    out 0xE9, al
+
     mov edx, [ecx + KERNEL_STACK_OFFSET]
     mov [tss+4], edx
 
-    mov esp, [ecx + ESP_OFFSET]
+    mov al, '5'
+    out 0xE9, al
+
+     mov esp, [ecx + ESP_OFFSET]
+    mov ebp, [ecx + EBP_OFFSET]
+
+    mov al, '6'
+    out 0xE9, al
 
     cmp dword [ecx + FIRST_RUN_OFFSET], 0
-    je .resume_normal
 
-    mov dword [ecx + FIRST_RUN_OFFSET], 0
-    mov al, 'F'
+    mov al, '9'
     out 0xE9, al
+
+    jne first_run
+
+    mov al, '7'
+    out 0xE9, al
+
+    mov al, '7'
+    out 0xE9, al
+
+resume_normal:
     pop edi
     pop esi
     pop ebx
     pop ebp
+    popf
+    mov al, '8'
+    out 0xE9, al
     iret
 
-.resume_normal:
-    pop edi
-    pop esi
-    pop ebx
+first_run:
+    mov dword [ecx + FIRST_RUN_OFFSET], 0x0
+    mov ax, 0x23
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    pop eax
     pop ebp
-    popf
-    pushf
-    and dword [esp], 0xFFFFFEFF
-    popf
-    ret
+    pop ebx
+    pop esi
+    pop edi
+    iret
+    
 
 read_eip:
     mov eax, [esp]

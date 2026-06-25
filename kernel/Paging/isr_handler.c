@@ -22,8 +22,12 @@ void isr_handler(struct registers *r)
     if (r->int_no == 32)
     {
         timer_callback(r);
+        outb(0x20, 0x20);
         return;
     }
+
+
+
 
     if (r->int_no == 33)
     {

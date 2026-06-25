@@ -5,9 +5,11 @@ extern schedule
 timer_handler_interrupt:
     pusha
 
-    mov al, 0x20 ; Send End of Interrupt signal to the PIC
+    call schedule
+
+    popa
+
+    mov al, 0x20
     out 0x20, al
 
-    
-    popa 
     iret

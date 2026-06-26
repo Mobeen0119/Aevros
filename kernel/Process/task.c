@@ -184,19 +184,32 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
         ss = 0x10;
     }
 
-    *(--sp) = ss;
-    *(--sp) = stack_top;
-    *(--sp) = 0x202;
-    *(--sp) = cs;
-    *(--sp) = (uint32_t)entry_point;
-    *(--sp) = 0; // edi
-    *(--sp) = 0; // esi
-    *(--sp) = 0; // ebx
-    *(--sp) = 0; // ebp
+    if (page_dir)
+    {
+        *(--sp) = 0x23;
+        *(--sp) = stack_top;
+        *(--sp) = 0x202;
+        *(--sp) = 0x1B;
+        *(--sp) = (uint32_t)entry_point;
+    }
+    else
+    {
+        *(--sp) = 0x202;
+        *(--sp) = 0x08;
+        *(--sp) = (uint32_t)entry_point;
+    }
+
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
     *(--sp) = 0;
 
     new_task->cr3 = page_dir ? page_dir : read_cr3();
     new_task->regs.esp = (uint32_t)sp;
+    uint32_t *x = (uint32_t *)new_task->regs.esp;
+
+    for (int i = 0; i < 8; i++)
+        kprintf("%08x\n", x[i]);
     new_task->regs.ebp = stack_top;
     new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;
@@ -204,6 +217,16 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     new_task->kernel_stack_base = (uint32_t)stack_base;
     new_task->is_user = (page_dir != 0) ? 1 : 0;
     task_inherit_fds(new_task, current_task);
+
+    kprintf("%08x\n", new_task->kernel_stack_base);
+    kprintf("%08x\n", new_task->kernel_stack);
+    kprintf("%08x\n", new_task->regs.esp);
+
+    kprintf("page_dir=%x\n", page_dir);
+    kprintf("is_user=%d\n", new_task->is_user);
+    kprintf("cr3=%x\n", new_task->cr3);
+    kprintf("cs=%x\n", cs);
+    kprintf("ss=%x\n", ss);
 
     return new_task;
 }
@@ -215,6 +238,18 @@ void schedule(void)
 
     if (!next || next == prev)
         return;
+
+    kprintf("prev=%u next=%u\n", prev->pid, next->pid);
+    uint32_t *sp = (uint32_t *)next->regs.esp;
+
+    // kprintf("prev=%x\n", prev);
+    // kprintf("next=%x\n", next);
+
+    // kprintf("prev esp=%x\n", prev->regs.esp);
+    // kprintf("next esp=%x\n", next->regs.esp);
+
+    // kprintf("prev cr3=%x\n", prev->cr3);
+    // kprintf("next cr3=%x\n", next->cr3);
 
     // switch_current_task(prev, next);
 }
@@ -248,7 +283,7 @@ __attribute__((noinline)) void sys_exit(int status)
 
     if (dead->next == dead)
     {
-        outb(0xE9, 'H'); 
+        outb(0xE9, 'H');
         kprint("System Halted : All Processes exited\n");
         while (1)
             asm volatile("hlt");

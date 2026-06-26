@@ -216,7 +216,6 @@ void schedule(void)
     if (!next || next == prev)
         return;
 
-    kprintf("Context switch occurred\n");
     // switch_current_task(prev, next);
 }
 
@@ -274,19 +273,19 @@ __attribute__((noinline)) void sys_exit(int status)
         dead->parent->state = TASK_READY;
     outb(0xE9, 'z');
 
-    // task_t *next = current_task;
-    // outb(0xE9, 'n');
+    task_t *next = current_task;
+    outb(0xE9, 'n');
 
-    // outb(0xE9, 'm');
+    outb(0xE9, 'm');
 
-    // outb(0xE9, 'a');
-    // outb(0xE9, 'b');
-    // outb(0xE9, 'c');
+    outb(0xE9, 'a');
+    outb(0xE9, 'b');
+    outb(0xE9, 'c');
 
-    // outb(0xE9, 'E');
-    // switch_current_task(NULL, next);
-    // outb(0xE9, '!');
-    // __builtin_unreachable();
+    outb(0xE9, 'E');
+    switch_current_task(NULL, next);
+    outb(0xE9, '!');
+    __builtin_unreachable();
 }
 
 int sys_waitpid(int target_pid, int *status)

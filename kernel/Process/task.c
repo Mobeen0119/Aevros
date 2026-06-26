@@ -217,7 +217,7 @@ void schedule(void)
         return;
 
     kprintf("Context switch occurred\n");
-    switch_current_task(prev, next);
+    // switch_current_task(prev, next);
 }
 
 __attribute__((noinline)) void sys_exit(int status)

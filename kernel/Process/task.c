@@ -35,9 +35,9 @@ void task_inherit_fds(task_t *child, task_t *parent)
 
 extern void jump_user_mode(uint32_t entry, uint32_t stack);
 
-extern void switch_current_task(task_t *prev, task_t *next);
+// extern void switch_current_task(task_t *prev, task_t *next);
 
-extern uint32_t read_eip();
+// extern uint32_t read_eip();
 
 static inline uint32_t read_cr3()
 {
@@ -231,7 +231,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     return new_task;
 }
 
-void schedule(void)
+void schedule(register_t *r)
 {
     task_t *prev = current_task;
     task_t *next = pick_next_task();
@@ -251,7 +251,15 @@ void schedule(void)
     // kprintf("prev cr3=%x\n", prev->cr3);
     // kprintf("next cr3=%x\n", next->cr3);
 
-    // switch_current_task(prev, next);
+    memcpy(&prev->regs, r, sizeof(register_t));
+
+    current_task = next;
+
+    memcpy(r, &next->regs, sizeof(register_t));
+
+    update_tss(next->kernel_stack);
+
+    load_page_directory(next->cr3);
 }
 
 __attribute__((noinline)) void sys_exit(int status)

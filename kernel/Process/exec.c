@@ -112,6 +112,7 @@ int exec_user(void *binary, uint32_t size)
         task->fd_table[i]->inode->ref_count++;
     }
 
+    task_register_all(task);
     task_add_ready(task);
 
     return task->pid;

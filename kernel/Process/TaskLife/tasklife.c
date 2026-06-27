@@ -141,7 +141,7 @@ void tasklife_dump_current(void)
 }
 
 void tasklife_ps(void){
-    if(!ready_queue) {
+    if(!all_tasks) {
         kprint("No tasks running\n");
         return;
     }
@@ -149,9 +149,10 @@ void tasklife_ps(void){
      kprintf("\n  PID     NAME     STATE      TICKS ALIVE  PARENT\n");
     kprintf("  ────────────────────────────────────────────────\n");
 
-    task_t* t =ready_queue;
+    task_t* t = all_tasks;
 
-    do{
+    while (t)
+    {
         const char* state=t->state == TASK_READY    ? "READY    " :
             t->state == TASK_RUNNING  ? "RUNNING  " :
             t->state == TASK_BLOCKED  ? "BLOCKED  " :
@@ -163,8 +164,8 @@ void tasklife_ps(void){
                 state,
                 get_ticks() - t->start_time,
                 t->parent ? t->parent->pid : 0);
-            t=t->next;
-  }while(t!=ready_queue);
+            t = t->all_next;
+  }
 
   kprint("\n");
 }

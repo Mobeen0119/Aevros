@@ -17,6 +17,7 @@
 #include "TaskLife/tasklife.h"
 
 task_t *current_task = 0, *ready_queue = 0;
+task_t *all_tasks = 0;
 
 int next_pid = 0;
 
@@ -32,6 +33,15 @@ void task_inherit_fds(task_t *child, task_t *parent)
             child->fd_table[i]->inode->ref_count++;
         }
     }
+}
+
+void task_register_all(task_t *task)
+{
+    if (!task)
+        return;
+
+    task->all_next = all_tasks;
+    all_tasks = task;
 }
 
 static inline uint32_t read_cr3()
@@ -103,6 +113,7 @@ void init_tasking()
 
     current_task->next = current_task;
     ready_queue = current_task;
+    task_register_all(current_task);
     task_log_event(current_task, EVT_CREATED, 0);
 }
 
@@ -229,6 +240,8 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir,
     new_task->is_user = (page_dir != 0) ? 1 : 0;
     task_inherit_fds(new_task, current_task);
 
+    task_register_all(new_task);
+
     return new_task;
 }
 
@@ -332,12 +345,9 @@ int sys_waitpid(int target_pid, int *status)
     while (1)
     {
         int has_children = 0;
-        task_t *curr = ready_queue;
+        task_t *curr = all_tasks;
 
-        if (!curr)
-            return VFS_ERR;
-
-        do
+        while (curr)
         {
             if (curr->parent == parent && (target_pid == -1 || curr->pid == target_pid))
             {
@@ -348,15 +358,17 @@ int sys_waitpid(int target_pid, int *status)
                     if (status != NULL)
                         *status = curr->exit_code;
 
-                    task_t *linker = ready_queue;
-
-                    while (linker->next != curr)
-                        linker = linker->next;
-
-                    linker->next = curr->next;
-
-                    if (ready_queue == curr)
-                        ready_queue = curr->next;
+                    task_t *linker = all_tasks;
+                    if (linker == curr)
+                    {
+                        all_tasks = curr->all_next;
+                    }
+                    else
+                    {
+                        while (linker->all_next != curr)
+                            linker = linker->all_next;
+                        linker->all_next = curr->all_next;
+                    }
 
                     int dead_pid = curr->pid;
 
@@ -367,8 +379,8 @@ int sys_waitpid(int target_pid, int *status)
                     return dead_pid;
                 }
             }
-            curr = curr->next;
-        } while (curr != ready_queue);
+            curr = curr->all_next;
+        }
 
         if (!has_children)
             return VFS_ERR;

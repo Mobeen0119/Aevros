@@ -87,6 +87,7 @@ typedef struct task
     file_t *fd_table[TASK_MAX_FDS];
     dentry_t *cwd;
     struct task *next;
+    struct task *all_next;
     struct task *parent;
     int started;
 
@@ -112,6 +113,7 @@ typedef struct task
 
 extern task_t *current_task;
 extern task_t *ready_queue;
+extern task_t *all_tasks;
 extern int next_pid;
 
 void init_tasking();
@@ -133,6 +135,7 @@ int do_fork(register_t *state_at_interuppt);
 int sys_waitpid(int target_pid, int *status);
 
 void task_add_ready(task_t *task);
+void task_register_all(task_t *task);
 
 void task_wake(task_t *task);
 uint32_t get_ticks(void);

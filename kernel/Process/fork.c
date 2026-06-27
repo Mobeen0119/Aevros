@@ -129,6 +129,7 @@ int do_fork(register_t *state_at_interuppt)
     task_log_event(child, EVT_CREATED, parent->pid);
 
     int pid = child->pid;
+    task_register_all(child);
     task_add_ready(child);
     return pid;
     

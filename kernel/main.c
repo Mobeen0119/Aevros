@@ -44,11 +44,11 @@ void test_leaky_task()
 
 void test_forking_task()
 {
-    int pid = do_fork(NULL);
-    (void)pid;
+    // int pid = do_fork(NULL);
+    // (void)pid;
 
-    while (1)
-        asm volatile("hlt");
+    // while (1)
+    //     asm volatile("hlt");
 }
 
 static inline void user_exit(int code)
@@ -136,7 +136,7 @@ void kernel_main()
 
     kprintf("BEFORE TASK CREATE\n");
 
-     task_create_kernel(fork_test_program);
+    //  task_create_kernel(fork_test_program);
     kprintf("AFTER TASK CREATE\n");
     pit_init(100);
     asm volatile("sti");

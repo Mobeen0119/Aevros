@@ -73,6 +73,7 @@ switch_current_task:
     pop esi
     pop ebx
     pop ebp
+    popf
     iret
 
 .kernel:

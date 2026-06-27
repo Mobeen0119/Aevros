@@ -242,14 +242,7 @@ void schedule(register_t *r)
     kprintf("prev=%u next=%u\n", prev->pid, next->pid);
     uint32_t *sp = (uint32_t *)next->regs.esp;
 
-    // kprintf("prev=%x\n", prev);
-    // kprintf("next=%x\n", next);
 
-    // kprintf("prev esp=%x\n", prev->regs.esp);
-    // kprintf("next esp=%x\n", next->regs.esp);
-
-    // kprintf("prev cr3=%x\n", prev->cr3);
-    // kprintf("next cr3=%x\n", next->cr3);
 
     memcpy(&prev->regs, r, sizeof(register_t));
 

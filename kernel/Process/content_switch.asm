@@ -81,7 +81,7 @@ resume_normal:
     popf
     mov al, '8'
     out 0xE9, al
-    iret
+    ret
 
 first_run:
     mov dword [ecx + FIRST_RUN_OFFSET], 0x0

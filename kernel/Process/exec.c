@@ -84,6 +84,8 @@ int exec_user(void *binary, uint32_t size)
     task->state = TASK_READY;
     task->cr3 = new_cr3;
     task->regs.eip = hdr->entry_point;
+    task->first_run = 1;
+    task->is_user = 1;
 
     task->regs.ebp = USER_STACK_TOP;
     task->kernel_stack = (uint32_t)kstack + 4096;
@@ -107,6 +109,7 @@ int exec_user(void *binary, uint32_t size)
     *(--sp) = 0; // esi
     *(--sp) = 0; // ebx
     *(--sp) = 0; // ebp
+    *(--sp) = 0; // eax
 
     task->regs.esp = (uint32_t)sp;
 
@@ -232,6 +235,8 @@ int sys_exec(const char *path)
     current_task->user_time=0;
     current_task->kernel_time=0;
     current_task->start_time=get_ticks();
+    current_task->first_run = 1;
+    current_task->is_user = 1;
 
     strncpy(current_task->name, path, TASK_NAME_LEN);
 
@@ -247,6 +252,7 @@ int sys_exec(const char *path)
     *(--sp) = 0; // esi
     *(--sp) = 0; // ebx
     *(--sp) = 0; // ebp
+    *(--sp) = 0; // eax
 
     current_task->regs.esp = (uint32_t)sp; // Point to iret frame on kernel stack
 

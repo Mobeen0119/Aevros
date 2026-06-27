@@ -87,7 +87,6 @@ int exec_user(void *binary, uint32_t size)
     task->first_run = 1;
     task->is_user = 1;
 
-    task->regs.ebp = USER_STACK_TOP;
     task->kernel_stack = (uint32_t)kstack + 4096;
     task->kernel_stack_base = (uint32_t)kstack;
     task->cwd = current_task->cwd;
@@ -98,20 +97,7 @@ int exec_user(void *binary, uint32_t size)
     if (task->cwd)
         task->cwd->ref_count++;
 
-    uint32_t *sp = (uint32_t *)((uint32_t)kstack + 4096);
-    *(--sp) = 0x23 | 3;         // SS
-    *(--sp) = USER_STACK_TOP;   // ESP
-    *(--sp) = 0x202;            // EFLAGS
-    *(--sp) = 0x1B | 3;         // CS
-    *(--sp) = hdr->entry_point; // EIP
-
-    *(--sp) = 0; // edi
-    *(--sp) = 0; // esi
-    *(--sp) = 0; // ebx
-    *(--sp) = 0; // ebp
-    *(--sp) = 0; // eax
-
-    task->regs.esp = (uint32_t)sp;
+    task->context_esp = build_initial_stack((uint8_t *)kstack, hdr->entry_point, 0x1B, 0x23, USER_STACK_TOP);
 
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
@@ -240,21 +226,9 @@ int sys_exec(const char *path)
 
     strncpy(current_task->name, path, TASK_NAME_LEN);
 
-    uint32_t *sp = (uint32_t *)current_task->kernel_stack;
-    *(--sp) = 0x23 | 3;         // SS
-    *(--sp) = USER_STACK_TOP;   // ESP
-    *(--sp) = 0x202;            // EFLAGS=
-    *(--sp) = 0x1B | 3;         // CS
-    *(--sp) = hdr->entry_point; // EIP
-
-    // Saved registers
-    *(--sp) = 0; // edi
-    *(--sp) = 0; // esi
-    *(--sp) = 0; // ebx
-    *(--sp) = 0; // ebp
-    *(--sp) = 0; // eax
-
-    current_task->regs.esp = (uint32_t)sp; // Point to iret frame on kernel stack
+    current_task->context_esp = build_initial_stack(
+        (uint8_t *)(current_task->kernel_stack - 4096),
+        hdr->entry_point, 0x1B, 0x23, USER_STACK_TOP);
 
     destroy_user_space(old_cr3);
 

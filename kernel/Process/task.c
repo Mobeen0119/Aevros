@@ -91,22 +91,10 @@ void init_tasking()
     }
 
     uint32_t stack_top = (uint32_t)stack_base + 4096;
-    uint32_t *sp = (uint32_t *)stack_top;
 
-    *(--sp) = 0x10;                    // ss   (kernel data selector)
-    *(--sp) = stack_top;               // esp  (only consumed by iret on a ring change; harmless here)
-    *(--sp) = 0x202;                   // eflags (IF set)
-    *(--sp) = 0x08;                    // cs   (kernel code selector)
-    *(--sp) = (uint32_t)shell_start;   // eip  (where this task starts running)
-    *(--sp) = 0; // edi
-    *(--sp) = 0; // esi
-    *(--sp) = 0; // ebx
-    *(--sp) = 0; // ebp
-    *(--sp) = 0; // eax
+    current_task->context_esp = build_initial_stack(stack_base, (uint32_t)shell_start, 0x08, 0x10, stack_top);
 
     current_task->cr3 = read_cr3();
-    current_task->regs.esp = (uint32_t)sp;
-    current_task->regs.ebp = stack_top;
     current_task->regs.eip = (uint32_t)shell_start;
     current_task->kernel_stack = stack_top;
     current_task->kernel_stack_base = (uint32_t)stack_base;
@@ -120,7 +108,7 @@ void init_tasking()
 
 task_t *task_create_kernel(void (*entry_point)())
 {
-    task_t *t = create_process(entry_point, 0, 0);
+    task_t *t = create_process(entry_point, 0, 0, 0);
     if (t)
     {
         strncpy(t->name, "kernel", TASK_NAME_LEN);
@@ -152,22 +140,50 @@ task_t *task_create_user(void (*entry_point)())
     map_page_in_directory(page_dir, user_stack_top, phys, PAGE_PRESENT | PAGE_USER | PAGE_WRITE);
     map_page_in_directory(page_dir, user_stack_top - 4096, phys2, PAGE_PRESENT | PAGE_USER | PAGE_WRITE);
 
-    task_t *task = create_process(entry_point, 0, page_dir);
+    task_t *task = create_process(entry_point, 0, page_dir, user_stack_top + 4096 - 16);
     if (!task)
     {
         destroy_user_space(page_dir);
         return NULL;
     }
 
-    uint32_t *frame = (uint32_t *)task->regs.esp;
-    frame[8] = user_stack_top + 4096 - 16;
-
     task_add_ready(task);
     kprint("TASK USER CREATED\n");
     return task;
 }
 
-task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
+uint32_t build_initial_stack(uint8_t *stack_base, uint32_t entry_point, uint32_t cs, uint32_t ss, uint32_t user_esp)
+{
+    uint32_t stack_top = (uint32_t)stack_base + 4096;
+    uint32_t *sp = (uint32_t *)stack_top;
+
+    *(--sp) = ss;
+    *(--sp) = user_esp;
+    *(--sp) = 0x202;
+    *(--sp) = cs;
+    *(--sp) = entry_point;
+    *(--sp) = 0; // err_code
+    *(--sp) = 0; // int_no
+    *(--sp) = 0; // eax
+    *(--sp) = 0; // ecx
+    *(--sp) = 0; // edx
+    *(--sp) = 0; // ebx
+    *(--sp) = 0; // esp (ignored by popa)
+    *(--sp) = 0; // ebp
+    *(--sp) = 0; // esi
+    *(--sp) = 0; // edi
+    *(--sp) = ss; // ds
+
+    *(--sp) = (uint32_t)trap_return; // eip for context_switch's ret
+    *(--sp) = 0; // ebp
+    *(--sp) = 0; // ebx
+    *(--sp) = 0; // esi
+    *(--sp) = 0; // edi
+
+    return (uint32_t)sp;
+}
+
+task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir, uint32_t user_stack_top)
 {
     (void)flags;
 
@@ -189,7 +205,6 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     }
 
     uint32_t stack_top = (uint32_t)stack_base + 4096;
-    uint32_t *sp = (uint32_t *)stack_top;
 
     uint32_t cs, ss;
     if (page_dir)
@@ -203,20 +218,10 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
         ss = 0x10;
     }
 
-    *(--sp) = ss;
-    *(--sp) = stack_top;
-    *(--sp) = 0x202;
-    *(--sp) = cs;
-    *(--sp) = (uint32_t)entry_point;
-    *(--sp) = 0; // edi
-    *(--sp) = 0; // esi
-    *(--sp) = 0; // ebx
-    *(--sp) = 0; // ebp
-    *(--sp) = 0; // eax
+    new_task->context_esp = build_initial_stack(stack_base, (uint32_t)entry_point, cs, ss,
+                                                 page_dir ? user_stack_top : stack_top);
 
     new_task->cr3 = page_dir ? page_dir : read_cr3();
-    new_task->regs.esp = (uint32_t)sp;
-    new_task->regs.ebp = stack_top;
     new_task->regs.eip = (uint32_t)entry_point;
     new_task->kernel_stack = stack_top;
 
@@ -232,16 +237,16 @@ void schedule(void)
     task_t *prev = current_task;
     task_t *next = pick_next_task();
 
-    if (!next || next == prev)
+    if (!next || next == prev || !prev)
         return;
 
-    if (prev && prev->state == TASK_RUNNING)
+    if (prev->state == TASK_RUNNING)
         prev->state = TASK_READY;
 
     next->state = TASK_RUNNING;
+    current_task = next;
 
-    kprintf("Context switch occurred\n");
-    switch_current_task(prev, next);
+    context_switch(&prev->context_esp, next->context_esp);
 }
 
 __attribute__((noinline)) void sys_exit(int status)
@@ -311,7 +316,8 @@ __attribute__((noinline)) void sys_exit(int status)
 
     outb(0xE9, 'E');
     next->state = TASK_RUNNING;
-    switch_current_task(NULL, next);
+    current_task = next;
+    context_switch(&dead->context_esp, next->context_esp);
     outb(0xE9, '!');
     __builtin_unreachable();
 }

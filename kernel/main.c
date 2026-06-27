@@ -146,8 +146,9 @@ void kernel_main()
     kprintf("\nForgeOS ready. Try: ps, memstory, fdleak, outlook\n");
 
     {
+        static uint32_t boot_context_discard;
         task_t *shell_task = current_task;
-        switch_current_task(NULL, shell_task);
+        context_switch(&boot_context_discard, shell_task->context_esp);
     }
 
     while (1)

@@ -64,6 +64,15 @@ typedef enum
 
 } task_state_t;
 
+typedef struct context
+{
+    uint32_t edi;
+    uint32_t esi;
+    uint32_t ebx;
+    uint32_t ebp;
+    uint32_t eip;
+} context_t;
+
 typedef struct task
 {
     uint32_t cr3;
@@ -73,6 +82,7 @@ typedef struct task
 
     uint32_t kernel_stack;
     uint32_t kernel_stack_base;
+    uint32_t context_esp;
 
     file_t *fd_table[TASK_MAX_FDS];
     dentry_t *cwd;
@@ -106,7 +116,7 @@ extern int next_pid;
 
 void init_tasking();
 
-task_t *create_process(void (*entry)(), uint32_t flags, uint32_t page_dir);
+task_t *create_process(void (*entry)(), uint32_t flags, uint32_t page_dir, uint32_t user_stack_top);
 
 task_t *task_create_kernel(void (*entry_point)());
 
@@ -127,7 +137,9 @@ void task_add_ready(task_t *task);
 void task_wake(task_t *task);
 uint32_t get_ticks(void);
 
-void switch_current_task(task_t *prev, task_t *next);
+void context_switch(uint32_t *old_esp, uint32_t new_esp);
+void trap_return(void);
 uint32_t read_eip(void);
+uint32_t build_initial_stack(uint8_t *stack_base, uint32_t entry_point, uint32_t cs, uint32_t ss, uint32_t user_esp);
 
 #endif

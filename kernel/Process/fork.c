@@ -70,28 +70,32 @@ int do_fork(register_t *state_at_interuppt)
 
     outb(0xE9, ']');
 
-   uint32_t *sp = (uint32_t *)stack_top;
-*(--sp) = state_at_interuppt->ss;
-*(--sp) = state_at_interuppt->useresp;
-*(--sp) = state_at_interuppt->eflags;
-*(--sp) = state_at_interuppt->cs;
-*(--sp) = state_at_interuppt->eip;
-*(--sp) = state_at_interuppt->edi;
-*(--sp) = state_at_interuppt->esi;
-*(--sp) = state_at_interuppt->ebx;
-*(--sp) = state_at_interuppt->ebp;
-*(--sp) = 0;
+    uint32_t *sp = (uint32_t *)stack_top;
+    *(--sp) = state_at_interuppt->ss;
+    *(--sp) = state_at_interuppt->useresp;
+    *(--sp) = state_at_interuppt->eflags;
+    *(--sp) = state_at_interuppt->cs;
+    *(--sp) = state_at_interuppt->eip;
+    *(--sp) = state_at_interuppt->err_code;
+    *(--sp) = state_at_interuppt->int_no;
+    *(--sp) = 0; // eax (fork return value in child)
+    *(--sp) = state_at_interuppt->ecx;
+    *(--sp) = state_at_interuppt->edx;
+    *(--sp) = state_at_interuppt->ebx;
+    *(--sp) = 0; // esp (ignored by popa)
+    *(--sp) = state_at_interuppt->ebp;
+    *(--sp) = state_at_interuppt->esi;
+    *(--sp) = state_at_interuppt->edi;
+    *(--sp) = state_at_interuppt->ds;
 
-child->regs.esp = (uint32_t)sp;
-child->regs.eip = state_at_interuppt->eip;
-child->regs.ebp = state_at_interuppt->ebp;
+    *(--sp) = (uint32_t)trap_return; // eip for context_switch's ret
+    *(--sp) = 0; // ebp
+    *(--sp) = 0; // ebx
+    *(--sp) = 0; // esi
+    *(--sp) = 0; // edi
 
-    child->regs.esp = (uint32_t)sp;
+    child->context_esp = (uint32_t)sp;
     child->regs.eip = state_at_interuppt->eip;
-    child->regs.ebp = state_at_interuppt->ebp;
-    outb(0xE9, '<');
-dbg_hex32(state_at_interuppt->ebp);
-outb(0xE9, '>');
 
     child->cwd = parent->cwd;
     if (child->cwd)

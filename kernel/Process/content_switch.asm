@@ -32,6 +32,7 @@ switch_current_task:
     push ebx
     push esi
     push edi
+    push eax
 
     mov [eax + ESP_OFFSET], esp
     mov [eax + EBP_OFFSET], ebp
@@ -74,6 +75,7 @@ load_next:
     out 0xE9, al
 
 resume_normal:
+    pop eax
     pop edi
     pop esi
     pop ebx
@@ -105,6 +107,7 @@ first_run_kernel:
     mov gs, ax
 
 first_run_resume:
+    pop eax
     pop ebp
     pop ebx
     pop esi

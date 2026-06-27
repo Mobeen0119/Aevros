@@ -102,8 +102,7 @@ void init_tasking()
     *(--sp) = 0; // esi
     *(--sp) = 0; // ebx
     *(--sp) = 0; // ebp
-
-    current_task->cr3 = read_cr3();
+    *(--sp) = 0; // eax
     current_task->regs.esp = (uint32_t)sp;
     current_task->regs.ebp = stack_top;
     current_task->regs.eip = (uint32_t)shell_start;

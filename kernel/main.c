@@ -137,6 +137,7 @@ void kernel_main()
     kprintf("BEFORE TASK CREATE\n");
 
      task_create_user(user_program);
+    task_create_user(fork_test_program);
     kprintf("AFTER TASK CREATE\n");
     pit_init(100);
     asm volatile("sti");

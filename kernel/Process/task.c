@@ -103,6 +103,8 @@ void init_tasking()
     *(--sp) = 0; // ebx
     *(--sp) = 0; // ebp
     *(--sp) = 0; // eax
+
+    current_task->cr3 = read_cr3();
     current_task->regs.esp = (uint32_t)sp;
     current_task->regs.ebp = stack_top;
     current_task->regs.eip = (uint32_t)shell_start;
@@ -158,7 +160,7 @@ task_t *task_create_user(void (*entry_point)())
     }
 
     uint32_t *frame = (uint32_t *)task->regs.esp;
-    frame[7] = user_stack_top + 4096 - 16;
+    frame[8] = user_stack_top + 4096 - 16;
 
     task_add_ready(task);
     kprint("TASK USER CREATED\n");
@@ -210,6 +212,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir)
     *(--sp) = 0; // esi
     *(--sp) = 0; // ebx
     *(--sp) = 0; // ebp
+    *(--sp) = 0; // eax
 
     new_task->cr3 = page_dir ? page_dir : read_cr3();
     new_task->regs.esp = (uint32_t)sp;

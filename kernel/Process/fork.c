@@ -53,6 +53,7 @@ int do_fork(register_t *state_at_interuppt)
     child->state = TASK_READY;
     child->next = NULL;
     child->first_run = 1;
+    child->is_user = 1;
 
     uint32_t stack_top = (uint32_t)new_stack + 4096;
     child->kernel_stack = stack_top;
@@ -79,6 +80,7 @@ int do_fork(register_t *state_at_interuppt)
 *(--sp) = state_at_interuppt->esi;
 *(--sp) = state_at_interuppt->ebx;
 *(--sp) = state_at_interuppt->ebp;
+*(--sp) = 0;
 
 child->regs.esp = (uint32_t)sp;
 child->regs.eip = state_at_interuppt->eip;

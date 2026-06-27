@@ -1,0 +1,21 @@
+#ifndef TSS_H
+#define TSS_H
+
+#include <stdint.h>
+
+typedef struct
+{
+    uint32_t prev_tss;
+    uint32_t esp0;
+    uint32_t ss0;
+    uint32_t esp1;
+    uint32_t ss1, esp2, ss2, cr3, eip, eflags, eax, ecx, edx, ebx, esp, ebp, esi, edi, es, cs, ss, ds, fs, gs, ldt;
+    uint16_t trap, iomap_base;
+} __attribute__((packed)) tss_entry_t;
+
+extern tss_entry_t tss;
+
+void write_tss(int num, uint16_t ss0, uint32_t esp0);
+extern void load_tss();
+
+#endif

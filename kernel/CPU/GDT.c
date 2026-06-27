@@ -1,0 +1,59 @@
+#include "GDT.h"
+#include "TSS.h"
+#include "../../Lib/string.h"
+#include "../../Lib/kprintf.h"
+#include "../Memory/pmm.h"
+
+struct gdt_entry_struct gdt_entries[6];
+
+extern void gdt_flush(uint32_t gdt_ptr);
+struct gdt_ptr_s
+{
+    uint16_t limit;
+    uint32_t base;
+} __attribute__((packed));
+
+static struct gdt_ptr_s gdt_ptr;
+
+void gdt_gate_set(int32_t num, uint32_t base, uint32_t limit, uint8_t acc, uint8_t gran)
+{
+    gdt_entries[num].base_low = base & 0xFFFF;
+    gdt_entries[num].base_middle = (base >> 16) & 0xFF;
+    gdt_entries[num].base_high = (base >> 24) & 0xFF;
+    gdt_entries[num].limit_low = limit & 0xFFFF;
+    gdt_entries[num].Limit_high_flags = (limit >> 16) & 0x0F;
+    gdt_entries[num].Limit_high_flags |= gran & 0xF0;
+    gdt_entries[num].access = acc;
+}
+
+static uint8_t debug_dump[16];
+
+void gdt_init()
+{
+    memset(gdt_entries, 0, sizeof(gdt_entries));
+
+    gdt_gate_set(0, 0, 0, 0, 0);
+    gdt_gate_set(1, 0, 0xFFFFFFFF, 0x9A, 0xCF);
+    gdt_gate_set(2, 0, 0xFFFFFFFF, 0x92, 0xCF);
+    gdt_gate_set(3, 0, 0xFFFFFFFF, 0xFA, 0xCF);
+    gdt_gate_set(4, 0, 0xFFFFFFFF, 0xF2, 0xCF);
+    write_tss(5, 0x10, 0);
+
+    gdt_ptr.limit = (uint16_t)(sizeof(gdt_entries) - 1);
+    gdt_ptr.base = (uint32_t)&gdt_entries;
+
+    memcpy(debug_dump, &gdt_ptr, 6);
+    memcpy(debug_dump + 6, &gdt_entries[1], 8);
+
+    gdt_flush((uint32_t)&gdt_ptr);
+    load_tss();
+        kprintf("GDT bytes: %x %x %x %x %x %x\n",
+            ((uint8_t*)&gdt_entries[1])[0], ((uint8_t*)&gdt_entries[1])[1],
+            ((uint8_t*)&gdt_entries[1])[2], ((uint8_t*)&gdt_entries[1])[3],
+            ((uint8_t*)&gdt_entries[1])[4], ((uint8_t*)&gdt_entries[1])[5]);
+}
+
+void update_tss(uint32_t stack)
+{
+    tss.esp0 = stack;
+}

@@ -10,6 +10,7 @@
 
 #include "../../Include/vfs.h"
 #include "TaskLife/tasklife.h"
+#include "../io.h"
 
 static inline uint32_t read_cr3()
 {
@@ -142,9 +143,7 @@ int sys_exec(const char *path)
 
     if (!buffer)
     {
-
         sys_close(fd);
-
         return VFS_ERR;
     }
 

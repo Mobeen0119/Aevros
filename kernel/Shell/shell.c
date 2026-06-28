@@ -21,6 +21,7 @@
 #include "../Process/FDLeak/fdleak.h"
 #include "../Memory/buddy.h"
 #include "../selftest.h"
+#include "../Process/exec.h"
 
 void shell_prompt()
 {
@@ -38,6 +39,14 @@ void shell_execute(char *input)
 
     if (strcmp(argv[0], "clear") == 0)
         kclear_screen();
+
+    else if (strcmp(argv[0], "exec") == 0)
+    {
+        const char *path = (argc < 2) ? "/exectest.elf" : argv[1];
+        int result = sys_exec(path);
+        if (result < 0)
+            kprintf("exec: failed to run %s\n", path);
+    }
 
     else if (strcmp(argv[0], "ls") == 0)
     {

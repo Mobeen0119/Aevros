@@ -29,6 +29,7 @@
 #include "pic.h"
 #include "io.h"
 #include "Syscall/syscall.h"
+#include "Process/exectest_blob.h"
 
 void test_leaky_task()
 {
@@ -133,6 +134,15 @@ void kernel_main()
     tty_init();
     devfs_init();
     init_tasking();
+
+    {
+        int fd = sys_open("/exectest.elf", READ_WRITE | CREAT);
+        if (fd >= 0)
+        {
+            sys_write(fd, (uint8_t *)exectest_blob, exectest_blob_len);
+            sys_close(fd);
+        }
+    }
 
     kprintf("BEFORE TASK CREATE\n");
 

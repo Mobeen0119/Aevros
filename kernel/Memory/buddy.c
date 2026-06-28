@@ -30,28 +30,32 @@ void buddy_init(uint32_t start, uint32_t end)
     for (int i = 0; i <= MAX_ORDER; i++)
         free_lists[i] = NULL;
 
-    uint32_t block_size = (1 << MAX_ORDER) * 4096;
-    uint32_t addr = start;
     buddy_total_mem = end - start;
 
-    if (addr & (block_size - 1))
-        addr = (addr + block_size-1) & ~(block_size - 1);
+    int order = MAX_ORDER;
+    uint32_t addr = start;
+    uint32_t block_size = (1u << order) * 4096;
 
-    while (addr + block_size <= end)
+    while (order > 0)
     {
-        add_to_list((void *)addr, MAX_ORDER);
-        addr += block_size;
-    }
-
-    if (free_lists[MAX_ORDER] == NULL)
-    {
-        addr = start;
-        while (addr + 4096 <= end)
+        uint32_t aligned = (addr + block_size - 1) & ~(block_size - 1);
+        if (aligned + block_size <= end)
         {
-            add_to_list((void *)addr, 0);
-            addr += 4096;
+            addr = aligned;
+            break;
         }
+        order--;
+        block_size = (1u << order) * 4096;
     }
+
+    if (order == 0)
+    {
+        addr = (start + 4095) & ~4095u;
+        if (addr + 4096 > end)
+            return;
+    }
+
+    add_to_list((void *)addr, order);
 }
 
 void buddy_debug_list(int order)

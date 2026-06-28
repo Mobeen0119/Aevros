@@ -25,7 +25,7 @@
 
 void shell_prompt()
 {
-    kprint("FORGE_OS > ");
+    kprint("ForgeOS > ");
 }
 
 void shell_execute(char *input)

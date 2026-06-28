@@ -4,7 +4,7 @@
 #include <stdint.h>
 #define WIDTH 80
 #define HEIGHT 25
-#define MAX_LINES 200
+#define MAX_LINES 1000
 
 struct Line
 {

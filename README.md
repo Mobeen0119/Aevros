@@ -52,12 +52,21 @@ qemu-system-i386 -cdrom forgeos.iso
 
 ## Known limitations
 
-- The buddy allocator's page-frame init assumes enough physical memory to
-  carve at least one block at its maximum order; on very small memory
-  configurations this can starve allocations above order 0. This is why
-  writing more than 4KB through the VFS into ramfs currently fails. Tracked
-  as a follow-up rather than patched under time pressure, since an
-  incomplete fix here previously caused a boot-time triple fault.
 - `sys_exec()` returns control through the normal syscall return path
   rather than forcing an immediate switch, so a replaced process image
   takes effect on the next scheduling decision rather than instantly.
+
+## Fixed: heap allocator header accounting
+
+`kmalloc_raw` previously computed the buddy allocation order from the
+requested size alone, without accounting for the block header that gets
+prepended to every allocation. Any allocation landing exactly on a
+power-of-two boundary - most commonly a 4KB kernel stack - would overflow
+by `sizeof(block_header_t)` bytes into the start of the next buddy block,
+corrupting its free-list pointer. This surfaced as an intermittent invalid
+pointer dereference inside `buddy_alloc`, usually during process creation.
+Fixed by deriving the order from `size + sizeof(block_header_t)`. This also
+required `buddy_init` to carve memory into a single aligned power-of-two
+region rather than several differently-sized top-level blocks, since the
+buddy free path's XOR-based address calculation only holds within one
+such region.

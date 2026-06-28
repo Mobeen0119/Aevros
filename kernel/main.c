@@ -72,6 +72,17 @@ void user_program()
     while (1) { }
 }
 
+void user_program_noexit(void)
+{
+    volatile uint32_t counter = 0;
+    while (1)
+    {
+        counter++;
+        if (counter % 500000 == 0)
+            syscall(SYS_WRITE, 1, (int)"spin\n", 5);
+    }
+}
+
 
 void fork_test_program(void)
 {
@@ -148,6 +159,8 @@ void kernel_main()
 
      task_create_user(user_program);
     task_create_user(fork_test_program);
+    task_create_user(user_program_noexit);
+    task_create_user(user_program_noexit);
     kprintf("AFTER TASK CREATE\n");
     pit_init(100);
     asm volatile("sti");

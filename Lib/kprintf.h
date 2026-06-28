@@ -3,7 +3,11 @@
 
 #include <stdint.h>
 #include <stdarg.h>
+<<<<<<< HEAD
 #include "../Include/screen.h"
+=======
+#include "../include/screen.h"
+>>>>>>> origin/main
 
 void print_hex(uint32_t num);
 

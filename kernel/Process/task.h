@@ -64,6 +64,7 @@ typedef enum
 
 } task_state_t;
 
+<<<<<<< HEAD
 typedef struct context
 {
     uint32_t edi;
@@ -73,6 +74,8 @@ typedef struct context
     uint32_t eip;
 } context_t;
 
+=======
+>>>>>>> origin/main
 typedef struct task
 {
     uint32_t cr3;
@@ -82,12 +85,18 @@ typedef struct task
 
     uint32_t kernel_stack;
     uint32_t kernel_stack_base;
+<<<<<<< HEAD
     uint32_t context_esp;
+=======
+>>>>>>> origin/main
 
     file_t *fd_table[TASK_MAX_FDS];
     dentry_t *cwd;
     struct task *next;
+<<<<<<< HEAD
     struct task *all_next;
+=======
+>>>>>>> origin/main
     struct task *parent;
     int started;
 
@@ -113,12 +122,19 @@ typedef struct task
 
 extern task_t *current_task;
 extern task_t *ready_queue;
+<<<<<<< HEAD
 extern task_t *all_tasks;
+=======
+>>>>>>> origin/main
 extern int next_pid;
 
 void init_tasking();
 
+<<<<<<< HEAD
 task_t *create_process(void (*entry)(), uint32_t flags, uint32_t page_dir, uint32_t user_stack_top);
+=======
+task_t *create_process(void (*entry)(), uint32_t flags, uint32_t page_dir);
+>>>>>>> origin/main
 
 task_t *task_create_kernel(void (*entry_point)());
 
@@ -134,15 +150,22 @@ int do_fork(register_t *state_at_interuppt);
 
 int sys_waitpid(int target_pid, int *status);
 
+<<<<<<< HEAD
 void task_add_ready(task_t *task);
 void task_register_all(task_t *task);
+=======
+void task_add_ready(task_t *task);
+>>>>>>> origin/main
 
 void task_wake(task_t *task);
 uint32_t get_ticks(void);
 
+<<<<<<< HEAD
 void context_switch(uint32_t *old_esp, uint32_t new_esp);
 void trap_return(void);
 uint32_t read_eip(void);
 uint32_t build_initial_stack(uint8_t *stack_base, uint32_t entry_point, uint32_t cs, uint32_t ss, uint32_t user_esp);
 
+=======
+>>>>>>> origin/main
 #endif

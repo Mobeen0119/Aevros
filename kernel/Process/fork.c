@@ -53,7 +53,10 @@ int do_fork(register_t *state_at_interuppt)
     child->state = TASK_READY;
     child->next = NULL;
     child->first_run = 1;
+<<<<<<< HEAD
     child->is_user = 1;
+=======
+>>>>>>> origin/main
 
     uint32_t stack_top = (uint32_t)new_stack + 4096;
     child->kernel_stack = stack_top;
@@ -70,6 +73,7 @@ int do_fork(register_t *state_at_interuppt)
 
     outb(0xE9, ']');
 
+<<<<<<< HEAD
     uint32_t *sp = (uint32_t *)stack_top;
     *(--sp) = state_at_interuppt->ss;
     *(--sp) = state_at_interuppt->useresp;
@@ -96,6 +100,29 @@ int do_fork(register_t *state_at_interuppt)
 
     child->context_esp = (uint32_t)sp;
     child->regs.eip = state_at_interuppt->eip;
+=======
+   uint32_t *sp = (uint32_t *)stack_top;
+*(--sp) = state_at_interuppt->ss;
+*(--sp) = state_at_interuppt->useresp;
+*(--sp) = state_at_interuppt->eflags;
+*(--sp) = state_at_interuppt->cs;
+*(--sp) = state_at_interuppt->eip;
+*(--sp) = state_at_interuppt->edi;
+*(--sp) = state_at_interuppt->esi;
+*(--sp) = state_at_interuppt->ebx;
+*(--sp) = state_at_interuppt->ebp;
+
+child->regs.esp = (uint32_t)sp;
+child->regs.eip = state_at_interuppt->eip;
+child->regs.ebp = state_at_interuppt->ebp;
+
+    child->regs.esp = (uint32_t)sp;
+    child->regs.eip = state_at_interuppt->eip;
+    child->regs.ebp = state_at_interuppt->ebp;
+    outb(0xE9, '<');
+dbg_hex32(state_at_interuppt->ebp);
+outb(0xE9, '>');
+>>>>>>> origin/main
 
     child->cwd = parent->cwd;
     if (child->cwd)
@@ -129,7 +156,10 @@ int do_fork(register_t *state_at_interuppt)
     task_log_event(child, EVT_CREATED, parent->pid);
 
     int pid = child->pid;
+<<<<<<< HEAD
     task_register_all(child);
+=======
+>>>>>>> origin/main
     task_add_ready(child);
     return pid;
     

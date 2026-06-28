@@ -12,12 +12,21 @@
 #include "Process/task.h"
 #include "Process/exec.h"
 #include "Process/TaskLife/tasklife.h"
+<<<<<<< HEAD
 #include "Process/ForgePoint/forgepoint.h"
 #include "Process/FDLeak/fdleak.h"
 #include "Process/OutLook/outlook.h"
 #include "Process/Quarantine/Quarantine.h"
 #include "Process/Blast/blast.h"
 #include "Process/WhyAlive/whyalive.h"
+=======
+#include "Process/Forgepoint/forgepoint.h"
+#include "Process/FdLeak/fdleak.h"
+#include "Process/Outlook/outlook.h"
+#include "Process/Quarantine/quarantine.h"
+#include "Process/Blast/blast.h"
+#include "Process/Whyalive/whyalive.h"
+>>>>>>> origin/main
 #include "Memory/MemFreeze/memfreeze.h"
 #include "Memory/buddy.h"
 #include "Memory/slab.h"
@@ -28,8 +37,12 @@
 #include "../Lib/kprintf.h"
 #include "pic.h"
 #include "io.h"
+<<<<<<< HEAD
 #include "Syscall/syscall.h"
 #include "Process/exectest_blob.h"
+=======
+#include "Syscall/syscall.h"
+>>>>>>> origin/main
 
 void test_leaky_task()
 {
@@ -45,11 +58,19 @@ void test_leaky_task()
 
 void test_forking_task()
 {
+<<<<<<< HEAD
     int pid = do_fork(NULL);
     (void)pid;
 
     while (1)
         asm volatile("hlt");
+=======
+    // int pid = do_fork(NULL);
+    // (void)pid;
+
+    // while (1)
+    //     asm volatile("hlt");
+>>>>>>> origin/main
 }
 
 static inline void user_exit(int code)
@@ -72,6 +93,7 @@ void user_program()
     while (1) { }
 }
 
+<<<<<<< HEAD
 void user_program_noexit(void)
 {
     volatile uint32_t counter = 0;
@@ -83,6 +105,8 @@ void user_program_noexit(void)
     }
 }
 
+=======
+>>>>>>> origin/main
 
 void fork_test_program(void)
 {
@@ -146,6 +170,7 @@ void kernel_main()
     devfs_init();
     init_tasking();
 
+<<<<<<< HEAD
     {
         int fd = sys_open("/exectest.elf", READ_WRITE | CREAT);
         if (fd >= 0)
@@ -161,18 +186,27 @@ void kernel_main()
     task_create_user(fork_test_program);
     task_create_user(user_program_noexit);
     task_create_user(user_program_noexit);
+=======
+    kprintf("BEFORE TASK CREATE\n");
+
+    //  task_create_kernel(fork_test_program);
+>>>>>>> origin/main
     kprintf("AFTER TASK CREATE\n");
     pit_init(100);
     asm volatile("sti");
     kprintf("STI DONE\n");
 
     kprintf("\nForgeOS ready. Try: ps, memstory, fdleak, outlook\n");
+<<<<<<< HEAD
 
     {
         static uint32_t boot_context_discard;
         task_t *shell_task = current_task;
         context_switch(&boot_context_discard, shell_task->context_esp);
     }
+=======
+    shell_start();
+>>>>>>> origin/main
 
     while (1)
         asm volatile("hlt");

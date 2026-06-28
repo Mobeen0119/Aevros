@@ -41,7 +41,11 @@ void *kmalloc_raw(size_t size)
 
     size_t total = size + sizeof(block_header_t);
 
+<<<<<<< HEAD
     int order = size_to_order(total);
+=======
+    int order = size_to_order(size);
+>>>>>>> origin/main
     block_header_t *hdr = (block_header_t *)buddy_alloc(order);
     if (!hdr)
         return NULL;

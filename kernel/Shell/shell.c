@@ -20,12 +20,20 @@
 #include "../Memory/KallocTracker/kalloc_tracker.h"
 #include "../Process/FDLeak/fdleak.h"
 #include "../Memory/buddy.h"
+<<<<<<< HEAD
 #include "../selftest.h"
 #include "../Process/exec.h"
 
 void shell_prompt()
 {
     kprint("ForgeOS > ");
+=======
+#include "../selftest.h"
+
+void shell_prompt()
+{
+    kprint("FORGE_OS > ");
+>>>>>>> origin/main
 }
 
 void shell_execute(char *input)
@@ -40,6 +48,7 @@ void shell_execute(char *input)
     if (strcmp(argv[0], "clear") == 0)
         kclear_screen();
 
+<<<<<<< HEAD
     else if (strcmp(argv[0], "exec") == 0)
     {
         const char *path = (argc < 2) ? "/exectest.elf" : argv[1];
@@ -48,6 +57,8 @@ void shell_execute(char *input)
             kprintf("exec: failed to run %s\n", path);
     }
 
+=======
+>>>>>>> origin/main
     else if (strcmp(argv[0], "ls") == 0)
     {
         cmd_ls();

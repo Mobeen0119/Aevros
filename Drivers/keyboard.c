@@ -1,10 +1,14 @@
 #include "keyboard.h"
 #include "../kernel/io.h"
 #include "../Lib/kprintf.h"
+<<<<<<< HEAD
 #include "../Include/terminal.h"
 #define KEY_RELEASE 0x80
 #define SCAN_PAGE_UP 0x49
 #define SCAN_PAGE_DOWN 0x51
+=======
+#define KEY_RELEASE 0x80
+>>>>>>> origin/main
 
 unsigned char keyb[128] = {
     0, 27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b', '\t',
@@ -39,6 +43,7 @@ void keyboard_handler()
     if (scan_code & KEY_RELEASE)
         return;
 
+<<<<<<< HEAD
     if (scan_code == SCAN_PAGE_UP)
     {
         if (scroll_top > 0)
@@ -56,6 +61,9 @@ void keyboard_handler()
     }
 
     char letter = keyb[(unsigned char)scan_code];
+=======
+    char letter = keyb[scan_code];
+>>>>>>> origin/main
     if (letter != 0)
         keyboard_push(letter);
 }

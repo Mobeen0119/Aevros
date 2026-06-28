@@ -9,8 +9,12 @@
 #include "../../Lib/string.h"
 
 #include "../../Include/vfs.h"
+<<<<<<< HEAD
 #include "TaskLife/tasklife.h"
 #include "../io.h"
+=======
+#include "TaskLife/tasklife.h"
+>>>>>>> origin/main
 
 static inline uint32_t read_cr3()
 {
@@ -85,9 +89,14 @@ int exec_user(void *binary, uint32_t size)
     task->state = TASK_READY;
     task->cr3 = new_cr3;
     task->regs.eip = hdr->entry_point;
+<<<<<<< HEAD
     task->first_run = 1;
     task->is_user = 1;
 
+=======
+
+    task->regs.ebp = USER_STACK_TOP;
+>>>>>>> origin/main
     task->kernel_stack = (uint32_t)kstack + 4096;
     task->kernel_stack_base = (uint32_t)kstack;
     task->cwd = current_task->cwd;
@@ -98,7 +107,23 @@ int exec_user(void *binary, uint32_t size)
     if (task->cwd)
         task->cwd->ref_count++;
 
+<<<<<<< HEAD
     task->context_esp = build_initial_stack((uint8_t *)kstack, hdr->entry_point, 0x1B, 0x23, USER_STACK_TOP);
+=======
+    uint32_t *sp = (uint32_t *)((uint32_t)kstack + 4096);
+    *(--sp) = 0x23 | 3;         // SS
+    *(--sp) = USER_STACK_TOP;   // ESP
+    *(--sp) = 0x202;            // EFLAGS
+    *(--sp) = 0x1B | 3;         // CS
+    *(--sp) = hdr->entry_point; // EIP
+
+    *(--sp) = 0; // edi
+    *(--sp) = 0; // esi
+    *(--sp) = 0; // ebx
+    *(--sp) = 0; // ebp
+
+    task->regs.esp = (uint32_t)sp;
+>>>>>>> origin/main
 
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
@@ -113,7 +138,10 @@ int exec_user(void *binary, uint32_t size)
         task->fd_table[i]->inode->ref_count++;
     }
 
+<<<<<<< HEAD
     task_register_all(task);
+=======
+>>>>>>> origin/main
     task_add_ready(task);
 
     return task->pid;
@@ -143,7 +171,13 @@ int sys_exec(const char *path)
 
     if (!buffer)
     {
+<<<<<<< HEAD
         sys_close(fd);
+=======
+
+        sys_close(fd);
+
+>>>>>>> origin/main
         return VFS_ERR;
     }
 
@@ -221,6 +255,7 @@ int sys_exec(const char *path)
     current_task->user_time=0;
     current_task->kernel_time=0;
     current_task->start_time=get_ticks();
+<<<<<<< HEAD
     current_task->first_run = 1;
     current_task->is_user = 1;
 
@@ -229,6 +264,25 @@ int sys_exec(const char *path)
     current_task->context_esp = build_initial_stack(
         (uint8_t *)(current_task->kernel_stack - 4096),
         hdr->entry_point, 0x1B, 0x23, USER_STACK_TOP);
+=======
+
+    strncpy(current_task->name, path, TASK_NAME_LEN);
+
+    uint32_t *sp = (uint32_t *)current_task->kernel_stack;
+    *(--sp) = 0x23 | 3;         // SS
+    *(--sp) = USER_STACK_TOP;   // ESP
+    *(--sp) = 0x202;            // EFLAGS=
+    *(--sp) = 0x1B | 3;         // CS
+    *(--sp) = hdr->entry_point; // EIP
+
+    // Saved registers
+    *(--sp) = 0; // edi
+    *(--sp) = 0; // esi
+    *(--sp) = 0; // ebx
+    *(--sp) = 0; // ebp
+
+    current_task->regs.esp = (uint32_t)sp; // Point to iret frame on kernel stack
+>>>>>>> origin/main
 
     destroy_user_space(old_cr3);
 

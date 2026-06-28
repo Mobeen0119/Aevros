@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 #include "Quarantine.h"
+=======
+#include "quarantine.h"
+>>>>>>> origin/main
 #include "../TaskLife/tasklife.h"
 #include "../../../Lib/kprintf.h"
 #include "../../../Lib/string.h"

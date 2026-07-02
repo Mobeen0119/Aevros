@@ -31,12 +31,14 @@
 #include "Syscall/syscall.h"
 #include "Process/exectest_blob.h"
 
+extern uint32_t kernel_end; 
+
 void kernel_main()
 {
     volatile char *v = (volatile char *)0xB8000;
     for (int i = 0; i < 80 * 25 * 2; i += 2)
     {
-        v[i]     = ' ';
+        v[i] = ' ';
         v[i + 1] = 0x07;
     }
 
@@ -44,10 +46,13 @@ void kernel_main()
 
     gdt_init();
     idt_init();
+
     pic_remap();
-    pmm_init(0x200000, 0x200000);
+
+    uint32_t free_start = (uint32_t)&kernel_end;
+    pmm_init(free_start, 0x2000000 - free_start);   
     paging_init();
-    buddy_init(0x800000, 0x2000000);
+    buddy_init(0x800000, 0x2000000); 
     slab_init_all();
     tracker_init();
     vfs_init();
@@ -69,9 +74,9 @@ void kernel_main()
     asm volatile("sti");
 
     kprintf("Welcome to ForgeOS\n");
-   set_color(VGA_CYAN,VGA_DARK_GREY);
+    set_color(VGA_CYAN, VGA_DARK_GREY);
     kprintf("\t\t\t\tType a command to get started.\n\n");
-    set_color(VGA_GREEN,VGA_BLACK);
+    set_color(VGA_GREEN, VGA_BLACK);
     kprintf("\nNyros > ");
     reset_color();
 
@@ -79,7 +84,6 @@ void kernel_main()
         static uint32_t boot_ctx;
         context_switch(&boot_ctx, current_task->context_esp);
     }
-    
 
     while (1)
         asm volatile("hlt");

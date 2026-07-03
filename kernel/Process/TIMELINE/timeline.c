@@ -51,7 +51,7 @@ static const char *event_name(task_event_type_t t)
 void timeline_dump(void)
 {
     static timeline_entry_t merged[TIMELINE_MAX];
-    int count = 0;
+    uint32_t count = 0;
     uint32_t task_count = 0;
 
     asm volatile("cli");
@@ -64,21 +64,28 @@ void timeline_dump(void)
     }
 
     task_t *t = ready_queue;
+    uint32_t safety = 0;
     do
     {
+        if (!t)
+            break;
+
         for (int i = 0; i < t->event_count && count < TIMELINE_MAX - 1; i++)
         {
             merged[count].tick = t->events[i].tick;
             merged[count].pid = t->pid;
-            strncpy(merged[count].name, t->name, TASK_NAME_LEN);
+
+            strncpy(merged[count].name, t->name, TASK_NAME_LEN - 1);
+            merged[count].name[TASK_NAME_LEN - 1] = '\0';
+
             merged[count].type = t->events[i].type;
             merged[count].data = t->events[i].data;
-            count++;
+            count = count + 1;
         }
         task_count++;
         t = t->next;
 
-    } while (t != ready_queue);
+    } while (t && t != ready_queue && count < TIMELINE_MAX - 1 && ++safety < 10000);
 
     asm volatile("sti");
 
@@ -88,10 +95,10 @@ void timeline_dump(void)
         return;
     }
 
-    for (int i = 0; i < count; i++)
+    for (uint32_t i = 1; i < count; i++)
     {
         timeline_entry_t key = merged[i];
-        int j = i - 1;
+        int j = (int)i - 1;
         while (j >= 0 && merged[j].tick > key.tick)
         {
             merged[j + 1] = merged[j];
@@ -102,7 +109,7 @@ void timeline_dump(void)
 
     kprintf("\n  TimeLine: \n\n");
 
-    for (int i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         timeline_entry_t *e = &merged[i];
 
@@ -136,5 +143,5 @@ void timeline_dump(void)
         kprintf("\n");
     }
 
-    kprintf("\n  %d events across %u task(s)\n\n", count, task_count);
+    kprintf("\n  %u events across %u task(s)\n\n", count, task_count);
 }

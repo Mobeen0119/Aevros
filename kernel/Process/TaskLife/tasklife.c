@@ -41,7 +41,8 @@ void task_log_event(task_t *task, task_event_type_t type, uint32_t data)
     if (!task || task->event_count >= TASK_MAX_EVENTS)
         return;
 
-    task_event_t *e =&task->events[task->event_count++];
+    task_event_t *e = &task->events[task->event_count];
+    task->event_count++;
 
     e->type = type;
     e->tick = get_ticks();
@@ -140,36 +141,39 @@ void tasklife_dump_current(void)
     dump_task_life(current_task);
 }
 
-void tasklife_ps(void){
-    if(!all_tasks) {
+void tasklife_ps(void)
+{
+    if (!all_tasks)
+    {
 
         kprint("No tasks running\n");
         return;
     }
 
-     kprintf("\n  PID     NAME     STATE      TICKS ALIVE  PARENT\n");
-    kprintf("  ────────────────────────────────────────────────\n");
+    kprintf(" ------------------------------------------------------------------------\n");
+    kprintf("\n  PID   ||   NAME   ||   STATE    ||   TICKS ALIVE   ||   PARENT\n");
+    kprintf(" ------------------------------------------------------------------------\n");
 
-    task_t* t = all_tasks;
+    task_t *t = all_tasks;
 
     while (t)
     {
 
-        const char* state=t->state == TASK_READY    ? "READY    " :
-            t->state == TASK_RUNNING  ? "RUNNING  " :
-            t->state == TASK_BLOCKED  ? "BLOCKED  " :
-            t->state == TASK_ZOMBIE   ? "ZOMBIE   " : "SUSPENDED";
-        
-  kprintf("  %-5u   %s   %s %-13u  %u\n",
+        const char *state = t->state == TASK_READY ? "READY    " : t->state == TASK_RUNNING ? "RUNNING  "
+                                                               : t->state == TASK_BLOCKED   ? "BLOCKED  "
+                                                               : t->state == TASK_ZOMBIE    ? "ZOMBIE   "
+                                                                                            : "SUSPENDED";
+
+        kprintf("  %-5u      %s       %s      %-13u        %u\n",
                 t->pid,
                 t->name,
                 state,
                 get_ticks() - t->start_time,
                 t->parent ? t->parent->pid : 0);
-            t = t->all_next;
-  }
+        t = t->all_next;
+    }
 
+    kprintf(" ------------------------------------------------------------------------\n");
 
-  kprint("\n");
+    kprint("\n");
 }
-

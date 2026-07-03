@@ -70,7 +70,7 @@ void timeline_dump(void)
         if (!t)
             break;
 
-        for (int i = 0; i < t->event_count && count < TIMELINE_MAX - 1; i++)
+        for (int i = 0; i < t->event_count && count < TIMELINE_MAX ; i++)
         {
             merged[count].tick = t->events[i].tick;
             merged[count].pid = t->pid;
@@ -80,12 +80,12 @@ void timeline_dump(void)
 
             merged[count].type = t->events[i].type;
             merged[count].data = t->events[i].data;
-            count = count + 1;
+            count++;
         }
         task_count++;
         t = t->next;
 
-    } while (t && t != ready_queue && count < TIMELINE_MAX - 1 && ++safety < 10000);
+    } while (t && t != ready_queue && count < TIMELINE_MAX  && ++safety < 10000);
 
     asm volatile("sti");
 
@@ -95,7 +95,7 @@ void timeline_dump(void)
         return;
     }
 
-    for (uint32_t i = 1; i < count; i++)
+    for (uint32_t i = 1; i < count ; i++)
     {
         timeline_entry_t key = merged[i];
         int j = (int)i - 1;

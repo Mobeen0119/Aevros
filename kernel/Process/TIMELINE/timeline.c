@@ -2,7 +2,7 @@
 #include "../task.h"
 #include "../TaskLife/tasklife.h"
 #include "../../../Lib/kprintf.h"
-#include "../../../Include/screen.h"
+#include "../../../Include/terminal.h"
 #include "../../../Lib/string.h"
 
 #define TIMELINE_MAX 4096
@@ -77,7 +77,9 @@ void timeline_dump(void)
 
     if (count == 0)
     {
+        set_color(VGA_RED,VGA_DARK_GREY);
         kprintf("timeline: no events recorded yet\n");
+        reset_color();
         return;
     }
 
@@ -102,7 +104,9 @@ void timeline_dump(void)
         }
     }
 
+    set_color(VGA_GREEN,VGA_BLACK);
     kprintf("\n\t\t\t  TimeLine:  \t\t\t\n\n");
+    reset_color();
 
     for (uint32_t i = 0; i < count; i++)
     {

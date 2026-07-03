@@ -2,6 +2,7 @@
 #include "../task.h"
 #include "../TaskLife/tasklife.h"
 #include "../../../Lib/kprintf.h"
+#include "../../../Include/screen.h"
 #include "../../../Lib/string.h"
 
 #define TIMELINE_MAX 4096
@@ -19,32 +20,19 @@ static const char *event_name(task_event_type_t t)
 {
     switch (t)
     {
-    case EVT_CREATED:
-        return "Created";
-    case EVT_FIRST_RUN:
-        return "First ran";
-    case EVT_EXEC:
-        return "Exec";
-    case EVT_FD_OPEN:
-        return "Fd open";
-    case EVT_FD_CLOSE:
-        return "Fd close";
-    case EVT_FORKED:
-        return "Forked child";
-    case EVT_CHILD_DIED:
-        return "Child exited";
-    case EVT_FAULT:
-        return "Page fault";
-    case EVT_SIGNAL:
-        return "Signal recv";
-    case EVT_BLOCKED:
-        return "Blocked";
-    case EVT_WOKE:
-        return "Woke";
-    case EVT_EXITED:
-        return "Exited";
-    default:
-        return "Unknown";
+    case EVT_CREATED:    return "Created";
+    case EVT_FIRST_RUN:  return "First ran";
+    case EVT_EXEC:       return "Exec";
+    case EVT_FD_OPEN:    return "Fd open";
+    case EVT_FD_CLOSE:   return "Fd close";
+    case EVT_FORKED:     return "Forked child";
+    case EVT_CHILD_DIED: return "Child exited";
+    case EVT_FAULT:      return "Page fault";
+    case EVT_SIGNAL:     return "Signal recv";
+    case EVT_BLOCKED:    return "Blocked";
+    case EVT_WOKE:       return "Woke";
+    case EVT_EXITED:     return "Exited";
+    default:             return "Unknown";
     }
 }
 
@@ -70,14 +58,12 @@ void timeline_dump(void)
         if (!t)
             break;
 
-        for (int i = 0; i < t->event_count && count < TIMELINE_MAX ; i++)
+        for (int i = 0; i < t->event_count && count < TIMELINE_MAX; i++)
         {
             merged[count].tick = t->events[i].tick;
             merged[count].pid = t->pid;
-
             strncpy(merged[count].name, t->name, TASK_NAME_LEN - 1);
             merged[count].name[TASK_NAME_LEN - 1] = '\0';
-
             merged[count].type = t->events[i].type;
             merged[count].data = t->events[i].data;
             count++;
@@ -85,8 +71,9 @@ void timeline_dump(void)
         task_count++;
         t = t->next;
 
-    } while (t && t != ready_queue && count < TIMELINE_MAX  && ++safety < 10000);
+    } while (t && t != ready_queue && count < TIMELINE_MAX && ++safety < 10000);
 
+    asm volatile("sti");
 
     if (count == 0)
     {
@@ -94,19 +81,28 @@ void timeline_dump(void)
         return;
     }
 
-    for (uint32_t i = 1; i < count ; i++)
+    if (count > 1)
     {
-        timeline_entry_t key = merged[i];
-        int j = (int)i - 1;
-        while (j >= 0 && merged[j].tick > key.tick)
+        for (uint32_t i = 1; i < count; i++)
         {
-            merged[j + 1] = merged[j];
-            j--;
+            uint32_t min_idx = i - 1;
+            for (uint32_t j = i; j < count; j++)
+            {
+                if (merged[j].tick < merged[min_idx].tick)
+                {
+                    min_idx = j;
+                }
+            }
+            if (min_idx != i - 1)
+            {
+                timeline_entry_t temp = merged[i - 1];
+                merged[i - 1] = merged[min_idx];
+                merged[min_idx] = temp;
+            }
         }
-        merged[j + 1] = key;
     }
 
-    kprintf("\n  TimeLine: \n\n");
+    kprintf("\n\t\t\t  TimeLine:  \t\t\t\n\n");
 
     for (uint32_t i = 0; i < count; i++)
     {

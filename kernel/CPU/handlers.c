@@ -7,7 +7,6 @@
 
 void irq_handler(register_t *r)
 {
-    kprintf("IRQ=%u\n", r->int_no);
     
     if (r->int_no >= 40)
         outb(0xA0, 0x20); // EOI slave

@@ -87,7 +87,6 @@ void timeline_dump(void)
 
     } while (t && t != ready_queue && count < TIMELINE_MAX  && ++safety < 10000);
 
-    asm volatile("sti");
 
     if (count == 0)
     {

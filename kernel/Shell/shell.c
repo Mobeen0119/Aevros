@@ -26,7 +26,9 @@
 
 void shell_prompt(void)
 {
+    set_color(VGA_GREEN, VGA_DARK_GREY);
     kprint("Aevros > ");
+    reset_color();
 }
 
 void shell_execute(char *input)
@@ -55,7 +57,7 @@ void shell_execute(char *input)
             kprintf("exec: %s exited with code %d\n", path, status);
         }
     }
-    
+
     else if (strcmp(argv[0], "identity") == 0)
     {
         identity_command();

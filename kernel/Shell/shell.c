@@ -26,8 +26,7 @@
 
 void shell_prompt(void)
 {
-    kprint("ForgeOS > ");
-
+    kprint("Aevros > ");
 }
 
 void shell_execute(char *input)
@@ -42,21 +41,23 @@ void shell_execute(char *input)
     if (strcmp(argv[0], "clear") == 0)
         kclear_screen();
 
-else if (strcmp(argv[0], "exec") == 0)
-{
-    const char *path = (argc < 2) ? "/exectest.elf" : argv[1];
-    int pid = sys_exec(path);
-    if (pid < 0)
-        kprintf("exec: failed to run %s\n", path);
-    else
+    else if (strcmp(argv[0], "exec") == 0)
     {
-        int status = 0;
-        asm volatile("sti");  
-        sys_waitpid(pid, &status);
-        kprintf("exec: %s exited with code %d\n", path, status);
+        const char *path = (argc < 2) ? "/exectest.elf" : argv[1];
+        int pid = sys_exec(path);
+        if (pid < 0)
+            kprintf("exec: failed to run %s\n", path);
+        else
+        {
+            int status = 0;
+            asm volatile("sti");
+            sys_waitpid(pid, &status);
+            kprintf("exec: %s exited with code %d\n", path, status);
+        }
     }
-}
-    else if(strcmp(argv[0],"identity")==0){
+    
+    else if (strcmp(argv[0], "identity") == 0)
+    {
         identity_command();
     }
 
@@ -275,7 +276,7 @@ else if (strcmp(argv[0], "exec") == 0)
     {
         kprintf("ticks=%u\n", get_ticks());
     }
-   
+
     else if (strcmp(argv[0], "memfreeze") == 0)
     {
         if (argc < 2)

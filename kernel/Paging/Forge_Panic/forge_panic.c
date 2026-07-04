@@ -65,9 +65,9 @@ void forge_panic(const char *reason, register_t *regs)
 
     uint32_t cr2 = read_cr2();
     kprintf("\n");
-    kprintf("╔══════════════════════════════════════════╗\n");
-    kprintf("║         FORGE OS  ---  KERNEL FAULT      ║\n");
-    kprintf("╠══════════════════════════════════════════╣\n");
+    kprintf("|------------------------------------------|\n");
+    kprintf("|         FORGE OS  ---  KERNEL FAULT      |\n");
+    kprintf("|------------------------------------------|\n");
 
     kprintf("|| REASON    : %-31s||\n ", reason);
     if (regs && regs->int_no == 14)
@@ -76,37 +76,37 @@ void forge_panic(const char *reason, register_t *regs)
         const char *verdict = "";
         decode_fault(regs->err_code, cr2, &what, &verdict);
 
-        kprintf("║ FAULT   : 0x%x\n", cr2);
-        kprintf("║ WHAT    : %s\n", what);
-        kprintf("║ VERDICT : %s\n", verdict);
-        kprintf("║ ACCESS  : %s\n",
+        kprintf("| FAULT   : 0x%x\n", cr2);
+        kprintf("| WHAT    : %s\n", what);
+        kprintf("| VERDICT : %s\n", verdict);
+        kprintf("| ACCESS  : %s\n",
                 (regs->err_code & 0x2) ? "WRITE" : "READ");
-        kprintf("║ MODE    : %s\n",
+        kprintf("| MODE    : %s\n",
                 (regs->err_code & 0x4) ? "USER" : "KERNEL");
     }
     if (regs)
     {
-        kprintf("╠══════════════════════════════════════════╣\n");
-        kprintf("║ REGISTERS                                ║\n");
-        kprintf("║  EIP=0x%x  ESP=0x%x\n", regs->eip, regs->esp);
-        kprintf("║  EAX=0x%x  EBX=0x%x\n", regs->eax, regs->ebx);
-        kprintf("║  ECX=0x%x  EDX=0x%x\n", regs->ecx, regs->edx);
-        kprintf("║  CS=0x%x   SS=0x%x\n", regs->cs, regs->ss);
+        kprintf("╠------------------------------------------╣\n");
+        kprintf("| REGISTERS                                |\n");
+        kprintf("|  EIP=0x%x  ESP=0x%x\n", regs->eip, regs->esp);
+        kprintf("|  EAX=0x%x  EBX=0x%x\n", regs->eax, regs->ebx);
+        kprintf("|  ECX=0x%x  EDX=0x%x\n", regs->ecx, regs->edx);
+        kprintf("|  CS=0x%x   SS=0x%x\n", regs->cs, regs->ss);
     }
-    kprintf("╠══════════════════════════════════════════╣\n");
+    kprintf("╠------------------------------------------╣\n");
     if (current_task)
     {
-        kprintf("║ PROCESS : pid %-4u  state %-15u║\n",
+        kprintf("| PROCESS : pid %-4u  state %-15u|\n",
                 current_task->pid, current_task->state);
-        kprintf("║ UPTIME  : %u ticks since created\n",
+        kprintf("| UPTIME  : %u ticks since created\n",
                 get_ticks() - current_task->start_time);
     }
     else
     {
-        kprintf("║ PROCESS : none ... fault in early kernel   ║\n");
+        kprintf("| PROCESS : none ... fault in early kernel   |\n");
     }
-    kprintf("╠══════════════════════════════════════════╣\n");
-    kprintf("║ STACK TRACE                              ║\n");
+    kprintf("╠------------------------------------------╣\n");
+    kprintf("| STACK TRACE                              |\n");
     if (regs)
         print_stack_trace(regs->ebp);
     else
@@ -116,23 +116,23 @@ void forge_panic(const char *reason, register_t *regs)
         print_stack_trace(ebp);
     }
 
-    kprintf("╠══════════════════════════════════════════╣\n");
-    kprintf("║ MEMORY                                   ║\n");
-    kprintf("║  heap used  : %u bytes\n", heap_used_bytes());
-    kprintf("║  heap free  : %u bytes\n", heap_free_bytes());
-    kprintf("║  live allocs: %u\n", tracker_live_count());
-    kprintf("║  ghost bytes: %u\n", tracker_leaked_bytes());
+    kprintf("╠------------------------------------------╣\n");
+    kprintf("| MEMORY                                   |\n");
+    kprintf("|  heap used  : %u bytes\n", heap_used_bytes());
+    kprintf("|  heap free  : %u bytes\n", heap_free_bytes());
+    kprintf("|  live allocs: %u\n", tracker_live_count());
+    kprintf("|  ghost bytes: %u\n", tracker_leaked_bytes());
 
-    kprintf("╠══════════════════════════════════════════╣\n");
-    kprintf("║ GHOST ALLOCATIONS AT PANIC               ║\n");
+    kprintf("╠------------------------------------------╣\n");
+    kprintf("| GHOST ALLOCATIONS AT PANIC               |\n");
     tracker_dump();
 
-    kprintf("╠════════════════════════════════════════════╣\n");
-    kprintf("║  System Halted ... no data lost in tracker ║\n");
-    kprintf("╚════════════════════════════════════════════╝\n");
+    kprintf("╠--------------------------------------------╣\n");
+    kprintf("|  System Halted ... no data lost in tracker |\n");
+    kprintf("╚--------------------------------------------╝\n");
 
-    kprintf("╠══════════════════════════════════════════╣\n");
-    kprintf("║ TASK LIFECYCLE                           ║\n");
+    kprintf("╠------------------------------------------╣\n");
+    kprintf("| TASK LIFECYCLE                           |\n");
     tasklife_dump_current();
 
     for (;;)

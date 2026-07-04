@@ -75,7 +75,7 @@ static void dump_task_life(task_t *t)
     if (t->parent)
         kprintf("  parent    : pid %u\n", t->parent->pid);
     kprintf("  events     : %u / %u\n", t->event_count, TASK_MAX_EVENTS);
-    kprintf("  ─────────────────────────────\n");
+    kprintf("  -----------------------------\n");
 
     for (int i = 0; i < t->event_count; i++)
     {

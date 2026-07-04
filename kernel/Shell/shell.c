@@ -334,6 +334,8 @@ void shell_execute(char *input)
 
 void shell_start(void)
 {
+    shell_prompt();
+
     char input[MAX_INPUT];
 
     while (1)

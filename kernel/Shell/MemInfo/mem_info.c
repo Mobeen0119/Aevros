@@ -7,6 +7,7 @@
 
 #include "../../Process/task.h"
 #include "../../Memory/kheap.h"
+#include "../../../Include/terminal.h"
 
 #define ROW(label, fmt, ...) \
     kprintf(" %-28s " fmt "\n", label ":", ##__VA_ARGS__)
@@ -49,10 +50,10 @@ static void div_line(void)
 static void section(const char *title, const char *description)
 {
     kprintf("\n");
-    kprintf("  ╔══════════════════════════════════════════════════════════╗\n");
-    kprintf("  ║  %-56s  ║\n", title);
-    kprintf("  ║  %-56s  ║\n", description);
-    kprintf("  ╚══════════════════════════════════════════════════════════╝\n");
+    kprintf("  ===========================================================|\n");
+    kprintf("  |  %-56s  |\n", title);
+    kprintf("  |  %-56s  |\n", description);
+    kprintf("  ===========================================================\n");
 }
 
 void meminfo_pmm()
@@ -181,7 +182,7 @@ void meminfo_slab(void)
     uint32_t used        = slab_objects_used();
     uint32_t free_objs   = total_slots - used;
  
-    ROW("Total object slots",    "%u  (3 caches × 32 slots)", total_slots);
+    ROW("Total object slots",    "%u  (3 caches x 32 slots)", total_slots);
     ROW("Slots in use",          "%u  (%u%%)", used,      pct(used,      total_slots));
     ROW("Slots free",            "%u  (%u%%)", free_objs, pct(free_objs, total_slots));
     kprintf("\n");
@@ -237,7 +238,7 @@ void meminfo_task(void)
 void meminfo_paging(void)
 {
     section("PAGING",
-            "Virtual memory mapping — current page directory (CR3)");
+            "Virtual memory mapping .... current page directory (CR3)");
  
     if (current_task)
     {
@@ -263,20 +264,20 @@ static void meminfo_summary(void)
     char t[32], u[32], f[32];
  
     kprintf("\n");
-    kprintf("  ┌─────────────────────────────────────────────────────────────┐\n");
-    kprintf("  │                  MEMORY REPORT — meminfo                    │\n");
-    kprintf("  │                                                              │\n");
-    kprintf("  │  Physical RAM:  %-44s│\n", fmt_bytes(phys_total, t, sizeof t));
-    kprintf("  │  In use:        %-44s│\n", fmt_bytes(phys_used,  u, sizeof u));
-    kprintf("  │  Free:          %-44s│\n", fmt_bytes(phys_free,  f, sizeof f));
-    kprintf("  │                                                              │\n");
-    kprintf("  │  Overall usage  ");
+    kprintf("  ----------------------------------------------------------------\n");
+    kprintf("  |                 MEMORY REPORT \t meminfo                      |\n");
+    kprintf("  |                                                              |\n");
+    kprintf("  |  Physical RAM:  %-44s|\n", fmt_bytes(phys_total, t, sizeof t));
+    kprintf("  |  In use:        %-44s|\n", fmt_bytes(phys_used,  u, sizeof u));
+    kprintf("  |  Free:          %-44s|\n", fmt_bytes(phys_free,  f, sizeof f));
+    kprintf("  |                                                              |\n");
+    kprintf("  |  Overall usage  ");
     print_bar(phys_used, phys_total, 32);
-    kprintf("  │\n");
-    kprintf("  │                                                              │\n");
-    kprintf("  │  Layers:  PMM → Buddy → Slab → Heap → (kmalloc)            │\n");
-    kprintf("  │           Each section below covers one layer.              │\n");
-    kprintf("  └─────────────────────────────────────────────────────────────┘\n");
+    kprintf("  |\n");
+    kprintf("  |                                                              |\n");
+    kprintf("  |  Layers:  PMM → Buddy → Slab → Heap → (kmalloc)            |\n");
+    kprintf("  |           Each section below covers one layer.              |\n");
+    kprintf("  └-------------------------------------------------------------┘\n");
 }
  
 void meminfo_all(void)
@@ -290,6 +291,8 @@ void meminfo_all(void)
     meminfo_task();     
     meminfo_paging();   
  
+    set_color(VGA_RED,VGA_BLACK);
     kprintf("\n  End of memory report.\n\n");
+    reset_color();
 }
  

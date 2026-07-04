@@ -400,7 +400,7 @@ void forgepoint_list(void)
     int found = 0;
 
     kprintf("\n FORGEPOINTS \n");
-    kprintf("  ─────────────────\n");
+    kprintf("  -----------------\n");
 
     while (sys_readdir(fd, &entry) == 1)
     {

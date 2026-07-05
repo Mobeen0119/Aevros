@@ -277,7 +277,7 @@ static void meminfo_summary(void)
     kprintf("  |                                                             |\n");
     kprintf("  |  Layers:  PMM -> Buddy -> Slab -> Heap -> (kmalloc)         |\n");
     kprintf("  |           Each section below covers one layer.              |\n");
-    kprintf("  --------------------------------------------------------------|\n");
+    kprintf("  -------------------------------------------------------------- \n");
 }
  
 void meminfo_all(void)

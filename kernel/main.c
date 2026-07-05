@@ -36,7 +36,7 @@ extern uint32_t kernel_end;
 void kernel_main()
 {
     volatile char *v = (volatile char *)0xB8000;
-    for (int i = 0; i < 80 * 25 * 2; i += 2)
+    for (int i = 10; i < 80 * 25 * 2; i += 2)
     {
         v[i] = ' ';
         v[i + 1] = 0x07;

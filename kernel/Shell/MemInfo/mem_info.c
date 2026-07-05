@@ -274,10 +274,10 @@ static void meminfo_summary(void)
     kprintf("  |  Overall usage  ");
     print_bar(phys_used, phys_total, 32);
     kprintf("  |\n");
-    kprintf("  |                                                              |\n");
-    kprintf("  |  Layers:  PMM → Buddy → Slab → Heap → (kmalloc)            |\n");
+    kprintf("  |                                                             |\n");
+    kprintf("  |  Layers:  PMM -> Buddy -> Slab -> Heap -> (kmalloc)         |\n");
     kprintf("  |           Each section below covers one layer.              |\n");
-    kprintf("  └-------------------------------------------------------------┘\n");
+    kprintf("  --------------------------------------------------------------|\n");
 }
  
 void meminfo_all(void)

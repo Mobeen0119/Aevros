@@ -4,6 +4,11 @@
 
 #define KEY_RELEASE    0x80
 
+#define SCAN_LSHIFT    0x2A
+#define SCAN_RSHIFT    0x36
+#define SCAN_LSHIFT_UP 0xAA
+#define SCAN_RSHIFT_UP 0xB6
+
 #define SCAN_HOME      0x47
 #define SCAN_UP        0x48
 #define SCAN_PAGE_UP   0x49
@@ -22,6 +27,16 @@ unsigned char keyb[128] =
     0,'a','s','d','f','g','h','j','k','l',';','\'','`',0,'\\',
     'z','x','c','v','b','n','m',',','.','/',0,'*',0,' ',0
 };
+
+unsigned char keyb_shift[128] =
+{
+    0,27,'!','@','#','$','%','^','&','*','(',')','_','+','\b','\t',
+    'Q','W','E','R','T','Y','U','I','O','P','{','}','\n',
+    0,'A','S','D','F','G','H','J','K','L',':','"','~',0,'|',
+    'Z','X','C','V','B','N','M','<','>','?',0,'*',0,' ',0
+};
+
+static int shift_pressed = 0;
 
 volatile int keyb_head=0,keyb_tail=0;
 volatile char keyboard_buffer[128];
@@ -49,6 +64,18 @@ volatile char keyboard_getchar()
 void keyboard_handler()
 {
     uint8_t scan=inb(0x60);
+
+    if(scan==SCAN_LSHIFT || scan==SCAN_RSHIFT)
+    {
+        shift_pressed=1;
+        return;
+    }
+
+    if(scan==SCAN_LSHIFT_UP || scan==SCAN_RSHIFT_UP)
+    {
+        shift_pressed=0;
+        return;
+    }
 
     if(scan&KEY_RELEASE)
         return;
@@ -108,7 +135,7 @@ void keyboard_handler()
             return;
     }
 
-    char c=keyb[scan];
+    char c=shift_pressed ? keyb_shift[scan] : keyb[scan];
 
     if(c)
         keyboard_push(c);

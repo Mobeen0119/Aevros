@@ -32,10 +32,10 @@ iso: kernel.elf
 	mkdir -p iso/boot/grub
 	cp kernel.elf iso/boot/kernel.elf
 	cp boot/grub.cfg iso/boot/grub/grub.cfg
-	grub-mkrescue -o forgeos.iso iso/
+	grub-mkrescue -o aevrosos.iso iso/
 
 clean:
-	rm -f $(OBJS) kernel.elf iso/boot/kernel.elf forgeos.iso
+	rm -f $(OBJS) kernel.elf iso/boot/kernel.elf aevrosos.iso
 	rm -rf iso
 
 .PHONY: all iso clean

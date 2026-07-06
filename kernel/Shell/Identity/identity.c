@@ -34,7 +34,7 @@ void identity_show(void)
 
 set_color(VGA_LIGHT_CYAN,VGA_BLACK);
 kprint("==========================================================================\n");
-kprint("                           NYROS 0.2 DEV\n");
+kprint("                           AEVROS 0.2 DEV\n");
 kprint("==========================================================================\n");
 
 
@@ -128,7 +128,7 @@ void identity_command(void)
             case '5': kprint("Driver Manager\n"); break;
             case '6':
                 kprint("\n");
-                kprint("NYROS is an experimental kernel built from scratch.\n");
+                kprint("AEVROS is an experimental kernel built from scratch.\n");
                 kprint("Everything from memory to scheduling is handcrafted.\n");
                 break;
             case '0':

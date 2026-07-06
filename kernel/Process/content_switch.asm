@@ -16,6 +16,7 @@ context_switch:
     mov eax, [esp+4]
     mov edx, [esp+8]
 
+    pushfd
     push ebp
     push ebx
     push esi
@@ -29,6 +30,7 @@ context_switch:
     pop esi
     pop ebx
     pop ebp
+    popfd
 
     ret
 

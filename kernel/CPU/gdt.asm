@@ -14,7 +14,6 @@ flush:
     mov fs, ax
     mov gs, ax
     mov ss, ax      
-    sti
     ret
 	
 load_tss:

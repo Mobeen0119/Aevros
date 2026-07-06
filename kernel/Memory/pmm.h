@@ -4,7 +4,7 @@
 
 #define MAX_FRAMES 32768
 
-extern uint32_t mem[1024]; // 4KB 
+extern uint32_t mem[1024];
 
 
 void pmm_free(uint32_t address);

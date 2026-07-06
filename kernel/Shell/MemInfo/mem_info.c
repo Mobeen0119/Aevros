@@ -250,7 +250,7 @@ void meminfo_paging(void)
     }
     else
     {
-        kprintf("  No current task — running in early boot / idle context.\n");
+        kprintf("  No current task - running in early boot or idle context.\n");
         kprintf("  CR3 contains the kernel's own page directory.\n");
     }
 }
@@ -274,10 +274,10 @@ static void meminfo_summary(void)
     kprintf("  |  Overall usage  ");
     print_bar(phys_used, phys_total, 32);
     kprintf("  |\n");
-    kprintf("  |                                                             |\n");
-    kprintf("  |  Layers:  PMM -> Buddy -> Slab -> Heap -> (kmalloc)         |\n");
+    kprintf("  |                                                              |\n");
+    kprintf("  |  Layers:  PMM -> Buddy -> Slab -> Heap -> (kmalloc)            |\n");
     kprintf("  |           Each section below covers one layer.              |\n");
-    kprintf("  -------------------------------------------------------------- \n");
+    kprintf("  +-------------------------------------------------------------+\n");
 }
  
 void meminfo_all(void)

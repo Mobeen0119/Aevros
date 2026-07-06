@@ -9,7 +9,7 @@
 #include "../Paging/paging.h"
 #include "../../Drivers/PIT/pit.h"
 
-#include "Forge_Panic/forge_panic.h"
+#include "Aevros_Panic/aevros_panic.h"
 
 void isr_handler(struct registers *r)
 {
@@ -64,7 +64,7 @@ void isr_handler(struct registers *r)
                                ? exceptions[r->int_no]
                                : "unknown exception";
 
-        forge_panic(name, r);
+        aevros_panic(name, r);
         return;
     }
 

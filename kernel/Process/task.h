@@ -133,7 +133,6 @@ task_t *pick_next_task(void);
 void schedule();
 
 void sys_exit(int status);
-void dbg_hex32(uint32_t val);
 
 int do_fork(register_t *state_at_interuppt);
 

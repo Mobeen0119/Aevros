@@ -7,29 +7,24 @@
 #include "process-memory/process_memory.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
-#include "../io.h"
 
 extern uint32_t read_cr3(void);
 extern uint32_t read_eip(void);
 
-void dbg_hex32(uint32_t val)
-{
-    const char *hex = "0123456789ABCDEF";
-    for (int i = 28; i >= 0; i -= 4)
-        outb(0xE9, hex[(val >> i) & 0xF]);
-    outb(0xE9, ' ');
-}
-
 int do_fork(register_t *state_at_interuppt)
 {
     if (!current_task || !state_at_interuppt)
+    {
         return -VFS_ENOMEM;
+    }
 
     task_t *parent = current_task;
 
     task_t *child = (task_t *)kmalloc_raw(sizeof(task_t));
     if (!child)
+    {
         return VFS_ERR;
+    }
     memset(child, 0, sizeof(task_t));
 
     child->cr3 = clone_page_directory(parent->cr3);
@@ -59,16 +54,6 @@ int do_fork(register_t *state_at_interuppt)
     child->kernel_stack = stack_top;
     child->kernel_stack_base = (uint32_t)new_stack;
 
-    outb(0xE9, '[');
-    dbg_hex32(state_at_interuppt->eip);
-    dbg_hex32(state_at_interuppt->cs);
-    dbg_hex32(state_at_interuppt->eflags);
-    dbg_hex32(state_at_interuppt->esp);
-    dbg_hex32(state_at_interuppt->ss);
-    dbg_hex32(state_at_interuppt->useresp);
-
-    outb(0xE9, ']');
-
     uint32_t *sp = (uint32_t *)stack_top;
     *(--sp) = state_at_interuppt->ss;
     *(--sp) = state_at_interuppt->useresp;
@@ -88,6 +73,7 @@ int do_fork(register_t *state_at_interuppt)
     *(--sp) = state_at_interuppt->ds;
 
     *(--sp) = (uint32_t)trap_return; 
+    *(--sp) = 0x202; 
     *(--sp) = 0; 
     *(--sp) = 0; 
     *(--sp) = 0; 

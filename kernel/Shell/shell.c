@@ -10,7 +10,7 @@
 #include "../../Lib/kprintf.h"
 #include "../Process/TaskLife/tasklife.h"
 #include "../Process/WhyAlive/whyalive.h"
-#include "../Process/ForgePoint/forgepoint.h"
+#include "../Process/AevrosPoint/aevrospoint.h"
 #include "../Process/StackMap/stackmap.h"
 #include "../Memory/MemFreeze/memfreeze.h"
 #include "../Process/OutLook/outlook.h"
@@ -48,13 +48,19 @@ void shell_execute(char *input)
         const char *path = (argc < 2) ? "/exectest.elf" : argv[1];
         int pid = sys_exec(path);
         if (pid < 0)
+        {
+            set_color(VGA_RED, VGA_BLACK);
             kprintf("exec: failed to run %s\n", path);
+            reset_color();
+        }
         else
         {
             int status = 0;
             asm volatile("sti");
             sys_waitpid(pid, &status);
+            set_color(status == 0 ? VGA_GREEN : VGA_RED, VGA_BLACK);
             kprintf("exec: %s exited with code %d\n", path, status);
+            reset_color();
         }
     }
 
@@ -71,7 +77,11 @@ void shell_execute(char *input)
     else if (strcmp(argv[0], "cat") == 0)
     {
         if (argc < 2)
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprint("cat: missing file\n");
+            reset_color();
+        }
         else
             cmd_cat(argv[1]);
     }
@@ -95,7 +105,11 @@ void shell_execute(char *input)
     else if (strcmp(argv[0], "mkdir") == 0)
     {
         if (argc < 2)
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprint("mkdir: missing directory name\n");
+            reset_color();
+        }
         else
             sys_mkdir(argv[1]);
     }
@@ -103,7 +117,11 @@ void shell_execute(char *input)
     else if (strcmp(argv[0], "cd") == 0)
     {
         if (argc < 2)
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprint("cd: missing arg\n");
+            reset_color();
+        }
         else
             cmd_cd(argv[1]);
     }
@@ -112,7 +130,9 @@ void shell_execute(char *input)
     {
         if (argc < 2)
         {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprint("touch: missing file\n");
+            reset_color();
             return;
         }
 
@@ -123,7 +143,9 @@ void shell_execute(char *input)
     {
         if (argc < 3)
         {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprint("Use : write <file> <text>\n");
+            reset_color();
             return;
         }
         cmd_write(argv[1], argv[2]);
@@ -133,7 +155,9 @@ void shell_execute(char *input)
     {
         if (argc < 2)
         {
+            set_color(VGA_RED, VGA_BLACK);
             kprint("rm:failed\n");
+            reset_color();
             return;
         }
         cmd_rm(argv[1]);
@@ -149,7 +173,11 @@ void shell_execute(char *input)
         if (vfs_root)
             tree_walk(vfs_root, 0);
         else
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprint("tree: VFS root not initialized\n");
+            reset_color();
+        }
     }
 
     else if (strcmp(argv[0], "meminfo") == 0)
@@ -169,7 +197,11 @@ void shell_execute(char *input)
         else if (strcmp(argv[1], "slab") == 0)
             meminfo_slab();
         else
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprint("usage: meminfo [pmm|heap|paging|task|buddy|slab]\n");
+            reset_color();
+        }
     }
 
     else if (strcmp(argv[0], "memstory") == 0)
@@ -184,7 +216,11 @@ void shell_execute(char *input)
             tracker_dump_pid((uint32_t)katoi(argv[2]));
 
         else
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprint("usage: memstory [ghosts | pid <n>]\n");
+            reset_color();
+        }
     }
 
     else if (strcmp(argv[0], "ps") == 0)
@@ -196,7 +232,9 @@ void shell_execute(char *input)
     {
         if (argc < 2)
         {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprintf("usage: tasklife <pid> || <name>\n");
+            reset_color();
             return;
         }
 
@@ -228,27 +266,35 @@ void shell_execute(char *input)
             tasklife_dump((uint32_t)katoi(argv[1]));
     }
 
-    else if (strcmp(argv[0], "forgepoint") == 0)
+    else if (strcmp(argv[0], "aevrospoint") == 0)
     {
         if (argc < 3)
         {
-            kprintf("usage: forgepoint <save|restore> <name>\n");
+            set_color(VGA_YELLOW, VGA_BLACK);
+            kprintf("usage: aevrospoint <save|restore> <name>\n");
+            reset_color();
         }
         else if (strcmp(argv[1], "save") == 0)
-            forgepoint_save(argv[2]);
+            aevrospoint_save(argv[2]);
         else if (strcmp(argv[1], "restore") == 0)
-            forgepoint_restore(argv[2]);
+            aevrospoint_restore(argv[2]);
         else if (strcmp(argv[1], "list") == 0)
-            forgepoint_list();
+            aevrospoint_list();
         else
-            kprintf("usage: forgepoint <save|restore> <name>\n");
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
+            kprintf("usage: aevrospoint <save|restore> <name>\n");
+            reset_color();
+        }
     }
 
     else if (strcmp(argv[0], "whyalive") == 0)
     {
         if (argc < 3)
         {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprintf("usage: whyalive <inode|task|alloc> <path|pid|addr>\n");
+            reset_color();
         }
         else if (strcmp(argv[1], "inode") == 0)
             whyalive_inode_path(argv[2]);
@@ -257,7 +303,11 @@ void shell_execute(char *input)
         else if (strcmp(argv[1], "alloc") == 0)
             whyalive_alloc((void *)(uintptr_t)parse_hex(argv[2]));
         else
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprintf("usage: whyalive <inode|task|alloc> <path|pid|addr>\n");
+            reset_color();
+        }
     }
 
     else if (strcmp(argv[0], "buddydbg") == 0)
@@ -269,7 +319,11 @@ void shell_execute(char *input)
     else if (strcmp(argv[0], "stackmap") == 0)
     {
         if (argc < 2)
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprintf("used: stackmap \n");
+            reset_color();
+        }
         else
             stackmap_dump(argv[1]);
     }
@@ -282,13 +336,21 @@ void shell_execute(char *input)
     else if (strcmp(argv[0], "memfreeze") == 0)
     {
         if (argc < 2)
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprintf("usage: memfreeze <snap | diff>\n");
+            reset_color();
+        }
         else if (strcmp(argv[1], "snap") == 0)
             memfreeze_snap();
         else if (strcmp(argv[1], "diff") == 0)
             memfreeze_diff();
         else
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprintf("usage: memfreeze <snap | diff>\n");
+            reset_color();
+        }
     }
 
     else if (strcmp(argv[0], "fdleak") == 0)
@@ -312,13 +374,21 @@ void shell_execute(char *input)
             quarantine_release(argv[2]);
 
         else
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprintf("usage: quarantine [check|release <name>]\n");
+            reset_color();
+        }
     }
 
     else if (strcmp(argv[0], "blast") == 0)
     {
         if (argc < 2)
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
             kprintf("usage: blast <pid>\n");
+            reset_color();
+        }
         else
             blast_radius((uint32_t)katoi(argv[1]));
     }
@@ -328,7 +398,9 @@ void shell_execute(char *input)
 
     else
     {
+        set_color(VGA_RED, VGA_BLACK);
         kprint("unknown command\n");
+        reset_color();
     }
 }
 

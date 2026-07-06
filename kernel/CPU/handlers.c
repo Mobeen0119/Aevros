@@ -9,8 +9,8 @@ void irq_handler(register_t *r)
 {
     
     if (r->int_no >= 40)
-        outb(0xA0, 0x20); // EOI slave
-    outb(0x20, 0x20);     // EOI master
+        outb(0xA0, 0x20);
+    outb(0x20, 0x20);    
 
     if (r->int_no == 32)
         timer_callback(r);

@@ -2,7 +2,6 @@
 #include "../Include/terminal.h"
 #define ROW 25
 #define COL 80
-#define VGA_COLOR 0x04
 
 extern struct Line buffer[MAX_LINES];
 
@@ -24,22 +23,6 @@ void kclear_screen()
     render();
 }
 
-// void kprint_at(const char *str, int row, int col)
-// {
-//     if (row >= ROW || col >= COL)
-//         return;
-
-//     int ind = (row * COL) + col;
-
-//     for (int i = 0; str[i] != '\0'; i++)
-//     {
-//         if (col + i >= COL)
-//             break;
-
-//         buffer[ind + i] = (unsigned short)VGA_COLOR << 8 | str[i];
-//     }
-// }
-
 void kput_char(char c)
 {
 
@@ -52,6 +35,14 @@ void kput_char(char c)
 
         while (cursor_y >= scroll_top + HEIGHT)
             scroll_top++;
+        return;
+    }
+
+    if (c == '\t')
+    {
+        int spaces = 4 - (out_col % 4);
+        for (int i = 0; i < spaces; i++)
+            kput_char(' ');
         return;
     }
 

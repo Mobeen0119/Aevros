@@ -15,7 +15,7 @@ isr128:
     mov fs,ax
     mov gs,ax
 
-    push esp ;ptr to reg struct
+    push esp
     call syscall_handler
     add esp, 4
 

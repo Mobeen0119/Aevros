@@ -26,7 +26,7 @@
 
 void shell_prompt(void)
 {
-    set_color(VGA_GREEN, VGA_DARK_GREY);
+    set_color(VGA_GREEN, VGA_BLACK);
     kprint("Aevros > ");
     reset_color();
 }

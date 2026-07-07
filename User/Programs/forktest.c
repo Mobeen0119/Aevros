@@ -19,7 +19,7 @@ void _start(void)
     else
         syscall3(1, 1, (int)pmsg, sizeof(pmsg) - 1);
 
-    syscall3(6, 0, 0, 0);
+    // syscall3(6, 0, 0, 0);
 
     while (1) {}
 }

@@ -26,7 +26,7 @@
 
 void shell_prompt(void)
 {
-    set_color(VGA_GREEN, VGA_BLACK);
+    set_color(VGA_GREEN, VGA_DARK_GREY);
     kprint("Aevros > ");
     reset_color();
 }
@@ -42,6 +42,26 @@ void shell_execute(char *input)
 
     if (strcmp(argv[0], "clear") == 0)
         kclear_screen();
+
+    else if (strcmp(argv[0], "fork") == 0)
+    {
+        int pid = sys_exec("/forktest.elf");
+        if (pid < 0)
+        {
+            set_color(VGA_RED, VGA_BLACK);
+            kprint("fork: failed to run /forktest.elf\n");
+            reset_color();
+        }
+        else
+        {
+            int status = 0;
+            asm volatile("sti");
+            sys_waitpid(pid, &status);
+            set_color(status == 0 ? VGA_GREEN : VGA_RED, VGA_BLACK);
+            kprintf("fork: test exited with code %d\n", status);
+            reset_color();
+        }
+    }
 
     else if (strcmp(argv[0], "exec") == 0)
     {
@@ -89,16 +109,46 @@ void shell_execute(char *input)
     else if (strcmp(argv[0], "echo") == 0)
     {
         if (argc < 2)
+        {
             kprint("\n");
+        }
         else
         {
+            int redirect_at = -1;
             for (int i = 1; i < argc; i++)
             {
-                kprint(argv[i]);
-                if (i != argc - 1)
-                    kprint(" ");
+                if (strcmp(argv[i], ">") == 0)
+                {
+                    redirect_at = i;
+                    break;
+                }
             }
-            kprint("\n");
+
+            if (redirect_at >= 0 && redirect_at + 1 < argc)
+            {
+                static char text_buf[512];
+                int pos = 0;
+                for (int i = 1; i < redirect_at && pos < (int)sizeof(text_buf) - 1; i++)
+                {
+                    int j = 0;
+                    while (argv[i][j] && pos < (int)sizeof(text_buf) - 1)
+                        text_buf[pos++] = argv[i][j++];
+                    if (i != redirect_at - 1 && pos < (int)sizeof(text_buf) - 1)
+                        text_buf[pos++] = ' ';
+                }
+                text_buf[pos] = '\0';
+                cmd_write(argv[redirect_at + 1], text_buf);
+            }
+            else
+            {
+                for (int i = 1; i < argc; i++)
+                {
+                    kprint(argv[i]);
+                    if (i != argc - 1)
+                        kprint(" ");
+                }
+                kprint("\n");
+            }
         }
     }
 
@@ -148,7 +198,20 @@ void shell_execute(char *input)
             reset_color();
             return;
         }
-        cmd_write(argv[1], argv[2]);
+
+        static char text_buf[512];
+        int pos = 0;
+        for (int i = 2; i < argc && pos < (int)sizeof(text_buf) - 1; i++)
+        {
+            int j = 0;
+            while (argv[i][j] && pos < (int)sizeof(text_buf) - 1)
+                text_buf[pos++] = argv[i][j++];
+            if (i != argc - 1 && pos < (int)sizeof(text_buf) - 1)
+                text_buf[pos++] = ' ';
+        }
+        text_buf[pos] = '\0';
+
+        cmd_write(argv[1], text_buf);
     }
 
     else if (strcmp(argv[0], "rm") == 0)
@@ -266,24 +329,26 @@ void shell_execute(char *input)
             tasklife_dump((uint32_t)katoi(argv[1]));
     }
 
-    else if (strcmp(argv[0], "aevrospoint") == 0)
+    else if (strcmp(argv[0], "checkpoint") == 0)
     {
-        if (argc < 3)
+        if (argc >= 2 && strcmp(argv[1], "list") == 0)
+        {
+            aevrospoint_list();
+        }
+        else if (argc < 3)
         {
             set_color(VGA_YELLOW, VGA_BLACK);
-            kprintf("usage: aevrospoint <save|restore> <name>\n");
+            kprintf("usage: checkpoint <save|restore> <name>  or  checkpoint list\n");
             reset_color();
         }
         else if (strcmp(argv[1], "save") == 0)
             aevrospoint_save(argv[2]);
         else if (strcmp(argv[1], "restore") == 0)
             aevrospoint_restore(argv[2]);
-        else if (strcmp(argv[1], "list") == 0)
-            aevrospoint_list();
         else
         {
             set_color(VGA_YELLOW, VGA_BLACK);
-            kprintf("usage: aevrospoint <save|restore> <name>\n");
+            kprintf("usage: checkpoint <save|restore> <name>  or  checkpoint list\n");
             reset_color();
         }
     }
@@ -395,6 +460,45 @@ void shell_execute(char *input)
 
     else if (strcmp(argv[0], "selftest") == 0)
         selftest_run();
+
+    else if (strcmp(argv[0], "help") == 0)
+    {
+        set_color(VGA_CYAN, VGA_BLACK);
+        kprint("Aevros shell commands\n\n");
+        reset_color();
+        kprint("clear                          clear the screen\n");
+        kprint("identity                       system dashboard\n");
+        kprint("help                           show this list\n\n");
+        kprint("ls                             list directory contents\n");
+        kprint("pwd                            print working directory\n");
+        kprint("cd <dir>                       change directory\n");
+        kprint("mkdir <dir>                    create a directory\n");
+        kprint("touch <file>                   create an empty file\n");
+        kprint("write <file> <text>            write text to a file\n");
+        kprint("cat <file>                     print file contents\n");
+        kprint("echo <text>                    print text\n");
+        kprint("echo <text> > <file>           write text to a file\n");
+        kprint("rm <file>                      remove a file\n");
+        kprint("tree                           show the directory tree\n\n");
+        kprint("exec <file>                    run a program\n");
+        kprint("fork                           run the fork demo program\n\n");
+        kprint("ps                             list tasks\n");
+        kprint("ticks                          show system tick count\n");
+        kprint("tasklife <pid|name>            task lifetime info\n");
+        kprint("meminfo [subsystem]            memory subsystem info\n");
+        kprint("memstory [ghosts|pid <n>]      allocation tracker\n");
+        kprint("memfreeze <snap|diff>          memory snapshot/diff\n");
+        kprint("buddydbg                       buddy allocator debug view\n");
+        kprint("stackmap <pid>                 stack usage map\n");
+        kprint("whyalive <inode|task|alloc>    liveness inspector\n");
+        kprint("checkpoint <save|restore|list> <name>  save/restore a process\n");
+        kprint("fdleak                         file descriptor leak check\n");
+        kprint("outlook                        process outlook view\n");
+        kprint("timeline                       event timeline\n");
+        kprint("quarantine [check|release]     quarantine control\n");
+        kprint("blast <pid>                    blast radius report\n\n");
+        kprint("selftest                       run built-in kernel tests\n");
+    }
 
     else
     {

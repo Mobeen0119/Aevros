@@ -195,6 +195,28 @@ dentry_t *vfs_lookup(dentry_t *root, const char *path)
     return vfs_follow_mount(node);
 }
 
+static int has_slash(const char *path)
+{
+    for (int i = 0; path[i]; i++)
+        if (path[i] == '/')
+            return 1;
+    return 0;
+}
+
+dentry_t *resolve_parent_dir(const char *path, const char **out_name)
+{
+    if (!has_slash(path))
+    {
+        *out_name = path;
+        return current_task->cwd;
+    }
+
+    static char parent_path[256];
+    parent_dirname(path, parent_path);
+    *out_name = basename(path);
+    return vfs_lookup(vfs_root, parent_path);
+}
+
 int sys_open(const char *path, uint32_t flags)
 {
     if (!path)
@@ -205,12 +227,8 @@ int sys_open(const char *path, uint32_t flags)
     {
         if (flags & CREAT)
         {
-            char parent_path[256];
-
-            parent_dirname(path, parent_path);
-
-            const char *name = basename(path);
-            dentry_t *parent = vfs_lookup(vfs_root, parent_path);
+            const char *name;
+            dentry_t *parent = resolve_parent_dir(path, &name);
 
             if (!parent || !(parent->inode->flags & VFS_DIR))
                 return VFS_ERR;
@@ -324,12 +342,8 @@ int sys_mkdir(const char *path)
     if (!path)
         return VFS_ERR;
 
-    char parent_path[256];
-    parent_dirname(path, parent_path);
-
-    const char *name = basename(path);
-
-    dentry_t *parent = vfs_lookup(vfs_root, parent_path);
+    const char *name;
+    dentry_t *parent = resolve_parent_dir(path, &name);
 
     if (!parent)
         return VFS_ERR;

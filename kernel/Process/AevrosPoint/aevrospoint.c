@@ -6,6 +6,7 @@
 #include "../../../Lib/string.h"
 #include "../../Paging/paging.h"
 #include "../../Memory/pmm.h"
+#include "../../../Include/terminal.h"
 
 #define AEVROSPOINT_MAGIC 0x46475054
 #define FP_MAX_PAGES 256
@@ -44,12 +45,12 @@ typedef struct
 
 static void build_path(const char *name, char *out, uint32_t outlen)
 {
-    strncpy(out, "/aevrospoint_", outlen);
+    strncpy(out, "/checkpoint_", outlen);
 
     uint32_t base_len = strlen(out);
 
-    strncpy(out + base_len, name, outlen - base_len - 4);
-    strncpy(out + strlen(out), ".fgp", outlen - strlen(out));
+    strncpy(out + base_len, name, outlen - base_len - 5);
+    strncpy(out + strlen(out), ".ckpt", outlen - strlen(out));
 }
 
 static task_t *find_task_by_name(const char *name)
@@ -78,7 +79,7 @@ static int snapshot_user_pages(uint32_t cr3, fgpt_snapshot_t *snap)
     map_page(TEMP_PD_VIRT, cr3, PAGE_PRESENT | PAGE_WRITE);
     uint32_t *tar_pd = (uint32_t *)TEMP_PD_VIRT;
 
-    for (int pd = 0; pd < 768; pd++)
+    for (int pd = 10; pd < 768; pd++)
     {
         if (!(tar_pd[pd] & PAGE_PRESENT))
             continue;
@@ -96,7 +97,8 @@ static int snapshot_user_pages(uint32_t cr3, fgpt_snapshot_t *snap)
             {
                 unmap(TEMP_PT_VIRT);
                 unmap(TEMP_PD_VIRT);
-                kprintf("aevrospoint: process exceeds %u page cap, aborting save\n", FP_MAX_PAGES);
+                asm volatile("sti");
+                kprintf("checkpoint: process exceeds %u page cap, aborting save\n", FP_MAX_PAGES);
                 return -1;
             }
 
@@ -133,12 +135,17 @@ static uint32_t restore_user_pages(fgpt_snapshot_t *snap)
 
     uint32_t *current_pd = (uint32_t *)PAGE_RECURSIVE;
 
+    for (int i = 0; i < 10; i++)
+    {
+        new_pd[i] = current_pd[i];
+    }
+
     for (int i = 768; i < 1024; i++)
     {
         new_pd[i] = current_pd[i];
     }
 
-    uint32_t new_pd_phys = (uint32_t)new_pd - 0xC0000000;
+    uint32_t new_pd_phys = (uint32_t)new_pd;
 
     new_pd[1023] = new_pd_phys | PAGE_PRESENT | PAGE_WRITE;
 
@@ -147,7 +154,7 @@ static uint32_t restore_user_pages(fgpt_snapshot_t *snap)
         uint32_t phys = pmm_alloc();
         if (!phys)
         {
-            kprintf("aevrospoint: out of memory restoring page %u/%u\n",
+            kprintf("checkpoint: out of memory restoring page %u/%u\n",
                     i, snap->page_count);
             return 0;
         }
@@ -157,7 +164,7 @@ static uint32_t restore_user_pages(fgpt_snapshot_t *snap)
 
         if (!map_page_in_directory(new_pd_phys, snap->page_vaddr[i], phys, snap->page_flags[i]))
         {
-            kprintf("aevrospoint: failed mapping restored page %u\n", i);
+            kprintf("checkpoint: failed mapping restored page %u\n", i);
             return 0;
         }
     }
@@ -172,12 +179,12 @@ int aevrospoint_save(const char *name)
     task_t *target = find_task_by_name(name);
     if (!target)
     {
-        kprintf("aevrospoint: task '%s' not found\n", name);
+        kprintf("checkpoint: task '%s' not found\n", name);
         return VFS_ERR;
     }
     if (target->kernel_stack_base == 0)
     {
-        kprintf("aevrospoint: task '%s' has no saveable kernel stack\n", name);
+        kprintf("checkpoint: task '%s' has no saveable kernel stack\n", name);
         return VFS_ERR;
     }
 
@@ -247,7 +254,7 @@ int aevrospoint_save(const char *name)
     if (fd < 0)
     {
         kfree(snap);
-        kprintf("aevrospoint: failed to open %s \n", path);
+        kprintf("checkpoint: failed to open %s \n", path);
         return VFS_ERR;
     }
 
@@ -259,11 +266,11 @@ int aevrospoint_save(const char *name)
 
     if (!ok)
     {
-        kprintf("aevrospoint: short write, snapshot may be corrupt\n");
+        kprintf("checkpoint: short write, snapshot may be corrupt\n");
         return VFS_ERR;
     }
 
-    kprintf("aevrospoint: saved '%s' -> %s  (%d bytes, %u user pages, %s)\n",
+    kprintf("checkpoint: saved '%s' -> %s  (%d bytes, %u user pages, %s)\n",
             name, path, written, snap->page_count, snap->is_user ? "user" : "kernel");
     kfree(snap);
 
@@ -281,7 +288,7 @@ int aevrospoint_restore(const char *name)
     int fd = sys_open(path, READ_ONLY);
     if (fd < 0)
     {
-        kprintf("aevrospoint: no snapshot for '%s' \n", name);
+        kprintf("checkpoint: no snapshot for '%s' \n", name);
         return VFS_ERR;
     }
 
@@ -298,7 +305,7 @@ int aevrospoint_restore(const char *name)
 
     if (got != (int)sizeof(fgpt_snapshot_t) || snap->magic != AEVROSPOINT_MAGIC)
     {
-        kprintf("aevrospoint: snapshot '%s' invalid or corrupt \n", name);
+        kprintf("checkpoint: snapshot '%s' invalid or corrupt \n", name);
         kfree(snap);
         return VFS_ERR;
     }
@@ -344,7 +351,7 @@ int aevrospoint_restore(const char *name)
         uint32_t new_cr3 = restore_user_pages(snap);
         if (!new_cr3)
         {
-            kprintf("aevrospoint: failed to rebuild address space for '%s'\n", name);
+            kprintf("checkpoint: failed to rebuild address space for '%s'\n", name);
             kfree(new_stack);
             kfree(task);
             kfree(snap);
@@ -376,7 +383,7 @@ int aevrospoint_restore(const char *name)
 
     task_log_event(task, EVT_CREATED, 0);
 
-    kprintf("aevrospoint: restored '%s' as pid %u (%u user pages, %s, saved tick %u, now tick %u)\n",
+    kprintf("checkpoint: restored '%s' as pid %u (%u user pages, %s, saved tick %u, now tick %u)\n",
             snap->name, task->pid, snap->page_count,
             snap->is_user ? "user" : "kernel",
             snap->saved_tick, get_ticks());
@@ -392,19 +399,21 @@ void aevrospoint_list(void)
     int fd = sys_open("/", READ_ONLY);
     if (fd < 0)
     {
-        kprintf("aevrospoint: cannot open root\n");
+        kprintf("checkpoint: cannot open root\n");
         return;
     }
 
     dirent_t entry;
     int found = 0;
 
-    kprintf("\n AEVROSPOINTS \n");
+    set_color(VGA_CYAN, VGA_BLACK);
+    kprintf("\n CHECKPOINTS \n");
     kprintf("  -----------------\n");
+    reset_color();
 
     while (sys_readdir(fd, &entry) == 1)
     {
-        if (strncmp(entry.name, "aevrospoint_", 11) == 0)
+        if (strncmp(entry.name, "checkpoint_", 11) == 0)
         {
             kprintf("   %s \n", entry.name);
             found++;

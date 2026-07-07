@@ -2,11 +2,13 @@
 #include "../task.h"
 #include "../../../Lib/kprintf.h"
 #include "../../../Lib/string.h"
+#include "../../../Include/terminal.h"
 
 #define STACKMAP_MAX_FRAMES 12
 
 static void walk_and_print(uint32_t ebp, uint32_t stack_top, uint32_t stack_base)
 {
+    set_color(VGA_WHITE, VGA_BLACK);
     kprintf("  call chain:\n");
 
     for (int i = 0; i < STACKMAP_MAX_FRAMES; i++)
@@ -14,11 +16,14 @@ static void walk_and_print(uint32_t ebp, uint32_t stack_top, uint32_t stack_base
         if (ebp < stack_base || ebp >= stack_top)
         {
             if (i == 0)
-                kprintf("    (ebp outside stack bounds ... cannot walk\n)");
+            {
+                set_color(VGA_YELLOW, VGA_BLACK);
+                kprintf("    (ebp outside stack bounds ... cannot walk)\n");
+            }
             break;
         }
         uint32_t *frame = (uint32_t *)ebp;
-        uint32_t ret = frame[i];
+        uint32_t ret = frame[1];
 
         if (!ret)
             break;
@@ -31,13 +36,16 @@ static void walk_and_print(uint32_t ebp, uint32_t stack_top, uint32_t stack_base
 
         ebp = next_ebp;
     }
+    reset_color();
 }
 
 void stackmap_dump(const char *name)
 {
     if (!ready_queue)
     {
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("stackmap: no tasks running\n");
+        reset_color();
         return;
     }
 
@@ -51,7 +59,9 @@ void stackmap_dump(const char *name)
 
             if (!base)
             {
+                set_color(VGA_YELLOW, VGA_BLACK);
                 kprintf("stackmap: pid %s has no tracked kernel stack\n", name);
+                reset_color();
                 return;
             }
             
@@ -59,9 +69,13 @@ void stackmap_dump(const char *name)
             if (used > 4096)
                 used = 4096;
 
+            set_color(VGA_CYAN, VGA_BLACK);
             kprintf("\n pid %u (%s)\n", t->pid, t->name);
+            reset_color();
+            set_color(VGA_WHITE, VGA_BLACK);
             kprintf("  kernel stack: %u / 4096 bytes used (%u%%)\n\n",
                     used, (used * 100) / 4096);
+            reset_color();
 
             uint32_t ebp_to_walk;
             if (t == current_task)
@@ -76,5 +90,7 @@ void stackmap_dump(const char *name)
         t = t->next;
     } while (t != ready_queue);
 
+    set_color(VGA_RED, VGA_BLACK);
     kprintf("stackmap: name %s not found\n", name);
+    reset_color();
 }

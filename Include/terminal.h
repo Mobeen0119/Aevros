@@ -30,6 +30,7 @@ enum
 
 void set_color(uint8_t fg,uint8_t bg);
 void reset_color(void);
+void print_heading(const char *title);
 
 
 struct Line

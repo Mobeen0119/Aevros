@@ -9,7 +9,7 @@
 #include "../../../Include/terminal.h"
 
 #define AEVROSPOINT_MAGIC 0x46475054
-#define FP_MAX_PAGES 256
+#define FP_MAX_PAGES 64
 
 typedef struct
 {
@@ -40,7 +40,7 @@ typedef struct
     uint32_t page_count;
     uint32_t page_vaddr[FP_MAX_PAGES];
     uint32_t page_flags[FP_MAX_PAGES];
-    uint32_t page_data[FP_MAX_PAGES][4096];
+    uint8_t page_data[FP_MAX_PAGES][4096];
 } fgpt_snapshot_t;
 
 static void build_path(const char *name, char *out, uint32_t outlen)

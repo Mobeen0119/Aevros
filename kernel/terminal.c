@@ -28,6 +28,16 @@ void reset_color(void)
     current_color = VGA_COLOR(VGA_LIGHT_GREY, VGA_BLACK);
 }
 
+void print_heading(const char *title)
+{
+    set_color(VGA_CYAN, VGA_BLACK);
+    kprint("\n  == ");
+    kprint(title);
+    kprint(" ==\n");
+    reset_color();
+    set_color(VGA_WHITE, VGA_BLACK);
+}
+
 void buffer_init()
 {
     for (int i = 0; i < MAX_LINES; i++)

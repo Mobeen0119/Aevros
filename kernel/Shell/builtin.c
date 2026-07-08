@@ -4,17 +4,22 @@
 #include "../../Lib/string.h"
 #include "../Process/task.h"
 #include "../../Lib/kprintf.h"
+#include "../../Include/terminal.h"
 
 void cmd_cd(char *path)
 {
     if (!path)
     {
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprint("cd: missing argument\n");
+        reset_color();
         return;
     }
     if (sys_chdir(path) == VFS_ERR)
     {
-        kprint("No such Directory\n");
+        set_color(VGA_RED, VGA_BLACK);
+        kprint("No such directory\n");
+        reset_color();
     }
 }
 
@@ -24,17 +29,34 @@ void cmd_ls()
 
     if (fd < 0)
     {
-        kprint("ls: failed");
+        set_color(VGA_RED, VGA_BLACK);
+        kprint("ls: failed\n");
+        reset_color();
         return;
     }
 
     dirent_t entry;
+    int any = 0;
 
     while (sys_readdir(fd, &entry) > 0)
     {
+        any = 1;
+        if (entry.type & VFS_DIR)
+            set_color(VGA_CYAN, VGA_BLACK);
+        else
+            set_color(VGA_WHITE, VGA_BLACK);
         kprint(entry.name);
+        reset_color();
         kprint("  ");
     }
+
+    if (!any)
+    {
+        set_color(VGA_DARK_GREY, VGA_BLACK);
+        kprint("(empty)");
+        reset_color();
+    }
+
     kprint("\n");
     sys_close(fd);
 }
@@ -44,12 +66,15 @@ void cmd_cat(char *path)
     int fd = sys_open(path, READ_ONLY);
     if (fd < 0)
     {
-        kprint("cat: failed");
+        set_color(VGA_RED, VGA_BLACK);
+        kprint("cat: failed\n");
+        reset_color();
         return;
     }
     char buff[128];
     int n;
 
+    set_color(VGA_WHITE, VGA_BLACK);
     while ((n = (sys_read(fd, (uint8_t *)buff, sizeof(buff)))) > 0)
     {
         for (int i = 0; i < n; i++)
@@ -57,6 +82,7 @@ void cmd_cat(char *path)
             kput_char(buff[i]);
         }
     }
+    reset_color();
     kprint("\n");
     sys_close(fd);
 }
@@ -72,14 +98,18 @@ void cmd_touch(char *path)
 {
     if (!path)
     {
-        kprint("touch: missing file");
+        set_color(VGA_YELLOW, VGA_BLACK);
+        kprint("touch: missing file\n");
+        reset_color();
         return;
     }
     int fd = sys_open(path, CREAT);
 
     if (fd < 0)
     {
-        kprint("touch failed");
+        set_color(VGA_RED, VGA_BLACK);
+        kprint("touch: failed\n");
+        reset_color();
         return;
     }
     sys_close(fd);
@@ -89,7 +119,9 @@ void cmd_write(const char *path, char *txt)
 {
     if (!path || !txt)
     {
-        kprint("cat: missing args\n");
+        set_color(VGA_YELLOW, VGA_BLACK);
+        kprint("write: missing args\n");
+        reset_color();
         return;
     }
 
@@ -97,7 +129,9 @@ void cmd_write(const char *path, char *txt)
 
     if (fd < 0)
     {
-        kprint("\nWrite Failed\n");
+        set_color(VGA_RED, VGA_BLACK);
+        kprint("write: failed\n");
+        reset_color();
         return;
     }
 
@@ -110,7 +144,9 @@ void cmd_rm(char *path)
 
     if (sys_unlink(path) == VFS_ERR)
     {
+        set_color(VGA_RED, VGA_BLACK);
         kprint("rm: failed\n");
+        reset_color();
     }
 }
 
@@ -142,7 +178,9 @@ void tree_walk(dentry_t *dir, int depth)
     for (int i = 0; i < depth; i++)
         kprint(" ");
 
+    set_color(VGA_CYAN, VGA_BLACK);
     kprint(dir->name);
+    reset_color();
     kprint("\n");
 
     for (int c = 0; c < DENTRY_HASH; c++)
@@ -157,7 +195,9 @@ void tree_walk(dentry_t *dir, int depth)
             {
                 for (int m = 0; m < depth + 1; m++)
                     kprint("  ");
+                set_color(VGA_WHITE, VGA_BLACK);
                 kprint(child->name);
+                reset_color();
                 kprint("  ");
             }
             child = child->hash_next;

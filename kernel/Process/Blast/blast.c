@@ -3,6 +3,8 @@
 #include "../task.h"
 #include "../../../Include/vfs.h"
 #include "../../../Lib/kprintf.h"
+#include "../../../Include/terminal.h"
+#include "../../../Lib/string.h"
 
 static const char *inode_name(inode_t *inode)
 {
@@ -15,7 +17,9 @@ void blast_radius(uint32_t pid)
 {
     if (!ready_queue)
     {
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("blast: no tasks running\n");
+        reset_color();
         return;
     }
     task_t *target = NULL;
@@ -33,11 +37,14 @@ void blast_radius(uint32_t pid)
 
     if (!target)
     {
+        set_color(VGA_RED, VGA_BLACK);
         kprintf("blast: pid %u not found\n", pid);
+        reset_color();
         return;
     }
 
-    kprintf("\n  BLAST RADIUS -- if pid %u (%s) disappears:\n\n",
+    print_heading("BLAST RADIUS");
+    kprintf("  if pid %u (%s) disappears:\n\n",
             target->pid, target->name);
 
     int orphans = 0, would_free = 0, shared_safe = 0;
@@ -96,12 +103,12 @@ void blast_radius(uint32_t pid)
     if (!would_free && !shared_safe)
         kprintf("    (none)\n");
 
-    if (!would_free && !shared_safe)
-        kprintf("   (none)\n");
     const char *impact = (orphans == 0 && would_free == 0) ? "LOW" : (orphans + would_free <= 2) ? "MEDIUM"
                                                                                                  : "HIGH";
 
+    set_color(strcmp(impact, "LOW") == 0 ? VGA_GREEN : strcmp(impact, "MEDIUM") == 0 ? VGA_YELLOW : VGA_RED, VGA_BLACK);
     kprintf("\n IMPACT : %s\n", impact);
     kprintf("   %d orphaned child(ren), %d file(s) would free, %d file(s) remain safely shared\n\n",
             orphans, would_free, shared_safe);
+    reset_color();
 }

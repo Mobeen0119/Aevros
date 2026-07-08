@@ -8,6 +8,8 @@
 #define QUARANTINE_FD_THRESHOLD_CLOSES 1
 #define QUARANTINE_WINDOW_TICKS 200
 
+#include "../../../Include/terminal.h"
+
 static void try_quarantine(task_t *t, uint32_t now)
 {
     if (t->state == TASK_QUARANTINED || t->state == TASK_ZOMBIE)
@@ -29,6 +31,7 @@ static void try_quarantine(task_t *t, uint32_t now)
         t->state = TASK_QUARANTINED;
         task_log_event(t, EVT_QUARANTINED, opens);
 
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("\n  [KERNEL] pid %u (%s) auto-quarantined at tick %u\n",
                 t->pid, t->name, now);
         kprintf("           reason: fd open rate exceeded threshold "
@@ -36,6 +39,7 @@ static void try_quarantine(task_t *t, uint32_t now)
                 opens, closes, QUARANTINE_WINDOW_TICKS);
         kprintf("           task frozen, not killed -- state preserved "
                 "for inspection\n\n");
+        reset_color();
     }
 }
 
@@ -73,7 +77,9 @@ void quarantine_list(void)
 {
     if (!ready_queue)
     {
-        kprintf("quarantine: no Tasks running\n");
+        set_color(VGA_YELLOW, VGA_BLACK);
+        kprintf("quarantine: no tasks running\n");
+        reset_color();
         return;
     }
 
@@ -96,8 +102,15 @@ void quarantine_list(void)
     } while (t != ready_queue);
     restore_irq(flags);
 
+    set_color(VGA_CYAN, VGA_BLACK);
+    kprintf("\n  QUARANTINE\n");
+    kprintf("  ----------\n");
+    reset_color();
+
+    set_color(VGA_YELLOW, VGA_BLACK);
     for (int i = 0; i < found; i++)
         kprintf("  pid %-4u %-10s quarantined\n", pids[i], names[i]);
+    reset_color();
 
     if (!found)
         kprintf("  (nothing quarantined)\n");

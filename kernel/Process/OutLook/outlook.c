@@ -4,6 +4,7 @@
 #include "../../Memory/KallocTracker/kalloc_tracker.h"
 #include "../../../Include/vfs.h"
 #include "../../../Lib/kprintf.h"
+#include "../../../Include/terminal.h"
 #include "../../../Lib/string.h"
 
 #define RISK_FD_RATE_TICKS    200
@@ -214,11 +215,13 @@ void outlook_scan(void)
 
     check_alloc_rates();
 
-    kprintf("\n  outlook:\n\n");
+    print_heading("OUTLOOK");
 
     if (risk_count == 0)
     {
+        set_color(VGA_GREEN, VGA_BLACK);
         kprintf("  (nothing trending toward failure right now)\n\n");
+        reset_color();
         return;
     }
 
@@ -234,7 +237,9 @@ void outlook_scan(void)
     for (int i = 0; i < risk_count; i++)
         print_risk(&risks[i]);
 
+    set_color(VGA_YELLOW, VGA_BLACK);
     kprintf("\n  most likely next failure: ");
     print_risk(&risks[0]);
     kprintf("\n");
+    reset_color();
 }

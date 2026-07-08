@@ -4,6 +4,7 @@
 #include "../../../Include/vfs.h"
 #include "../../Memory/KallocTracker/kalloc_tracker.h"
 #include "../../../Lib/kprintf.h"
+#include "../../../Include/terminal.h"
 
 static const char *flags_to_str(uint32_t flags)
 {
@@ -39,20 +40,25 @@ void whyalive_inode_path(const char *path)
 {
     if (!path)
     {
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("whyalive: missing path\n");
+        reset_color();
         return;
     }
 
     dentry_t *d = vfs_lookup(vfs_root, path);
     if (!d || !d->inode)
     {
+        set_color(VGA_RED, VGA_BLACK);
         kprintf("whyalive: '%s' not found\n", path);
+        reset_color();
         return;
     }
 
     inode_t *inode = d->inode;
 
-    kprintf("\n  WHAT:    inode  (file: %s)\n", path);
+    print_heading("WHYALIVE :: inode");
+    kprintf("  WHAT:    inode  (file: %s)\n", path);
     kprintf("  CREATED: tick %u   by pid %u\n",
             inode->created_tick, inode->created_pid);
     kprintf("  ALIVE:   %u ticks\n", get_ticks() - inode->created_tick);
@@ -85,20 +91,24 @@ void whyalive_inode_path(const char *path)
     if (!found)
         kprintf("    no active holder found, ref_count may be stale\n");
 
+    set_color(VGA_WHITE, VGA_BLACK);
     kprintf("  VERDICT : ");
 
     if ((uint32_t)found == inode->ref_count && found > 0)
     {
+        set_color(VGA_GREEN, VGA_BLACK);
         kprintf("[OK]      every reference is accounted for\n\n");
     }
     else if (found == 0 && inode->ref_count > 0)
     {
+        set_color(VGA_RED, VGA_BLACK);
         kprintf("[LEAK]    ref_count=%u but no holder exists\n"
                 "          missing release detected, check close path\n\n",
                 inode->ref_count);
     }
     else if ((uint32_t)found != inode->ref_count)
     {
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("[MISMATCH] %u holder(s) visible but ref_count=%u\n"
                 "           %d reference(s) cannot be explained\n\n",
                 found,
@@ -107,9 +117,11 @@ void whyalive_inode_path(const char *path)
     }
     else
     {
+        set_color(VGA_GREEN, VGA_BLACK);
         kprintf("[FREE]    inode has zero references\n"
                 "          safe to release\n\n");
     }
+    reset_color();
 }
 
 void whyalive_task(uint32_t pid)
@@ -125,7 +137,7 @@ void whyalive_task(uint32_t pid)
     {
         if (t->pid == pid)
         {
-            kprintf("\n");
+            print_heading("WHYALIVE :: task");
             kprintf("  OBJECT  : task pid %u (%s)\n", t->pid, t->name);
             kprintf("  ORIGIN  : tick %u, parent pid %u\n",
                     t->start_time, t->parent ? t->parent->pid : 0);
@@ -160,19 +172,24 @@ void whyalive_task(uint32_t pid)
 
                 kprintf("  VERDICT : [LIVE] task is active and resources are in use\n\n");
             }
+            reset_color();
             return;
         }
         t = t->next;
     } while (t != ready_queue);
 
+    set_color(VGA_RED, VGA_BLACK);
     kprintf("whyalive: pid %u not found\n", pid);
+    reset_color();
 }
 
 void whyalive_alloc(void *ptr)
 {
     if (!ptr)
     {
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("whyalive: missing pointer\n");
+        reset_color();
         return;
     }
 
@@ -180,10 +197,12 @@ void whyalive_alloc(void *ptr)
 
     if (!rec)
     {
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("whyalive: 0x%x is not a tracked live allocation.\n", (uint32_t)ptr);
+        reset_color();
         return;
     }
-    kprintf("\n");
+    print_heading("WHYALIVE :: allocation");
     kprintf("  OBJECT  : heap allocation (%u bytes)\n", rec->size);
     kprintf("  ORIGIN  : %s:%u in %s() by pid %u\n",
             rec->file, rec->line, rec->func, rec->pid);
@@ -208,8 +227,15 @@ void whyalive_alloc(void *ptr)
 
     kprintf("  VERDICT : ");
     if (pid_alive)
+    {
+        set_color(VGA_GREEN, VGA_BLACK);
         kprintf("[OK]     allocation is in active use\n\n");
+    }
     else
+    {
+        set_color(VGA_RED, VGA_BLACK);
         kprintf("[GHOST]  owner exited but allocation still exists\n"
                 "          memory should have been released\n\n");
+    }
+    reset_color();
 }

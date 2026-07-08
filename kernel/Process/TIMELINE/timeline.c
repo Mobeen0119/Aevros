@@ -47,7 +47,9 @@ void timeline_dump(void)
     if (!ready_queue)
     {
         asm volatile("sti");
-        kprintf("Timeline: No Tasks running\n");
+        set_color(VGA_YELLOW, VGA_BLACK);
+        kprintf("timeline: no tasks running\n");
+        reset_color();
         return;
     }
 
@@ -104,9 +106,7 @@ void timeline_dump(void)
         }
     }
 
-    set_color(VGA_GREEN,VGA_BLACK);
-    kprintf("\n\t\t\t  TimeLine:  \t\t\t\n\n");
-    reset_color();
+    print_heading("TIMELINE");
 
     for (uint32_t i = 0; i < count; i++)
     {

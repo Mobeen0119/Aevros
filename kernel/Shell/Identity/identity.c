@@ -33,12 +33,11 @@ void identity_show(void)
     kclear_screen();
 
     set_color(VGA_LIGHT_CYAN, VGA_BLACK);
-    kprint("      ___                            \n");
-    kprint("     / _ \\                           \n");
-    kprint("    / /_\\ \\  ___ __   __ _ __ ___  ___ \n");
-    kprint("    |  _  | / _ \\ \\ / /| '__/ _ \\/ __|\n");
-    kprint("    | | | ||  __/  \\ V / | | | (_) \\__ \\\n");
-    kprint("    \\_| |_/ \\___|   \\_/  |_|  \\___/|___/\n");
+    kprint("      +--------------------------------------+\n");
+    kprint("      |                                        |\n");
+    kprint("      |          A  E  V  R  O  S              |\n");
+    kprint("      |                                        |\n");
+    kprint("      +--------------------------------------+\n");
     reset_color();
 
     set_color(VGA_WHITE, VGA_BLACK);

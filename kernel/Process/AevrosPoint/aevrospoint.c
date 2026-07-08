@@ -171,6 +171,24 @@ static uint32_t restore_user_pages(fgpt_snapshot_t *snap)
     return new_pd_phys;
 }
 
+static uint32_t get_task_stack_ptr(task_t *t)
+{
+    if (!t || !t->kernel_stack_base || !t->kernel_stack)
+        return 0;
+
+    if (t == current_task)
+    {
+        uint32_t esp;
+        asm volatile("mov %%esp, %0" : "=r"(esp));
+        return esp;
+    }
+
+    if (t->regs.esp >= t->kernel_stack_base && t->regs.esp <= t->kernel_stack)
+        return t->regs.esp;
+
+    return t->kernel_stack;
+}
+
 int aevrospoint_save(const char *name)
 {
     if (!name)
@@ -192,7 +210,7 @@ int aevrospoint_save(const char *name)
     if (!snap)
         return VFS_ERR;
 
-    memset(snap, 0, sizeof(fgpt_snapshot_t));
+     memset(snap, 0, sizeof(fgpt_snapshot_t));
 
     snap->magic = AEVROSPOINT_MAGIC;
     strncpy(snap->name, target->name, TASK_NAME_LEN);
@@ -206,15 +224,20 @@ int aevrospoint_save(const char *name)
     snap->regs = target->regs;
 
     uint32_t stack_top = target->kernel_stack;
-    uint32_t stack_base = target->kernel_stack_base;
-    uint32_t used = stack_top - target->regs.esp;
+    uint32_t stack_ptr = get_task_stack_ptr(target);
+    uint32_t used = 0;
+    
+
+    if (stack_ptr && stack_ptr < stack_top && stack_ptr >= target->kernel_stack_base)
+        used = stack_top - stack_ptr;
 
     if (used > 4096)
         used = 4096;
 
     snap->stack_used = used;
 
-    memcpy(snap->stack_data, (void *)target->regs.esp, used);
+    if (used > 0)
+        memcpy(snap->stack_data, (void *)stack_ptr, used);
 
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {

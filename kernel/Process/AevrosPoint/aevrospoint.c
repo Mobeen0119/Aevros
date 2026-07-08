@@ -9,7 +9,7 @@
 #include "../../../Include/terminal.h"
 
 #define AEVROSPOINT_MAGIC 0x46475054
-#define FP_MAX_PAGES 64
+#define FP_MAX_PAGES 256
 
 typedef struct
 {

@@ -25,7 +25,14 @@ _start_real:
     mov byte [0xB8004], '2'
     mov byte [0xB8005], 0x0F
 
+    ; GRUB hands us the multiboot magic in EAX and a pointer to the
+    ; multiboot_info struct in EBX - this used to be discarded here,
+    ; so the kernel never knew how much RAM it actually had and just
+    ; hardcoded a heap size instead.
+    push ebx
+    push eax
     call kernel_main
+    add esp, 8
 
 .hang:
     cli

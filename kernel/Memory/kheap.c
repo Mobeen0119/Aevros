@@ -4,8 +4,6 @@
 #include "buddy.h"
 #include "slab.h"
 
-#define MAX_ORDER 10
-
 #define SLAB_NUM_CACHES 3
 extern slab_t cache_32b;
 extern slab_t cache_64b;

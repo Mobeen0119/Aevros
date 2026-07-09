@@ -1,0 +1,333 @@
+diff --git a/boot/boot.s b/boot/boot.s
+index 06c7300..5bbcb5f 100644
+--- a/boot/boot.s
++++ b/boot/boot.s
+@@ -25,7 +25,14 @@ _start_real:
+     mov byte [0xB8004], '2'
+     mov byte [0xB8005], 0x0F
+ 
++    ; GRUB hands us the multiboot magic in EAX and a pointer to the
++    ; multiboot_info struct in EBX - this used to be discarded here,
++    ; so the kernel never knew how much RAM it actually had and just
++    ; hardcoded a heap size instead.
++    push ebx
++    push eax
+     call kernel_main
++    add esp, 8
+ 
+ .hang:
+     cli
+diff --git a/kernel/Memory/kheap.c b/kernel/Memory/kheap.c
+index dcadf76..8c863d7 100644
+--- a/kernel/Memory/kheap.c
++++ b/kernel/Memory/kheap.c
+@@ -4,8 +4,6 @@
+ #include "buddy.h"
+ #include "slab.h"
+ 
+-#define MAX_ORDER 10
+-
+ #define SLAB_NUM_CACHES 3
+ extern slab_t cache_32b;
+ extern slab_t cache_64b;
+diff --git a/kernel/Process/AevrosPoint/aevrospoint.c b/kernel/Process/AevrosPoint/aevrospoint.c
+index 66206ee..7c66fb2 100644
+--- a/kernel/Process/AevrosPoint/aevrospoint.c
++++ b/kernel/Process/AevrosPoint/aevrospoint.c
+@@ -217,9 +217,17 @@ int aevrospoint_save(const char *name)
+ 
+     snap->saved_tick = get_ticks();
+ 
+-    snap->is_user = (target->regs.cs & 0x3) ? 1 : 0;
+-    snap->cs_saved = target->regs.cs;
+-    snap->ss_saved = target->regs.ss;
++    /*
++     * target->regs.cs/ss are never actually populated by task creation -
++     * create_process()/init_tasking() only ever set regs.eip, so reading
++     * regs.cs here always evaluated to 0 (kernel), no matter what kind
++     * of task was being saved. The real segment selectors a task runs
++     * with are 0x1B/0x23 for user tasks and 0x08/0x10 for kernel tasks,
++     * decided by task_t->is_user (set correctly in create_process()).
++     */
++    snap->is_user = target->is_user ? 1 : 0;
++    snap->cs_saved = target->is_user ? 0x1B : 0x08;
++    snap->ss_saved = target->is_user ? 0x23 : 0x10;
+ 
+     snap->regs = target->regs;
+ 
+@@ -360,15 +368,44 @@ int aevrospoint_restore(const char *name)
+     task->kernel_stack = stack_top;
+     task->kernel_stack_base = (uint32_t)new_stack;
+ 
++    /*
++     * task->regs is only ever populated once, at task-creation time (see
++     * create_process()/init_tasking() in task.c), and nothing anywhere
++     * updates it again while a task runs - not on timer preemption, not
++     * on a syscall, nothing. That means snap->regs.eip is always the
++     * task's *original* entry point, not a genuine "resume here" program
++     * counter, and the raw stack_data bytes captured for a live
++     * (self-checkpointed) task are just an arbitrary slice of whatever C
++     * call frames happened to be on the kernel stack at save time - they
++     * are not a valid trapframe and must never be jumped into.
++     *
++     * The scheduler only ever resumes a task through task->context_esp
++     * (via context_switch -> trap_return -> iret). Every other task
++     * creation path builds that frame with build_initial_stack(); this
++     * function never did, so context_esp was left at 0 by the memset()
++     * above. The instant the scheduler picked the restored task it
++     * loaded ESP=0, popped garbage off address 0, and jumped to a
++     * garbage EIP. That is the actual crash: "checkpoint save shell"
++     * looks fine because the save half never touches context_esp, but
++     * the very next reschedule after "checkpoint restore shell" hands
++     * the CPU a broken task and takes the whole kernel down with it.
++     *
++     * The honest, crash-free behaviour we can deliver with the data we
++     * actually have is to relaunch the task cleanly at its original
++     * entry point on a fresh stack - exactly what create_process() does
++     * for a brand-new task - via build_initial_stack().
++     */
+     task->regs = snap->regs;
+-    task->regs.esp = stack_top - snap->stack_used;
+-    memcpy((void *)task->regs.esp, snap->stack_data, snap->stack_used);
+-
+-    task->regs.ebp = snap->regs.ebp;
+-
+     task->regs.cs = snap->cs_saved;
+     task->regs.ss = snap->ss_saved;
+ 
++    uint32_t entry_point = snap->regs.eip;
++    uint32_t cs = snap->cs_saved;
++    uint32_t ss = snap->ss_saved;
++
++    task->context_esp = build_initial_stack(new_stack, entry_point, cs, ss, stack_top);
++    task->first_run = 1;
++
+     if (snap->is_user)
+     {
+         uint32_t new_cr3 = restore_user_pages(snap);
+@@ -412,6 +449,15 @@ int aevrospoint_restore(const char *name)
+             snap->saved_tick, get_ticks());
+ 
+     kfree(snap);
++
++    /*
++     * create_process() registers every task it makes into the global
++     * all_tasks list (task_register_all) *in addition to* the scheduler's
++     * ready_queue (task_add_ready) - they are two separate lists. This
++     * function only ever did the latter, so a restored task could be
++     * scheduled and run but was invisible to ps/tasklife/whyalive/etc.
++     */
++    task_register_all(task);
+     task_add_ready(task);
+ 
+     return task->pid;
+diff --git a/kernel/Shell/shell.c b/kernel/Shell/shell.c
+index c4ffe71..5002668 100644
+--- a/kernel/Shell/shell.c
++++ b/kernel/Shell/shell.c
+@@ -26,8 +26,26 @@
+ 
+ void shell_prompt(void)
+ {
+-    set_color(VGA_GREEN, VGA_DARK_GREY);
+-    kprint("Aevros > ");
++    set_color(VGA_LIGHT_GREEN, VGA_BLACK);
++    kprint("Aevros");
++    set_color(VGA_LIGHT_CYAN, VGA_BLACK);
++    kprint(" > ");
++    set_color(VGA_WHITE, VGA_BLACK);
++}
++
++static void help_section(const char *title)
++{
++    set_color(VGA_YELLOW, VGA_BLACK);
++    kprintf("  %s\n", title);
++    reset_color();
++}
++
++static void help_line(const char *cmd, const char *desc)
++{
++    set_color(VGA_LIGHT_CYAN, VGA_BLACK);
++    kprintf("    %-30s", cmd);
++    set_color(VGA_LIGHT_GREY, VGA_BLACK);
++    kprintf("%s\n", desc);
+     reset_color();
+ }
+ 
+@@ -463,41 +481,55 @@ void shell_execute(char *input)
+ 
+     else if (strcmp(argv[0], "help") == 0)
+     {
+-        set_color(VGA_CYAN, VGA_BLACK);
+-        kprint("Aevros shell commands\n\n");
++        set_color(VGA_LIGHT_GREEN, VGA_BLACK);
++        kprint("\n  Aevros shell commands\n\n");
+         reset_color();
+-        kprint("clear                          clear the screen\n");
+-        kprint("identity                       system dashboard\n");
+-        kprint("help                           show this list\n\n");
+-        kprint("ls                             list directory contents\n");
+-        kprint("pwd                            print working directory\n");
+-        kprint("cd <dir>                       change directory\n");
+-        kprint("mkdir <dir>                    create a directory\n");
+-        kprint("touch <file>                   create an empty file\n");
+-        kprint("write <file> <text>            write text to a file\n");
+-        kprint("cat <file>                     print file contents\n");
+-        kprint("echo <text>                    print text\n");
+-        kprint("echo <text> > <file>           write text to a file\n");
+-        kprint("rm <file>                      remove a file\n");
+-        kprint("tree                           show the directory tree\n\n");
+-        kprint("exec <file>                    run a program\n");
+-        kprint("fork                           run the fork demo program\n\n");
+-        kprint("ps                             list tasks\n");
+-        kprint("ticks                          show system tick count\n");
+-        kprint("tasklife <pid|name>            task lifetime info\n");
+-        kprint("meminfo [subsystem]            memory subsystem info\n");
+-        kprint("memstory [ghosts|pid <n>]      allocation tracker\n");
+-        kprint("memfreeze <snap|diff>          memory snapshot/diff\n");
+-        kprint("buddydbg                       buddy allocator debug view\n");
+-        kprint("stackmap <pid>                 stack usage map\n");
+-        kprint("whyalive <inode|task|alloc>    liveness inspector\n");
+-        kprint("checkpoint <save|restore|list> <name>  save/restore a process\n");
+-        kprint("fdleak                         file descriptor leak check\n");
+-        kprint("outlook                        process outlook view\n");
+-        kprint("timeline                       event timeline\n");
+-        kprint("quarantine [check|release]     quarantine control\n");
+-        kprint("blast <pid>                    blast radius report\n\n");
+-        kprint("selftest                       run built-in kernel tests\n");
++
++        help_section("general");
++        help_line("clear", "clear the screen");
++        help_line("identity", "system dashboard");
++        help_line("help", "show this list");
++        kprint("\n");
++
++        help_section("filesystem");
++        help_line("ls", "list directory contents");
++        help_line("pwd", "print working directory");
++        help_line("cd <dir>", "change directory");
++        help_line("mkdir <dir>", "create a directory");
++        help_line("touch <file>", "create an empty file");
++        help_line("write <file> <text>", "write text to a file");
++        help_line("cat <file>", "print file contents");
++        help_line("echo <text>", "print text");
++        help_line("echo <text> > <file>", "write text to a file");
++        help_line("rm <file>", "remove a file");
++        help_line("tree", "show the directory tree");
++        kprint("\n");
++
++        help_section("processes");
++        help_line("exec <file>", "run a program");
++        help_line("fork", "run the fork demo program");
++        help_line("ps", "list tasks");
++        help_line("ticks", "show system tick count");
++        help_line("tasklife <pid|name>", "task lifetime info");
++        help_line("checkpoint <save|restore|list> <name>", "save/restore a process");
++        kprint("\n");
++
++        help_section("memory & diagnostics");
++        help_line("meminfo [subsystem]", "memory subsystem info");
++        help_line("memstory [ghosts|pid <n>]", "allocation tracker");
++        help_line("memfreeze <snap|diff>", "memory snapshot/diff");
++        help_line("buddydbg", "buddy allocator debug view");
++        help_line("stackmap <pid>", "stack usage map");
++        help_line("whyalive <inode|task|alloc>", "liveness inspector");
++        help_line("fdleak", "file descriptor leak check");
++        help_line("outlook", "process outlook view");
++        help_line("timeline", "event timeline");
++        help_line("quarantine [check|release]", "quarantine control");
++        help_line("blast <pid>", "blast radius report");
++        kprint("\n");
++
++        help_section("testing");
++        help_line("selftest", "run built-in kernel tests");
+     }
+ 
+     else
+@@ -510,8 +542,6 @@ void shell_execute(char *input)
+ 
+ void shell_start(void)
+ {
+-    shell_prompt();
+-
+     char input[MAX_INPUT];
+ 
+     while (1)
+diff --git a/kernel/main.c b/kernel/main.c
+index a2c6c19..9c07621 100644
+--- a/kernel/main.c
++++ b/kernel/main.c
+@@ -34,7 +34,18 @@
+ 
+ extern uint32_t kernel_end; 
+ 
+-void kernel_main()
++#define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
++#define MULTIBOOT_INFO_MEMORY      0x00000001
++
++typedef struct multiboot_info
++{
++    uint32_t flags;
++    uint32_t mem_lower;
++    uint32_t mem_upper;
++    /* remaining fields not needed here */
++} multiboot_info_t;
++
++void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
+ {
+     volatile char *v = (volatile char *)0xB8000;
+     for (int i = 0; i < 80 * 25 * 2; i += 2)
+@@ -57,9 +68,51 @@ void kernel_main()
+ 
+     paging_init();
+ 
++    /*
++     * The heap end used to be a hardcoded 0x2800000 (40MB) regardless of
++     * how much RAM is actually installed - GRUB's multiboot info (which
++     * tells us exactly how much RAM is present via mem_upper) was being
++     * handed to us in EAX/EBX and then thrown away in boot.s before
++     * kernel_main was even called. On any machine/VM with less than
++     * ~40MB of RAM, the buddy allocator would happily hand out blocks
++     * that don't physically exist; writes to them are silently
++     * discarded instead of faulting, which corrupts whatever tries to
++     * use that memory (checkpoint's ~1MB snapshot allocation is the
++     * single largest allocation in the kernel, so it's the most likely
++     * thing to reach past real RAM and freeze the machine with no
++     * visible panic).
++     *
++     * Prefer the real detected memory size; only fall back to a small,
++     * conservative default if multiboot didn't hand us valid info at
++     * all (e.g. booted a non-multiboot-compliant way).
++     */
++    uint32_t desired_end = 0x2800000; /* 40MB, the previous assumption */
++    uint32_t detected_end = 0;
++
++    if (mb_magic == MULTIBOOT_BOOTLOADER_MAGIC && mb_info_addr)
++    {
++        multiboot_info_t *mbi = (multiboot_info_t *)mb_info_addr;
++        if (mbi->flags & MULTIBOOT_INFO_MEMORY)
++        {
++            /* mem_upper is KB of RAM above 1MB */
++            uint32_t total_ram = 0x100000 + mbi->mem_upper * 1024u;
++            /* leave a 1MB safety margin below the true top */
++            detected_end = total_ram > 0x100000 ? total_ram - 0x100000 : total_ram;
++        }
++    }
++
+     uint32_t buddy_start = free_start + pmm_size;
+-    uint32_t buddy_size = 0x2800000 - buddy_start;
+-    buddy_init(buddy_start, buddy_size);
++    uint32_t buddy_end;
++
++    if (detected_end != 0)
++        buddy_end = (detected_end < desired_end) ? detected_end : desired_end;
++    else
++        buddy_end = buddy_start + 0x800000; /* unknown RAM: conservative 8MB heap */
++
++    if (buddy_end <= buddy_start)
++        buddy_end = buddy_start + 0x100000; /* absolute last-resort floor: 1MB */
++
++    buddy_init(buddy_start, buddy_end);
+     slab_init_all();
+     tracker_init();
+     vfs_init();

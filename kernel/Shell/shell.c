@@ -26,8 +26,26 @@
 
 void shell_prompt(void)
 {
-    set_color(VGA_GREEN, VGA_DARK_GREY);
-    kprint("Aevros > ");
+    set_color(VGA_LIGHT_GREEN, VGA_BLACK);
+    kprint("Aevros");
+    set_color(VGA_LIGHT_CYAN, VGA_BLACK);
+    kprint(" > ");
+    set_color(VGA_WHITE, VGA_BLACK);
+}
+
+static void help_section(const char *title)
+{
+    set_color(VGA_YELLOW, VGA_BLACK);
+    kprintf("  %s\n", title);
+    reset_color();
+}
+
+static void help_line(const char *cmd, const char *desc)
+{
+    set_color(VGA_LIGHT_CYAN, VGA_BLACK);
+    kprintf("    %-30s", cmd);
+    set_color(VGA_LIGHT_GREY, VGA_BLACK);
+    kprintf("%s\n", desc);
     reset_color();
 }
 
@@ -463,41 +481,55 @@ void shell_execute(char *input)
 
     else if (strcmp(argv[0], "help") == 0)
     {
-        set_color(VGA_CYAN, VGA_BLACK);
-        kprint("Aevros shell commands\n\n");
+        set_color(VGA_LIGHT_GREEN, VGA_BLACK);
+        kprint("\n  Aevros shell commands\n\n");
         reset_color();
-        kprint("clear                          clear the screen\n");
-        kprint("identity                       system dashboard\n");
-        kprint("help                           show this list\n\n");
-        kprint("ls                             list directory contents\n");
-        kprint("pwd                            print working directory\n");
-        kprint("cd <dir>                       change directory\n");
-        kprint("mkdir <dir>                    create a directory\n");
-        kprint("touch <file>                   create an empty file\n");
-        kprint("write <file> <text>            write text to a file\n");
-        kprint("cat <file>                     print file contents\n");
-        kprint("echo <text>                    print text\n");
-        kprint("echo <text> > <file>           write text to a file\n");
-        kprint("rm <file>                      remove a file\n");
-        kprint("tree                           show the directory tree\n\n");
-        kprint("exec <file>                    run a program\n");
-        kprint("fork                           run the fork demo program\n\n");
-        kprint("ps                             list tasks\n");
-        kprint("ticks                          show system tick count\n");
-        kprint("tasklife <pid|name>            task lifetime info\n");
-        kprint("meminfo [subsystem]            memory subsystem info\n");
-        kprint("memstory [ghosts|pid <n>]      allocation tracker\n");
-        kprint("memfreeze <snap|diff>          memory snapshot/diff\n");
-        kprint("buddydbg                       buddy allocator debug view\n");
-        kprint("stackmap <pid>                 stack usage map\n");
-        kprint("whyalive <inode|task|alloc>    liveness inspector\n");
-        kprint("checkpoint <save|restore|list> <name>  save/restore a process\n");
-        kprint("fdleak                         file descriptor leak check\n");
-        kprint("outlook                        process outlook view\n");
-        kprint("timeline                       event timeline\n");
-        kprint("quarantine [check|release]     quarantine control\n");
-        kprint("blast <pid>                    blast radius report\n\n");
-        kprint("selftest                       run built-in kernel tests\n");
+
+        help_section("general");
+        help_line("clear", "clear the screen");
+        help_line("identity", "system dashboard");
+        help_line("help", "show this list");
+        kprint("\n");
+
+        help_section("filesystem");
+        help_line("ls", "list directory contents");
+        help_line("pwd", "print working directory");
+        help_line("cd <dir>", "change directory");
+        help_line("mkdir <dir>", "create a directory");
+        help_line("touch <file>", "create an empty file");
+        help_line("write <file> <text>", "write text to a file");
+        help_line("cat <file>", "print file contents");
+        help_line("echo <text>", "print text");
+        help_line("echo <text> > <file>", "write text to a file");
+        help_line("rm <file>", "remove a file");
+        help_line("tree", "show the directory tree");
+        kprint("\n");
+
+        help_section("processes");
+        help_line("exec <file>", "run a program");
+        help_line("fork", "run the fork demo program");
+        help_line("ps", "list tasks");
+        help_line("ticks", "show system tick count");
+        help_line("tasklife <pid|name>", "task lifetime info");
+        help_line("checkpoint <save|restore|list> <name>", "save/restore a process");
+        kprint("\n");
+
+        help_section("memory & diagnostics");
+        help_line("meminfo [subsystem]", "memory subsystem info");
+        help_line("memstory [ghosts|pid <n>]", "allocation tracker");
+        help_line("memfreeze <snap|diff>", "memory snapshot/diff");
+        help_line("buddydbg", "buddy allocator debug view");
+        help_line("stackmap <pid>", "stack usage map");
+        help_line("whyalive <inode|task|alloc>", "liveness inspector");
+        help_line("fdleak", "file descriptor leak check");
+        help_line("outlook", "process outlook view");
+        help_line("timeline", "event timeline");
+        help_line("quarantine [check|release]", "quarantine control");
+        help_line("blast <pid>", "blast radius report");
+        kprint("\n");
+
+        help_section("testing");
+        help_line("selftest", "run built-in kernel tests");
     }
 
     else
@@ -510,8 +542,6 @@ void shell_execute(char *input)
 
 void shell_start(void)
 {
-    shell_prompt();
-
     char input[MAX_INPUT];
 
     while (1)

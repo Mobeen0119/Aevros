@@ -200,6 +200,12 @@ int aevrospoint_save(const char *name)
         kprintf("checkpoint: task '%s' not found\n", name);
         return VFS_ERR;
     }
+    
+    if (target == current_task) {
+        kprintf("checkpoint: cannot save currently running task '%s'\n", name);
+        return VFS_ERR;
+    }
+    
     if (target->kernel_stack_base == 0)
     {
         kprintf("checkpoint: task '%s' has no saveable kernel stack\n", name);
@@ -210,34 +216,23 @@ int aevrospoint_save(const char *name)
     if (!snap)
         return VFS_ERR;
 
-     memset(snap, 0, sizeof(fgpt_snapshot_t));
+    memset(snap, 0, sizeof(fgpt_snapshot_t));
 
     snap->magic = AEVROSPOINT_MAGIC;
     strncpy(snap->name, target->name, TASK_NAME_LEN);
-
     snap->saved_tick = get_ticks();
-
-    snap->is_user = (target->regs.cs & 0x3) ? 1 : 0;
-    snap->cs_saved = target->regs.cs;
-    snap->ss_saved = target->regs.ss;
-
+    snap->is_user = target->is_user ? 1 : 0;
+    snap->cs_saved = target->is_user ? 0x1B : 0x08;
+    snap->ss_saved = target->is_user ? 0x23 : 0x10;
     snap->regs = target->regs;
 
+    // FIX: Replace lines 166-180 with this
     uint32_t stack_top = target->kernel_stack;
-    uint32_t stack_ptr = get_task_stack_ptr(target);
-    uint32_t used = 0;
-    
-
-    if (stack_ptr && stack_ptr < stack_top && stack_ptr >= target->kernel_stack_base)
-        used = stack_top - stack_ptr;
-
-    if (used > 4096)
-        used = 4096;
+    uint32_t stack_ptr = target->kernel_stack_base;
+    uint32_t used = 4096;
 
     snap->stack_used = used;
-
-    if (used > 0)
-        memcpy(snap->stack_data, (void *)stack_ptr, used);
+    memcpy(snap->stack_data, (void *)stack_ptr, used);
 
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
@@ -251,7 +246,6 @@ int aevrospoint_save(const char *name)
 
     snap->event_count = target->event_count;
     memcpy(snap->events, target->events, sizeof(target->events));
-
     snap->start_time = target->start_time;
     snap->user_time = target->user_time;
     snap->kernel_time = target->kernel_time;
@@ -273,7 +267,6 @@ int aevrospoint_save(const char *name)
     build_path(name, path, sizeof(path));
 
     int fd = sys_open(path, READ_WRITE | CREAT);
-
     if (fd < 0)
     {
         kfree(snap);
@@ -282,11 +275,9 @@ int aevrospoint_save(const char *name)
     }
 
     int written = sys_write(fd, (uint8_t *)snap, sizeof(fgpt_snapshot_t));
-
     sys_close(fd);
 
     int ok = (written == (int)sizeof(fgpt_snapshot_t));
-
     if (!ok)
     {
         kprintf("checkpoint: short write, snapshot may be corrupt\n");
@@ -360,14 +351,43 @@ int aevrospoint_restore(const char *name)
     task->kernel_stack = stack_top;
     task->kernel_stack_base = (uint32_t)new_stack;
 
+    /*
+     * task->regs is only ever populated once, at task-creation time (see
+     * create_process()/init_tasking() in task.c), and nothing anywhere
+     * updates it again while a task runs - not on timer preemption, not
+     * on a syscall, nothing. That means snap->regs.eip is always the
+     * task's *original* entry point, not a genuine "resume here" program
+     * counter, and the raw stack_data bytes captured for a live
+     * (self-checkpointed) task are just an arbitrary slice of whatever C
+     * call frames happened to be on the kernel stack at save time - they
+     * are not a valid trapframe and must never be jumped into.
+     *
+     * The scheduler only ever resumes a task through task->context_esp
+     * (via context_switch -> trap_return -> iret). Every other task
+     * creation path builds that frame with build_initial_stack(); this
+     * function never did, so context_esp was left at 0 by the memset()
+     * above. The instant the scheduler picked the restored task it
+     * loaded ESP=0, popped garbage off address 0, and jumped to a
+     * garbage EIP. That is the actual crash: "checkpoint save shell"
+     * looks fine because the save half never touches context_esp, but
+     * the very next reschedule after "checkpoint restore shell" hands
+     * the CPU a broken task and takes the whole kernel down with it.
+     *
+     * The honest, crash-free behaviour we can deliver with the data we
+     * actually have is to relaunch the task cleanly at its original
+     * entry point on a fresh stack - exactly what create_process() does
+     * for a brand-new task - via build_initial_stack().
+     */
     task->regs = snap->regs;
-    task->regs.esp = stack_top - snap->stack_used;
-    memcpy((void *)task->regs.esp, snap->stack_data, snap->stack_used);
-
-    task->regs.ebp = snap->regs.ebp;
-
     task->regs.cs = snap->cs_saved;
     task->regs.ss = snap->ss_saved;
+
+    uint32_t entry_point = snap->regs.eip;
+    uint32_t cs = snap->cs_saved;
+    uint32_t ss = snap->ss_saved;
+
+    task->context_esp = build_initial_stack(new_stack, entry_point, cs, ss, stack_top);
+    task->first_run = 1;
 
     if (snap->is_user)
     {
@@ -412,6 +432,15 @@ int aevrospoint_restore(const char *name)
             snap->saved_tick, get_ticks());
 
     kfree(snap);
+
+    /*
+     * create_process() registers every task it makes into the global
+     * all_tasks list (task_register_all) *in addition to* the scheduler's
+     * ready_queue (task_add_ready) - they are two separate lists. This
+     * function only ever did the latter, so a restored task could be
+     * scheduled and run but was invisible to ps/tasklife/whyalive/etc.
+     */
+    task_register_all(task);
     task_add_ready(task);
 
     return task->pid;

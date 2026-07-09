@@ -201,9 +201,12 @@ int aevrospoint_save(const char *name)
         return VFS_ERR;
     }
     
-    if (target == current_task) {
-        kprintf("checkpoint: cannot save currently running task '%s'\n", name);
-        return VFS_ERR;
+   if (target == current_task) {
+        kprintf("checkpoint: cannot save running task, yielding CPU...\n");
+        current_task->state = TASK_READY;
+        task_add_ready(current_task);
+        schedule();  
+        return aevrospoint_save(name);
     }
     
     if (target->kernel_stack_base == 0)
@@ -226,7 +229,6 @@ int aevrospoint_save(const char *name)
     snap->ss_saved = target->is_user ? 0x23 : 0x10;
     snap->regs = target->regs;
 
-    // FIX: Replace lines 166-180 with this
     uint32_t stack_top = target->kernel_stack;
     uint32_t stack_ptr = target->kernel_stack_base;
     uint32_t used = 4096;

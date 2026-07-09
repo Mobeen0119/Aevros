@@ -349,34 +349,6 @@ int aevrospoint_restore(const char *name)
     uint32_t stack_top = (uint32_t)new_stack + 4096;
     task->kernel_stack = stack_top;
     task->kernel_stack_base = (uint32_t)new_stack;
-
-    /*
-     * task->regs is only ever populated once, at task-creation time (see
-     * create_process()/init_tasking() in task.c), and nothing anywhere
-     * updates it again while a task runs - not on timer preemption, not
-     * on a syscall, nothing. That means snap->regs.eip is always the
-     * task's *original* entry point, not a genuine "resume here" program
-     * counter, and the raw stack_data bytes captured for a live
-     * (self-checkpointed) task are just an arbitrary slice of whatever C
-     * call frames happened to be on the kernel stack at save time - they
-     * are not a valid trapframe and must never be jumped into.
-     *
-     * The scheduler only ever resumes a task through task->context_esp
-     * (via context_switch -> trap_return -> iret). Every other task
-     * creation path builds that frame with build_initial_stack(); this
-     * function never did, so context_esp was left at 0 by the memset()
-     * above. The instant the scheduler picked the restored task it
-     * loaded ESP=0, popped garbage off address 0, and jumped to a
-     * garbage EIP. That is the actual crash: "checkpoint save shell"
-     * looks fine because the save half never touches context_esp, but
-     * the very next reschedule after "checkpoint restore shell" hands
-     * the CPU a broken task and takes the whole kernel down with it.
-     *
-     * The honest, crash-free behaviour we can deliver with the data we
-     * actually have is to relaunch the task cleanly at its original
-     * entry point on a fresh stack - exactly what create_process() does
-     * for a brand-new task - via build_initial_stack().
-     */
     task->regs = snap->regs;
     task->regs.cs = snap->cs_saved;
     task->regs.ss = snap->ss_saved;
@@ -432,13 +404,6 @@ int aevrospoint_restore(const char *name)
 
     kfree(snap);
 
-    /*
-     * create_process() registers every task it makes into the global
-     * all_tasks list (task_register_all) *in addition to* the scheduler's
-     * ready_queue (task_add_ready) - they are two separate lists. This
-     * function only ever did the latter, so a restored task could be
-     * scheduled and run but was invisible to ps/tasklife/whyalive/etc.
-     */
     task_register_all(task);
     task_add_ready(task);
 

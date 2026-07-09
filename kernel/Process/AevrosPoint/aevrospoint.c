@@ -201,12 +201,9 @@ int aevrospoint_save(const char *name)
         return VFS_ERR;
     }
     
-   if (target == current_task) {
-        kprintf("checkpoint: cannot save running task, yielding CPU...\n");
-        current_task->state = TASK_READY;
-        task_add_ready(current_task);
-        schedule();  
-        return aevrospoint_save(name);
+    if (target == current_task) {
+        kprintf("checkpoint: cannot save currently running task '%s'\n", name);
+        return VFS_ERR;
     }
     
     if (target->kernel_stack_base == 0)

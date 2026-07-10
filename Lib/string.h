@@ -7,6 +7,8 @@ uint32_t strlen(const char *str);
 
 char *strchr(const char *s, int c);
 
+char *strncat(char *dest, const char *src, size_t n);
+
 void strcpy(char *dest, const char *src);
 
 int strcmp(const char *str1, const char *str2);

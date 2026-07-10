@@ -204,9 +204,10 @@ int aevrospoint_save(const char *name) {
     header->start_time = target->start_time;
     header->user_time = target->user_time;
     header->kernel_time = target->kernel_time;
+    fgpt_snapshot_t *temp_snap = NULL;
     header->page_count = 0;
     if (target->is_user) {
-        fgpt_snapshot_t *temp_snap = kmalloc(sizeof(fgpt_snapshot_t));
+        temp_snap = kmalloc(sizeof(fgpt_snapshot_t));
         if (temp_snap) {
             memset(temp_snap, 0, sizeof(fgpt_snapshot_t));
             if (snapshot_user_pages(target->cr3, temp_snap) == 0) {
@@ -214,19 +215,22 @@ int aevrospoint_save(const char *name) {
                 memcpy(header->page_vaddr, temp_snap->page_vaddr, sizeof(temp_snap->page_vaddr));
                 memcpy(header->page_flags, temp_snap->page_flags, sizeof(temp_snap->page_flags));
             }
-            kfree(temp_snap);
         }
     }
     char path[64];
     build_path(name, path, sizeof(path));
     int fd = sys_open(path, READ_WRITE | CREAT);
     if (fd < 0) {
+        if (temp_snap)
+            kfree(temp_snap);
         kfree(header);
         return VFS_ERR;
     }
     int written = sys_write(fd, (uint8_t *)header, sizeof(fgpt_header_t));
     if (written != sizeof(fgpt_header_t)) {
         sys_close(fd);
+        if (temp_snap)
+            kfree(temp_snap);
         kfree(header);
         return VFS_ERR;
     }
@@ -238,28 +242,40 @@ int aevrospoint_save(const char *name) {
     }
     if (written != header->stack_used) {
         sys_close(fd);
+        if (temp_snap)
+            kfree(temp_snap);
         kfree(header);
         return VFS_ERR;
     }
-    if (header->page_count > 0) {
-        fgpt_snapshot_t *temp_snap = kmalloc(sizeof(fgpt_snapshot_t));
-        if (!temp_snap) {
-            sys_close(fd);
-            kfree(header);
-            return VFS_ERR;
-        }
-        memset(temp_snap, 0, sizeof(fgpt_snapshot_t));
-        if (snapshot_user_pages(target->cr3, temp_snap) == 0) {
-            for (uint32_t i = 0; i < temp_snap->page_count && i < header->page_count; i++) {
-                written = sys_write(fd, temp_snap->page_data[i], 4096);
-                if (written != 4096) break;
+    if (header->page_count > 0 && temp_snap) {
+        for (uint32_t i = 0; i < temp_snap->page_count && i < header->page_count; i++) {
+            written = sys_write(fd, temp_snap->page_data[i], 4096);
+            if (written != 4096) {
+                sys_close(fd);
+                kfree(temp_snap);
+                kfree(header);
+                return VFS_ERR;
             }
         }
-        kfree(temp_snap);
     }
     sys_close(fd);
+    if (temp_snap)
+        kfree(temp_snap);
     kfree(header);
     return VFS_OK;
+}
+
+static int read_exact(int fd, void *buffer, uint32_t size)
+{
+    uint8_t *ptr = (uint8_t *)buffer;
+    uint32_t total = 0;
+    while (total < size) {
+        int got = sys_read(fd, ptr + total, size - total);
+        if (got <= 0)
+            return total;
+        total += got;
+    }
+    return total;
 }
 
 int aevrospoint_restore(const char *name) {
@@ -374,4 +390,5 @@ void aevrospoint_list(void) {
     sys_close(fd);
     kprintf("\n");
 }
+
 

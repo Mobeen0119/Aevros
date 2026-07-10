@@ -5,6 +5,8 @@
 
 uint32_t strlen(const char *str);
 
+char *strchr(const char *s, int c);
+
 void strcpy(char *dest, const char *src);
 
 int strcmp(const char *str1, const char *str2);

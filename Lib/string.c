@@ -22,6 +22,19 @@ void *memcpy(void *dest, const void *src, uint32_t size)
     return dest;
 }
 
+char *strchr(const char *s, int c) {
+    while (*s) {
+        if (*s == (char)c) {
+            return (char *)s;
+        }
+        s++;
+    }
+    if (c == '\0') {
+        return (char *)s;
+    }
+    return NULL;
+}
+
 uint32_t strlen(const char *str)
 {
     uint32_t len = 0;

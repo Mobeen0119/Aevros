@@ -61,6 +61,11 @@ void shell_execute(char *input)
     if (strcmp(argv[0], "clear") == 0)
         kclear_screen();
 
+    if (strcmp(argv[0], "checktest") == 0)
+    {
+        aevrospoint_full_test();
+    }
+
     else if (strcmp(argv[0], "fork") == 0)
     {
         int pid = sys_exec("/forktest.elf");

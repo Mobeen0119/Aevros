@@ -139,6 +139,7 @@ int do_fork(register_t *state_at_interuppt);
 int sys_waitpid(int target_pid, int *status);
 
 void task_add_ready(task_t *task);
+void task_remove_ready(task_t *task);
 void task_register_all(task_t *task);
 
 

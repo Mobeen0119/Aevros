@@ -34,6 +34,7 @@ char *strchr(const char *s, int c) {
     }
     return NULL;
 }
+
 char *strncat(char *dest, const char *src, size_t n) {
     char *orig_dest = dest;
     
@@ -48,6 +49,7 @@ char *strncat(char *dest, const char *src, size_t n) {
     *dest = '\0';
     return orig_dest;
 }
+
 uint32_t strlen(const char *str)
 {
     uint32_t len = 0;

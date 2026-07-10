@@ -45,7 +45,9 @@ void aevrospoint_test_restore(void) {
     if (pid > 0) {
         kprintf("Restore SUCCESSFUL! New PID: %d\n", pid);
     } else {
-        kprintf("Restore FAILED (error: %d)\n", pid);
+        set_color(VGA_RED,VGA_BLACK);
+        kprintf("                          Restore FAILED (error: %d)\n", pid);
+        reset_color();
     }
     
     kprintf("=== Restore Test Complete ===\n\n");
@@ -53,7 +55,7 @@ void aevrospoint_test_restore(void) {
 
 void aevrospoint_full_test(void) {
     kprintf("\n========================================\n");
-    kprintf("     CHECKPOINT SYSTEM TEST            \n");
+    kprintf("        CHECKPOINT SYSTEM TEST            \n");
     kprintf("========================================\n");
     
     aevrospoint_test_save();

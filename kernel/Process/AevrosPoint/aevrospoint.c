@@ -144,7 +144,6 @@ int aevrospoint_save(const char *name) {
         kprintf("checkpoint: task '%s' not found\n", name);
         return VFS_ERR;
     }
-    int is_current = (target == current_task);
     if (target->kernel_stack_base == 0) {
         kprintf("checkpoint: task '%s' has no saveable kernel stack\n", name);
         return VFS_ERR;
@@ -158,40 +157,8 @@ int aevrospoint_save(const char *name) {
     header->is_user = target->is_user ? 1 : 0;
     header->cs_saved = target->is_user ? 0x1B : 0x08;
     header->ss_saved = target->is_user ? 0x23 : 0x10;
-    if (is_current) {
-        asm volatile("cli");
-        uint32_t esp, eip, eflags;
-        asm volatile("mov %%esp, %0" : "=r"(esp));
-        asm volatile("mov (%%esp), %0" : "=r"(eip));
-        asm volatile("pushf; pop %0" : "=r"(eflags));
-        uint32_t ebp, eax, ebx, ecx, edx, esi, edi;
-        asm volatile("mov %%ebp, %0" : "=r"(ebp));
-        asm volatile("mov %%eax, %0" : "=r"(eax));
-        asm volatile("mov %%ebx, %0" : "=r"(ebx));
-        asm volatile("mov %%ecx, %0" : "=r"(ecx));
-        asm volatile("mov %%edx, %0" : "=r"(edx));
-        asm volatile("mov %%esi, %0" : "=r"(esi));
-        asm volatile("mov %%edi, %0" : "=r"(edi));
-        header->regs.eax = eax;
-        header->regs.ebx = ebx;
-        header->regs.ecx = ecx;
-        header->regs.edx = edx;
-        header->regs.esi = esi;
-        header->regs.edi = edi;
-        header->regs.ebp = ebp;
-        header->regs.esp = esp;
-        header->regs.eip = eip;
-        header->regs.eflags = eflags;
-        uint32_t stack_base = target->kernel_stack_base;
-        uint32_t stack_top = target->kernel_stack;
-        uint32_t used = stack_top - stack_base;
-        used = (used > 4096) ? 4096 : used;
-        header->stack_used = used;
-        asm volatile("sti");
-    } else {
-        header->regs = target->regs;
-        header->stack_used = 4096;
-    }
+    header->regs = target->regs;
+    header->stack_used = 4096;
     for (int i = 0; i < TASK_MAX_FDS; i++) {
         if (target->fd_table[i]) {
             header->fd_present[i] = 1;
@@ -230,12 +197,7 @@ int aevrospoint_save(const char *name) {
         kfree(header);
         return VFS_ERR;
     }
-    if (is_current) {
-        uint32_t stack_base = target->kernel_stack_base;
-        written = sys_write(fd, (uint8_t *)stack_base, header->stack_used);
-    } else {
-        written = sys_write(fd, (uint8_t *)target->kernel_stack_base, header->stack_used);
-    }
+    written = sys_write(fd, (uint8_t *)target->kernel_stack_base, header->stack_used);
     if (written != header->stack_used) {
         sys_close(fd);
         kfree(header);
@@ -301,8 +263,8 @@ int aevrospoint_restore(const char *name) {
         return VFS_ERR;
     }
     memset(task, 0, sizeof(task_t));
-    uint8_t *new_stack = kmalloc(4096);
-    if (!new_stack) {
+    uint8_t *stack_base = kmalloc(4096);
+    if (!stack_base) {
         kfree(task);
         kfree(snap);
         return VFS_ERR;
@@ -311,28 +273,28 @@ int aevrospoint_restore(const char *name) {
     task->state = TASK_READY;
     task->parent = current_task;
     strncpy(task->name, snap->name, TASK_NAME_LEN);
-    task->cr3 = current_task->cr3;
-    uint32_t stack_top = (uint32_t)new_stack + 4096;
-    task->kernel_stack = stack_top;
-    task->kernel_stack_base = (uint32_t)new_stack;
-    task->regs = snap->regs;
-    task->regs.cs = snap->cs_saved;
-    task->regs.ss = snap->ss_saved;
-    memcpy(new_stack, snap->stack_data, snap->stack_used);
-    task->context_esp = (uint32_t)new_stack + snap->stack_used;
-    task->first_run = 0;
+    task->is_user = snap->is_user;
+    uint32_t stack_top = (uint32_t)stack_base + 4096;
     if (snap->is_user) {
         uint32_t new_cr3 = restore_user_pages(snap);
         if (!new_cr3) {
-            kfree(new_stack);
+            kfree(stack_base);
             kfree(task);
             kfree(snap);
             return VFS_ERR;
         }
         task->cr3 = new_cr3;
+        task->context_esp = build_initial_stack(stack_base, snap->regs.eip, snap->cs_saved, snap->ss_saved, 0xBFFF0000);
     } else {
         asm volatile("mov %%cr3, %0" : "=r"(task->cr3));
+        task->context_esp = build_initial_stack(stack_base, snap->regs.eip, snap->cs_saved, snap->ss_saved, stack_top);
     }
+    task->regs = snap->regs;
+    task->regs.cs = snap->cs_saved;
+    task->regs.ss = snap->ss_saved;
+    task->kernel_stack = stack_top;
+    task->kernel_stack_base = (uint32_t)stack_base;
+    task->first_run = 1;
     for (int i = 0; i < TASK_MAX_FDS; i++) {
         if (snap->fd_present[i] && current_task->fd_table[i]) {
             task->fd_table[i] = current_task->fd_table[i];
@@ -349,6 +311,7 @@ int aevrospoint_restore(const char *name) {
     kfree(snap);
     task_register_all(task);
     task_add_ready(task);
+    task_remove_ready(task);
     return task->pid;
 }
 
@@ -374,4 +337,3 @@ void aevrospoint_list(void) {
     sys_close(fd);
     kprintf("\n");
 }
-

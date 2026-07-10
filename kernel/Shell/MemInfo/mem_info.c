@@ -130,7 +130,7 @@ void meminfo_heap(void)
 
 void meminfo_buddy(void)
 {
-    section("BUDDY ALLOCATOR",
+    section("                   BUDDY ALLOCATOR",
             "Manages above the PMM");
 
     set_color(VGA_WHITE, VGA_BLACK);
@@ -200,7 +200,7 @@ void meminfo_slab_cache(const char *label, slab_t *cache,
 }
 void meminfo_slab(void)
 {
-    section("SLAB ALLOCATOR",
+    section("                    SLAB ALLOCATOR",
             "Fixed-size object pools: fast O(1) small allocations");
 
     set_color(VGA_WHITE, VGA_BLACK);
@@ -226,7 +226,7 @@ void meminfo_slab(void)
 
 void meminfo_task(void)
 {
-    section("TASKS",
+    section("                      TASKS",
             "All runnable kernel tasks and their memory context");
  
     set_color(VGA_WHITE, VGA_BLACK);
@@ -274,7 +274,7 @@ void meminfo_task(void)
  
 void meminfo_paging(void)
 {
-    section("PAGING",
+    section("                   PAGING",
             "Virtual memory mapping .... current page directory (CR3)");
  
     set_color(VGA_WHITE, VGA_BLACK);
@@ -289,7 +289,7 @@ void meminfo_paging(void)
     }
     else
     {
-        kprintf("  No current task - running in early boot or idle context.\n");
+        kprintf("  No current task running in early boot or idle context.\n");
         kprintf("  CR3 contains the kernel's own page directory.\n");
     }
 

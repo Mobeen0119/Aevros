@@ -10,5 +10,6 @@ void aevrospoint_list(void);
 void aevrospoint_test(void);
 void aevrospoint_stress_test(void);
 void aevrospoint_full_test(void);
+void aevrospoint_init(void);
 
 #endif

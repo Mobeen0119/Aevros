@@ -55,7 +55,8 @@ void kernel_main()
     buddy_init(0x800000, 0x2000000); 
     slab_init_all();
     tracker_init();
-    vfs_init();
+     vfs_init();
+    aevrospoint_init(); 
     ramfs_init();
     tty_init();
     devfs_init();

@@ -233,30 +233,68 @@ int aevrospoint_restore(const char *name) {
         kprintf("checkpoint: no snapshot for '%s'\n", name);
         return VFS_ERR;
     }
-    fgpt_snapshot_t *snap = kmalloc(sizeof(fgpt_snapshot_t));
-    if (!snap) {
+    fgpt_header_t *hdr = kmalloc(sizeof(fgpt_header_t));
+    if (!hdr) {
         sys_close(fd);
         return VFS_ERR;
     }
-    int total_size = sizeof(fgpt_snapshot_t);
-    uint8_t *read_ptr = (uint8_t *)snap;
-    int bytes_read = 0;
-    while (bytes_read < total_size) {
-        int remaining = total_size - bytes_read;
-        int chunk_size = (remaining < 4096) ? remaining : 4096;
-        int got = sys_read(fd, read_ptr + bytes_read, chunk_size);
-        if (got <= 0) break;
-        bytes_read += got;
+    int hdr_read = sys_read(fd, (uint8_t *)hdr, sizeof(fgpt_header_t));
+    if (hdr_read != (int)sizeof(fgpt_header_t) || hdr->magic != AEVROSPOINT_MAGIC) {
+        sys_close(fd);
+        kfree(hdr);
+        return VFS_ERR;
+    }
+    fgpt_snapshot_t *snap = kmalloc(sizeof(fgpt_snapshot_t));
+    if (!snap) {
+        sys_close(fd);
+        kfree(hdr);
+        return VFS_ERR;
+    }
+    memset(snap, 0, sizeof(fgpt_snapshot_t));
+    snap->magic = hdr->magic;
+    strncpy(snap->name, hdr->name, TASK_NAME_LEN);
+    snap->saved_tick = hdr->saved_tick;
+    snap->is_user = hdr->is_user;
+    snap->cs_saved = hdr->cs_saved;
+    snap->ss_saved = hdr->ss_saved;
+    snap->regs = hdr->regs;
+    snap->stack_used = hdr->stack_used;
+    memcpy(snap->fd_flags, hdr->fd_flags, sizeof(hdr->fd_flags));
+    memcpy(snap->fd_offset, hdr->fd_offset, sizeof(hdr->fd_offset));
+    memcpy(snap->fd_present, hdr->fd_present, sizeof(hdr->fd_present));
+    memcpy(snap->events, hdr->events, sizeof(hdr->events));
+    snap->event_count = hdr->event_count;
+    snap->start_time = hdr->start_time;
+    snap->user_time = hdr->user_time;
+    snap->kernel_time = hdr->kernel_time;
+    snap->page_count = hdr->page_count;
+    memcpy(snap->page_vaddr, hdr->page_vaddr, sizeof(hdr->page_vaddr));
+    memcpy(snap->page_flags, hdr->page_flags, sizeof(hdr->page_flags));
+    kfree(hdr);
+    int stack_read = sys_read(fd, snap->stack_data, snap->stack_used);
+    if (stack_read != (int)snap->stack_used) {
+        sys_close(fd);
+        kfree(snap);
+        return VFS_ERR;
+    }
+    if (snap->page_count > 0) {
+        uint32_t page_bytes = snap->page_count * 4096;
+        uint32_t got_total = 0;
+        uint8_t *pptr = (uint8_t *)snap->page_data;
+        while (got_total < page_bytes) {
+            uint32_t remaining = page_bytes - got_total;
+            uint32_t chunk = (remaining < 4096) ? remaining : 4096;
+            int got = sys_read(fd, pptr + got_total, chunk);
+            if (got <= 0) break;
+            got_total += got;
+        }
+        if (got_total != page_bytes) {
+            sys_close(fd);
+            kfree(snap);
+            return VFS_ERR;
+        }
     }
     sys_close(fd);
-    if (bytes_read != total_size) {
-        kfree(snap);
-        return VFS_ERR;
-    }
-    if (snap->magic != AEVROSPOINT_MAGIC) {
-        kfree(snap);
-        return VFS_ERR;
-    }
     task_t *task = kmalloc(sizeof(task_t));
     if (!task) {
         kfree(snap);

@@ -365,9 +365,13 @@ void shell_execute(char *input)
             reset_color();
         }
         else if (strcmp(argv[1], "save") == 0)
+        {
             aevrospoint_save(argv[2]);
+        }
         else if (strcmp(argv[1], "restore") == 0)
+        {
             aevrospoint_restore(argv[2]);
+        }
         else
         {
             set_color(VGA_YELLOW, VGA_BLACK);

@@ -4,6 +4,7 @@
 #include "../../../Lib/string.h"
 #include "../../../Include/terminal.h"
 #include "../../Memory/kheap.h"
+#include "../task.h"
 
 static void build_path(const char *name, char *out, uint32_t outlen) {
     strncpy(out, "/checkpoint_", outlen);
@@ -23,13 +24,10 @@ static void remove_extension(char *name) {
 }
 
 void aevrospoint_test_save(void) {
-    kprintf("[DBG] test_save entered\n");
     kprintf("\n=== Testing Checkpoint SAVE ===\n");
     
     kprintf("Saving current task 'shell'...\n");
-    kprintf("[DBG] about to call aevrospoint_save\n");
     int result = aevrospoint_save("shell");
-    kprintf("[DBG] aevrospoint_save returned %d\n", result);
     if (result == VFS_OK) {
         kprintf("Save SUCCESSFUL\n");
     } else {
@@ -62,7 +60,16 @@ void aevrospoint_full_test(void) {
     kprintf("========================================\n");
     
     aevrospoint_test_save();
-    
+
+    if (current_task->is_checkpoint_clone) {
+        kprintf("This task is a resumed checkpoint clone (PID %d).\n", current_task->pid);
+        kprintf("Stopping here instead of restoring again, to avoid an endless chain.\n");
+        kprintf("========================================\n");
+        kprintf("     TEST COMPLETE (resumed clone)     \n");
+        kprintf("========================================\n\n");
+        return;
+    }
+
     kprintf("Press any key to continue to restore test...\n");
     
     aevrospoint_test_restore();

@@ -94,6 +94,7 @@ typedef struct task
 
     int exit_code;
     uint32_t first_run;
+    uint8_t is_checkpoint_clone;
     uint32_t signal_mask;
 
     uint32_t pending_signals;
@@ -149,4 +150,3 @@ uint32_t read_eip(void);
 uint32_t build_initial_stack(uint8_t *stack_base, uint32_t entry_point, uint32_t cs, uint32_t ss, uint32_t user_esp);
 
 #endif
-

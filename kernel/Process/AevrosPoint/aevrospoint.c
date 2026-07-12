@@ -264,7 +264,6 @@ static void worker_thread(void)
 
         fgpt_snapshot_t *snap = work_snapshot;
         work_snapshot = NULL;
-        kprintf("[DBG] worker: picked up snapshot job\n");
 
         if (waiter_task)
         {
@@ -276,9 +275,7 @@ static void worker_thread(void)
             snap->regs = src->regs;
         }
 
-        kprintf("[DBG] worker: about to write to disk\n");
         write_snapshot_to_disk(snap);
-        kprintf("[DBG] worker: write done, waking waiter\n");
         kfree(snap->page_data);
         kfree(snap);
 
@@ -328,14 +325,12 @@ static void capture_self_snapshot(void)
     if (self->is_user)
         snapshot_user_pages(self->cr3, snap);
 
-    kprintf("[DBG] capture_self: about to switch to worker\n");
     asm volatile("cli");
     work_snapshot = snap;
     waiter_task = self;
     switch_to_task_state(worker_task, TASK_BLOCKED);
     
     asm volatile("sti");
-    kprintf("[DBG] capture_self: back after worker handoff\n");
 
     (void)snap;
 }
@@ -538,6 +533,7 @@ int aevrospoint_restore(const char *name)
     task->regs.cs = snap->cs_saved;
     task->regs.ss = snap->ss_saved;
     task->first_run = 0;
+    task->is_checkpoint_clone = 1;
 
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
@@ -596,14 +592,17 @@ void aevrospoint_init(void)
     if (!worker_task) { kfree(ws); return; }
     memset(worker_task, 0, sizeof(task_t));
     worker_task->pid = next_pid++;
+    
     strncpy(worker_task->name, "ckptworker", TASK_NAME_LEN);
     worker_task->state = TASK_READY;
     worker_task->is_user = 0;
+
     worker_task->kernel_stack = (uint32_t)ws + 4096;
     worker_task->kernel_stack_base = (uint32_t)ws;
     worker_task->context_esp = build_initial_stack(ws, (uint32_t)worker_thread, 0x08, 0x10, worker_task->kernel_stack);
     asm volatile("mov %%cr3, %0" : "=r"(worker_task->cr3));
     worker_task->first_run = 1;
+
     task_register_all(worker_task);
     task_remove_ready(worker_task);
 }

@@ -87,12 +87,8 @@ static void build_path(const char *name, char *out, uint32_t outlen)
 
 static task_t *find_task_by_name(const char *name)
 {
-    if (!ready_queue) return NULL;
-    task_t *t = ready_queue;
-    do {
+    for (task_t *t = all_tasks; t; t = t->all_next)
         if (strcmp(t->name, name) == 0) return t;
-        t = t->next;
-    } while (t != ready_queue);
     return NULL;
 }
 
@@ -592,17 +588,14 @@ void aevrospoint_init(void)
     if (!worker_task) { kfree(ws); return; }
     memset(worker_task, 0, sizeof(task_t));
     worker_task->pid = next_pid++;
-    
     strncpy(worker_task->name, "ckptworker", TASK_NAME_LEN);
     worker_task->state = TASK_READY;
     worker_task->is_user = 0;
-
     worker_task->kernel_stack = (uint32_t)ws + 4096;
     worker_task->kernel_stack_base = (uint32_t)ws;
     worker_task->context_esp = build_initial_stack(ws, (uint32_t)worker_thread, 0x08, 0x10, worker_task->kernel_stack);
     asm volatile("mov %%cr3, %0" : "=r"(worker_task->cr3));
     worker_task->first_run = 1;
-
     task_register_all(worker_task);
     task_remove_ready(worker_task);
 }

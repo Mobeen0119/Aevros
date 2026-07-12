@@ -16,6 +16,8 @@ static inline uint32_t read_cr2(void)
     return v;
 }
 
+extern uint32_t kernel_end;
+
 static void print_stack_trace(uint32_t ebp)
 {
     kprint("---stack trace : \n");
@@ -26,12 +28,17 @@ static void print_stack_trace(uint32_t ebp)
         uint32_t ret = frame[1];
         if (!ret)
             break;
+        if (ret < 0x100000 || ret > (uint32_t)&kernel_end)
+        {
+            kprintf("     #%d    0x%x  (outside kernel image -- corrupted frame, stopping)\n", i, ret);
+            break;
+        }
         kprintf("     #%d    0x%x\n ", i, ret);
         ebp = frame[0];
     }
 }
 
-static void decode_fault(uint32_t err, uint32_t addr,
+void decode_fault(uint32_t err, uint32_t addr,
                          const char **what, const char **verdict)
 {
 
@@ -40,11 +47,13 @@ static void decode_fault(uint32_t err, uint32_t addr,
     int fetch = err & 0x10;
 
     if (fetch)
-        *what = " Instruction fetch from from unmapped address";
+        *what = "instruction fetch from unmapped address";
     else if (!write && !protection)
         *what = "read from unmapped address";
+    else if (write && !protection)
+        *what = "write to unmapped address";
     else if (write && protection)
-        *what = "write to protected address";
+        *what = "write to protected (read-only or permission-denied) address";
     else
         *what = "read from protected address";
 

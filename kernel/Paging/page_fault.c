@@ -5,6 +5,7 @@
 #include "../../Lib/kprintf.h"
 #include "../Process/TaskLife/tasklife.h"
 #include "../../Include/terminal.h"
+#include "Aevros_Panic/aevros_panic.h"
 
 static inline uint32_t read_cr2()
 {
@@ -17,48 +18,35 @@ void page_fault_handler(struct registers *reg)
 {
     uint32_t addr = read_cr2();
     uint32_t err = reg->err_code;
-
-    int protection = err & 0x1;
-    int write = err & 0x2;
     int user = err & 0x4;
-    int reserved = err & 0x8;
-    int fetch = err & 0x10;
 
-    set_color(VGA_RED, VGA_BLACK);
-
-    kprintf("\n--------------PAGE FAULT---------------\n");
-    kprintf("Address : 0x%x\n", addr);
-    kprintf("Cause of it : %s\n", protection ? "Protection Violation" : "Page Not Present");
-    kprintf("Access : %s\n", write ? "Write" : "Read");
-    kprintf("Mode : %s\n", user ? "User" : "Kernel");
-
-    if (reserved)
-        kprintf("Reserved bits overwritten\n");
-    if (fetch)
-        kprintf("Instruction Fetch Fault\n");
-
-    kprintf("EIP=%x\n", reg->eip);
-    kprintf("ESP=%x\n", reg->esp);
-    kprintf("CS=%x\n", reg->cs);
-    kprintf("SS=%x\n", reg->ss);
-
-    if (user)
+    if (!user)
     {
-        kprintf("\n----USER PROCESS CRASH\n");
-        reset_color();
-        if (current_task)
-        {
-            task_log_event(current_task, EVT_FAULT, addr);
-            sys_exit(-1);
-        }
-        for (;;)
-            asm volatile("hlt");
+        aevros_panic("page fault", reg);
+        return;
     }
 
-    if (current_task)
-        task_log_event(current_task, EVT_FAULT, addr);
+    const char *what = "";
+    const char *verdict = "";
+    decode_fault(err, addr, &what, &verdict);
 
-    kprintf("\nKERNEL PANIC\n");
+    set_color(VGA_RED, VGA_BLACK);
+    kprintf("\n--------------PAGE FAULT---------------\n");
+    kprintf("Address  : 0x%x\n", addr);
+    kprintf("What     : %s\n", what);
+    kprintf("Verdict  : %s\n", verdict);
+    kprintf("Access   : %s\n", (err & 0x2) ? "Write" : "Read");
+    kprintf("Mode     : User\n");
+    kprintf("EIP=%x ESP=%x CS=%x SS=%x\n", reg->eip, reg->esp, reg->cs, reg->ss);
+    kprintf("\n----USER PROCESS CRASH: killing pid %u----\n",
+            current_task ? current_task->pid : 0);
+    reset_color();
+
+    if (current_task)
+    {
+        task_log_event(current_task, EVT_FAULT, addr);
+        sys_exit(-1);
+    }
     for (;;)
         asm volatile("hlt");
 }

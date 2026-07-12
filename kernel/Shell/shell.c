@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include "Shell_UI/shell_ui.h"
 #include "../../Include/shell.h"
 #include "../../Include/screen.h"
 #include "../../Include/terminal.h"
@@ -415,7 +414,7 @@ void shell_execute(char *input)
         if (argc < 2)
         {
             set_color(VGA_YELLOW, VGA_BLACK);
-            kprintf("used: stackmap < name > \n");
+            kprintf("used: stackmap \n");
             reset_color();
         }
         else
@@ -557,7 +556,7 @@ void shell_start(void)
 
     while (1)
     {
-        shell_draw_prompt();
+        shell_prompt();
         terminal_readline(input);
         shell_execute(input);
 

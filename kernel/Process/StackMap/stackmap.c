@@ -6,6 +6,8 @@
 
 #define STACKMAP_MAX_FRAMES 12
 
+extern uint32_t kernel_end;
+
 static void walk_and_print(uint32_t ebp, uint32_t stack_top, uint32_t stack_base)
 {
     set_color(VGA_WHITE, VGA_BLACK);
@@ -28,6 +30,12 @@ static void walk_and_print(uint32_t ebp, uint32_t stack_top, uint32_t stack_base
         if (!ret)
             break;
 
+        if (ret < 0x100000 || ret > (uint32_t)&kernel_end)
+        {
+            kprintf("    #%d 0x%x  (outside kernel image -- corrupted frame, stopping)\n", i, ret);
+            break;
+        }
+
         kprintf("    #%d 0x%x\n", i, ret);
         uint32_t next_ebp = frame[0];
 
@@ -41,7 +49,7 @@ static void walk_and_print(uint32_t ebp, uint32_t stack_top, uint32_t stack_base
 
 void stackmap_dump(const char *name)
 {
-    if (!ready_queue)
+    if (!all_tasks)
     {
         set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("stackmap: no tasks running\n");
@@ -49,8 +57,7 @@ void stackmap_dump(const char *name)
         return;
     }
 
-    task_t *t = ready_queue;
-    do
+    for (task_t *t = all_tasks; t; t = t->all_next)
     {
         if (strcmp(t->name, name) == 0)
         {
@@ -65,30 +72,41 @@ void stackmap_dump(const char *name)
                 return;
             }
             
-            uint32_t used = top - t->regs.esp;
+            uint32_t live_esp;
+            uint32_t ebp_to_walk;
+            if (t == current_task)
+            {
+                asm volatile("mov %%esp, %0" : "=r"(live_esp));
+                asm volatile("mov %%ebp, %0" : "=r"(ebp_to_walk));
+            }
+            else
+            {
+                live_esp = t->context_esp;
+                ebp_to_walk = *((uint32_t *)t->context_esp + 3);
+            }
+
+            uint32_t used = top - live_esp;
             if (used > 4096)
                 used = 4096;
 
             set_color(VGA_CYAN, VGA_BLACK);
-            kprintf("\n pid %u (%s)\n", t->pid, t->name);
+            kprintf("\n pid %u (%s)%s\n", t->pid, t->name,
+                    t->is_checkpoint_clone ? " [restored checkpoint clone]" : "");
             reset_color();
             set_color(VGA_WHITE, VGA_BLACK);
+            kprintf("  state: %s\n",
+                    t == current_task ? "RUNNING" :
+                    t->state == TASK_READY ? "READY" :
+                    t->state == TASK_BLOCKED ? "BLOCKED" : "OTHER");
             kprintf("  kernel stack: %u / 4096 bytes used (%u%%)\n\n",
                     used, (used * 100) / 4096);
             reset_color();
-
-            uint32_t ebp_to_walk;
-            if (t == current_task)
-                asm volatile("mov %%ebp, %0" : "=r"(ebp_to_walk));
-            else
-                ebp_to_walk = t->regs.ebp;
 
             walk_and_print(ebp_to_walk, top, base);
             kprintf("\n");
             return;
         }
-        t = t->next;
-    } while (t != ready_queue);
+    }
 
     set_color(VGA_RED, VGA_BLACK);
     kprintf("stackmap: name %s not found\n", name);

@@ -42,7 +42,7 @@ c_objects=()
 while IFS= read -r -d '' c_file; do
     obj_file="$BUILD_DIR/$(printf '%s' "${c_file#./}" | sed 's#/#_#g; s#\.c$#.c.o#')"
     echo "Compiling $c_file -> $obj_file"
-    gcc -m32 -ffreestanding -fno-builtin -fno-stack-protector -fno-pic -fno-pie -nostdlib -c "$c_file" -o "$obj_file"
+    gcc -m32 -ffreestanding -fno-builtin -fno-stack-protector -fno-pic -fno-pie -mgeneral-regs-only -mno-sse -mno-sse2 -mno-mmx -mno-80387 -fcf-protection=none -nostdlib -c "$c_file" -o "$obj_file"
     c_objects+=("$obj_file")
 done < <(find . -type f -name "*.c" \
     ! -path "./User/*" \

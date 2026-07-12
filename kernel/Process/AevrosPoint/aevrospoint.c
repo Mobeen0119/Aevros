@@ -12,7 +12,6 @@
 #define FP_MAX_PAGES 256
 #define STACK_PAGE_SIZE 4096
 
-
 typedef struct
 {
     uint32_t magic;
@@ -62,13 +61,13 @@ typedef struct
     uint32_t page_count;
     uint32_t page_vaddr[FP_MAX_PAGES];
     uint32_t page_flags[FP_MAX_PAGES];
-
+    
     uint8_t (*page_data)[4096];
 } fgpt_snapshot_t;
 
 static fgpt_snapshot_t *work_snapshot = NULL;
 static task_t *worker_task = NULL;
-static task_t *waiter_task = NULL; 
+static task_t *waiter_task = NULL;
 
 static int do_actual_save_to_file(task_t *target);
 static void build_path(const char *name, char *out, uint32_t outlen);
@@ -96,7 +95,6 @@ static task_t *find_task_by_name(const char *name)
     } while (t != ready_queue);
     return NULL;
 }
-
 
 static void relocate_stack_pointers(uint8_t *stack, uint32_t old_base, uint32_t new_base)
 {
@@ -254,7 +252,6 @@ static int write_snapshot_to_disk(fgpt_snapshot_t *snap)
     return ok ? VFS_OK : VFS_ERR;
 }
 
-
 static void worker_thread(void)
 {
     while (1)
@@ -267,7 +264,7 @@ static void worker_thread(void)
 
         fgpt_snapshot_t *snap = work_snapshot;
         work_snapshot = NULL;
-
+        kprintf("[DBG] worker: picked up snapshot job\n");
 
         if (waiter_task)
         {
@@ -279,7 +276,9 @@ static void worker_thread(void)
             snap->regs = src->regs;
         }
 
+        kprintf("[DBG] worker: about to write to disk\n");
         write_snapshot_to_disk(snap);
+        kprintf("[DBG] worker: write done, waking waiter\n");
         kfree(snap->page_data);
         kfree(snap);
 
@@ -291,7 +290,6 @@ static void worker_thread(void)
         }
     }
 }
-
 
 static void capture_self_snapshot(void)
 {
@@ -330,14 +328,16 @@ static void capture_self_snapshot(void)
     if (self->is_user)
         snapshot_user_pages(self->cr3, snap);
 
-   
+    kprintf("[DBG] capture_self: about to switch to worker\n");
     asm volatile("cli");
     work_snapshot = snap;
     waiter_task = self;
     switch_to_task_state(worker_task, TASK_BLOCKED);
+    
     asm volatile("sti");
+    kprintf("[DBG] capture_self: back after worker handoff\n");
 
-    (void)snap; 
+    (void)snap;
 }
 
 static int do_actual_save_to_file(task_t *target)
@@ -348,7 +348,6 @@ static int do_actual_save_to_file(task_t *target)
         return VFS_ERR;
     }
 
-    
     asm volatile("cli");
     task_state_t orig_state = target->state;
     if (orig_state == TASK_READY)
@@ -415,7 +414,7 @@ int aevrospoint_save(const char *name)
     if (target == current_task)
     {
         capture_self_snapshot();
-
+        
         while (waiter_task == current_task || work_snapshot != NULL)
             schedule();
         return VFS_OK;
@@ -449,29 +448,24 @@ int aevrospoint_restore(const char *name)
     if (!snap) { sys_close(fd); kfree(hdr); return VFS_ERR; }
     memset(snap, 0, sizeof(fgpt_snapshot_t));
     snap->magic = hdr->magic;
-
     strncpy(snap->name, hdr->name, TASK_NAME_LEN);
     snap->saved_tick = hdr->saved_tick;
     snap->is_user = hdr->is_user;
     snap->cs_saved = hdr->cs_saved;
     snap->ss_saved = hdr->ss_saved;
-
     snap->regs = hdr->regs;
     snap->stack_base_orig = hdr->stack_base_orig;
     snap->context_esp_offset = hdr->context_esp_offset;
     snap->stack_used = hdr->stack_used;
-
     memcpy(snap->fd_flags, hdr->fd_flags, sizeof(hdr->fd_flags));
     memcpy(snap->fd_offset, hdr->fd_offset, sizeof(hdr->fd_offset));
     memcpy(snap->fd_present, hdr->fd_present, sizeof(hdr->fd_present));
     memcpy(snap->events, hdr->events, sizeof(hdr->events));
-
     snap->event_count = hdr->event_count;
     snap->start_time = hdr->start_time;
     snap->user_time = hdr->user_time;
     snap->kernel_time = hdr->kernel_time;
     snap->page_count = hdr->page_count;
-
     memcpy(snap->page_vaddr, hdr->page_vaddr, sizeof(hdr->page_vaddr));
     memcpy(snap->page_flags, hdr->page_flags, sizeof(hdr->page_flags));
     kfree(hdr);
@@ -514,7 +508,6 @@ int aevrospoint_restore(const char *name)
     if (!task) { kfree(snap->page_data); kfree(snap); return VFS_ERR; }
     memset(task, 0, sizeof(task_t));
     uint8_t *stack_base = kmalloc(STACK_PAGE_SIZE);
-
     if (!stack_base) { kfree(task); kfree(snap->page_data); kfree(snap); return VFS_ERR; }
 
     task->pid = next_pid++;
@@ -534,7 +527,6 @@ int aevrospoint_restore(const char *name)
         asm volatile("mov %%cr3, %0" : "=r"(task->cr3));
     }
 
-  
     memcpy(stack_base, snap->stack_data, STACK_PAGE_SIZE);
     relocate_stack_pointers(stack_base, snap->stack_base_orig, (uint32_t)stack_base);
 
@@ -545,7 +537,7 @@ int aevrospoint_restore(const char *name)
     task->regs = snap->regs;
     task->regs.cs = snap->cs_saved;
     task->regs.ss = snap->ss_saved;
-    task->first_run = 0; 
+    task->first_run = 0;
 
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
@@ -562,7 +554,6 @@ int aevrospoint_restore(const char *name)
     task->user_time = snap->user_time;
     task->kernel_time = snap->kernel_time;
     task_log_event(task, EVT_CREATED, 0);
-
     kfree(snap->page_data);
     kfree(snap);
     task_register_all(task);

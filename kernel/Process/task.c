@@ -178,24 +178,24 @@ uint32_t build_initial_stack(uint8_t *stack_base, uint32_t entry_point, uint32_t
     *(--sp) = 0x202;
     *(--sp) = cs;
     *(--sp) = entry_point;
-    *(--sp) = 0; 
-    *(--sp) = 0; 
-    *(--sp) = 0; 
-    *(--sp) = 0; 
-    *(--sp) = 0; 
-    *(--sp) = 0; 
-    *(--sp) = 0; 
-    *(--sp) = 0; 
-    *(--sp) = 0; 
-    *(--sp) = 0; 
-    *(--sp) = ss; 
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = ss;
 
-    *(--sp) = (uint32_t)trap_return; 
-    *(--sp) = 0x202; 
-    *(--sp) = 0; 
-    *(--sp) = 0; 
-    *(--sp) = 0; 
-    *(--sp) = 0; 
+    *(--sp) = (uint32_t)trap_return;
+    *(--sp) = 0x202;
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
+    *(--sp) = 0;
 
     return (uint32_t)sp;
 }
@@ -274,7 +274,6 @@ void schedule(void)
     context_switch(&prev->context_esp, next->context_esp);
 
 }
-
 
 void switch_to_task_state(task_t *target, task_state_t leave_prev_as)
 {

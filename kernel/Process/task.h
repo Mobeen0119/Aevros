@@ -73,7 +73,6 @@ typedef struct context
     uint32_t eip;
 } context_t;
 
-
 typedef struct task
 {
     uint32_t cr3;
@@ -84,7 +83,6 @@ typedef struct task
     uint32_t kernel_stack;
     uint32_t kernel_stack_base;
     uint32_t context_esp;
-
 
     file_t *fd_table[TASK_MAX_FDS];
     dentry_t *cwd;
@@ -109,8 +107,8 @@ typedef struct task
 
     uint8_t event_count;
     uint32_t destroy_time;
-    char name[TASK_NAME_LEN]; 
-    uint8_t is_user;     
+    char name[TASK_NAME_LEN];
+    uint8_t is_user;
 
 } task_t;
 
@@ -123,7 +121,6 @@ extern int next_pid;
 void init_tasking();
 
 task_t *create_process(void (*entry)(), uint32_t flags, uint32_t page_dir, uint32_t user_stack_top);
-
 
 task_t *task_create_kernel(void (*entry_point)());
 
@@ -143,7 +140,6 @@ void task_add_ready(task_t *task);
 void task_remove_ready(task_t *task);
 void task_register_all(task_t *task);
 
-
 void task_wake(task_t *task);
 uint32_t get_ticks(void);
 
@@ -152,5 +148,5 @@ void trap_return(void);
 uint32_t read_eip(void);
 uint32_t build_initial_stack(uint8_t *stack_base, uint32_t entry_point, uint32_t cs, uint32_t ss, uint32_t user_esp);
 
-
 #endif
+

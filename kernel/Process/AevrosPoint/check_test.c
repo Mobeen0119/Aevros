@@ -23,10 +23,13 @@ static void remove_extension(char *name) {
 }
 
 void aevrospoint_test_save(void) {
+    kprintf("[DBG] test_save entered\n");
     kprintf("\n=== Testing Checkpoint SAVE ===\n");
     
     kprintf("Saving current task 'shell'...\n");
+    kprintf("[DBG] about to call aevrospoint_save\n");
     int result = aevrospoint_save("shell");
+    kprintf("[DBG] aevrospoint_save returned %d\n", result);
     if (result == VFS_OK) {
         kprintf("Save SUCCESSFUL\n");
     } else {

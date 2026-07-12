@@ -51,9 +51,12 @@ static void help_line(const char *cmd, const char *desc)
 
 void shell_execute(char *input)
 {
+    kprintf("[DBG] shell_execute entered\n");
 
     char *argv[MAX_ARG];
     int argc = tokenize(input, argv);
+
+    kprintf("[DBG] tokenize done, argc=%d argv0=%s\n", argc, argc > 0 ? argv[0] : "(none)");
 
     if (argc == 0)
         return;
@@ -63,7 +66,9 @@ void shell_execute(char *input)
 
     if (strcmp(argv[0], "checktest") == 0)
     {
+        kprintf("[DBG] about to call aevrospoint_full_test\n");
         aevrospoint_full_test();
+        kprintf("[DBG] aevrospoint_full_test returned\n");
     }
 
     else if (strcmp(argv[0], "fork") == 0)

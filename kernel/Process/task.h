@@ -131,6 +131,7 @@ task_t *task_create_user(void (*entry_point)());
 
 task_t *pick_next_task(void);
 void schedule();
+void switch_to_task_state(task_t *target, task_state_t leave_prev_as);
 
 void sys_exit(int status);
 

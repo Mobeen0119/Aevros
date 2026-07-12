@@ -10,6 +10,8 @@
 
 #define AEVROSPOINT_MAGIC 0x46475054
 #define FP_MAX_PAGES 256
+#define STACK_PAGE_SIZE 4096
+
 
 typedef struct
 {
@@ -20,6 +22,8 @@ typedef struct
     uint16_t cs_saved;
     uint16_t ss_saved;
     register_t regs;
+    uint32_t stack_base_orig;
+    uint32_t context_esp_offset;
     uint32_t stack_used;
     uint32_t fd_flags[TASK_MAX_FDS];
     uint32_t fd_offset[TASK_MAX_FDS];
@@ -43,8 +47,10 @@ typedef struct
     uint16_t cs_saved;
     uint16_t ss_saved;
     register_t regs;
+    uint32_t stack_base_orig;
+    uint32_t context_esp_offset;
     uint32_t stack_used;
-    uint8_t stack_data[4096];
+    uint8_t stack_data[STACK_PAGE_SIZE];
     uint32_t fd_flags[TASK_MAX_FDS];
     uint32_t fd_offset[TASK_MAX_FDS];
     uint8_t fd_present[TASK_MAX_FDS];
@@ -56,17 +62,21 @@ typedef struct
     uint32_t page_count;
     uint32_t page_vaddr[FP_MAX_PAGES];
     uint32_t page_flags[FP_MAX_PAGES];
-    uint8_t page_data[FP_MAX_PAGES][4096];
+
+    uint8_t (*page_data)[4096];
 } fgpt_snapshot_t;
 
 static fgpt_snapshot_t *work_snapshot = NULL;
 static task_t *worker_task = NULL;
+static task_t *waiter_task = NULL; 
 
 static int do_actual_save_to_file(task_t *target);
 static void build_path(const char *name, char *out, uint32_t outlen);
 static task_t *find_task_by_name(const char *name);
 static int snapshot_user_pages(uint32_t cr3, fgpt_snapshot_t *snap);
 static uint32_t restore_user_pages(fgpt_snapshot_t *snap);
+static void relocate_stack_pointers(uint8_t *stack, uint32_t old_base, uint32_t new_base);
+static int write_snapshot_to_disk(fgpt_snapshot_t *snap);
 
 static void build_path(const char *name, char *out, uint32_t outlen)
 {
@@ -87,12 +97,63 @@ static task_t *find_task_by_name(const char *name)
     return NULL;
 }
 
+
+static void relocate_stack_pointers(uint8_t *stack, uint32_t old_base, uint32_t new_base)
+{
+    if (old_base == new_base) return;
+    uint32_t *words = (uint32_t *)stack;
+    for (uint32_t i = 0; i < STACK_PAGE_SIZE / 4; i++)
+    {
+        uint32_t v = words[i];
+        if (v >= old_base && v < old_base + STACK_PAGE_SIZE)
+            words[i] = v - old_base + new_base;
+    }
+}
+
 static int snapshot_user_pages(uint32_t cr3, fgpt_snapshot_t *snap)
 {
     snap->page_count = 0;
+    snap->page_data = NULL;
     asm volatile("cli");
     map_page(TEMP_PD_VIRT, cr3, PAGE_PRESENT | PAGE_WRITE);
     uint32_t *tar_pd = (uint32_t *)TEMP_PD_VIRT;
+
+    uint32_t count = 0;
+    for (int pd = 10; pd < 768; pd++)
+    {
+        if (!(tar_pd[pd] & PAGE_PRESENT)) continue;
+        uint32_t pt_phy = tar_pd[pd] & 0xFFFFF000;
+        map_page(TEMP_PT_VIRT, pt_phy, PAGE_PRESENT | PAGE_WRITE);
+        uint32_t *tar_pt = (uint32_t *)TEMP_PT_VIRT;
+        for (int pt = 0; pt < 1024; pt++)
+            if (tar_pt[pt] & PAGE_PRESENT) count++;
+        unmap(TEMP_PT_VIRT);
+    }
+
+    if (count == 0)
+    {
+        unmap(TEMP_PD_VIRT);
+        asm volatile("sti");
+        return 0;
+    }
+    if (count > FP_MAX_PAGES)
+    {
+        unmap(TEMP_PD_VIRT);
+        asm volatile("sti");
+        kprintf("checkpoint: process exceeds %u page cap, aborting save\n", FP_MAX_PAGES);
+        return -1;
+    }
+
+    uint8_t (*page_data)[4096] = kmalloc(count * 4096);
+    if (!page_data)
+    {
+        unmap(TEMP_PD_VIRT);
+        asm volatile("sti");
+        kprintf("checkpoint: out of memory allocating %u KB for page data\n", count * 4);
+        return -1;
+    }
+
+    uint32_t index = 0;
     for (int pd = 10; pd < 768; pd++)
     {
         if (!(tar_pd[pd] & PAGE_PRESENT)) continue;
@@ -102,29 +163,22 @@ static int snapshot_user_pages(uint32_t cr3, fgpt_snapshot_t *snap)
         for (int pt = 0; pt < 1024; pt++)
         {
             if (!(tar_pt[pt] & PAGE_PRESENT)) continue;
-            if (snap->page_count >= FP_MAX_PAGES)
-            {
-                unmap(TEMP_PT_VIRT);
-                unmap(TEMP_PD_VIRT);
-                asm volatile("sti");
-                kprintf("checkpoint: process exceeds %u page cap, aborting save\n", FP_MAX_PAGES);
-                return -1;
-            }
             uint32_t phys = tar_pt[pt] & 0xFFFFF000;
             uint32_t flags = tar_pt[pt] & 0xFFF;
             uint32_t vaddr = (pd << 22) | (pt << 12);
-            uint32_t index = snap->page_count;
             snap->page_vaddr[index] = vaddr;
             snap->page_flags[index] = flags;
             map_page(TEMP_SRC_PAGE, phys, PAGE_PRESENT | PAGE_WRITE);
-            memcpy(snap->page_data[index], (void *)TEMP_SRC_PAGE, 4096);
+            memcpy(page_data[index], (void *)TEMP_SRC_PAGE, 4096);
             unmap(TEMP_SRC_PAGE);
-            snap->page_count++;
+            index++;
         }
         unmap(TEMP_PT_VIRT);
     }
     unmap(TEMP_PD_VIRT);
     asm volatile("sti");
+    snap->page_data = page_data;
+    snap->page_count = count;
     return 0;
 }
 
@@ -158,6 +212,49 @@ static uint32_t restore_user_pages(fgpt_snapshot_t *snap)
     return new_pd_phys;
 }
 
+static int write_snapshot_to_disk(fgpt_snapshot_t *snap)
+{
+    char path[64];
+    build_path(snap->name, path, sizeof(path));
+    int fd = sys_open(path, READ_WRITE | CREAT);
+    if (fd < 0) return VFS_ERR;
+
+    fgpt_header_t hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.magic = snap->magic;
+    strncpy(hdr.name, snap->name, TASK_NAME_LEN);
+    hdr.saved_tick = snap->saved_tick;
+    hdr.is_user = snap->is_user;
+    hdr.cs_saved = snap->cs_saved;
+    hdr.ss_saved = snap->ss_saved;
+    hdr.regs = snap->regs;
+    hdr.stack_base_orig = snap->stack_base_orig;
+    hdr.context_esp_offset = snap->context_esp_offset;
+    hdr.stack_used = snap->stack_used;
+    memcpy(hdr.fd_flags, snap->fd_flags, sizeof(hdr.fd_flags));
+    memcpy(hdr.fd_offset, snap->fd_offset, sizeof(hdr.fd_offset));
+    memcpy(hdr.fd_present, snap->fd_present, sizeof(hdr.fd_present));
+    memcpy(hdr.events, snap->events, sizeof(hdr.events));
+    hdr.event_count = snap->event_count;
+    hdr.start_time = snap->start_time;
+    hdr.user_time = snap->user_time;
+    hdr.kernel_time = snap->kernel_time;
+    hdr.page_count = snap->page_count;
+    memcpy(hdr.page_vaddr, snap->page_vaddr, sizeof(hdr.page_vaddr));
+    memcpy(hdr.page_flags, snap->page_flags, sizeof(hdr.page_flags));
+
+    int ok = 1;
+    if (sys_write(fd, (uint8_t *)&hdr, sizeof(hdr)) != (int)sizeof(hdr)) ok = 0;
+    if (ok && sys_write(fd, snap->stack_data, STACK_PAGE_SIZE) != STACK_PAGE_SIZE) ok = 0;
+
+    for (uint32_t i = 0; ok && i < snap->page_count; i++)
+        if (sys_write(fd, snap->page_data[i], 4096) != 4096) ok = 0;
+
+    sys_close(fd);
+    return ok ? VFS_OK : VFS_ERR;
+}
+
+
 static void worker_thread(void)
 {
     while (1)
@@ -171,50 +268,41 @@ static void worker_thread(void)
         fgpt_snapshot_t *snap = work_snapshot;
         work_snapshot = NULL;
 
-        char path[64];
-        build_path(snap->name, path, sizeof(path));
-        int fd = sys_open(path, READ_WRITE | CREAT);
-        if (fd < 0) { kfree(snap); continue; }
 
-        fgpt_header_t hdr;
-        memset(&hdr, 0, sizeof(hdr));
-        hdr.magic = snap->magic;
-        strncpy(hdr.name, snap->name, TASK_NAME_LEN);
-        hdr.saved_tick = snap->saved_tick;
-        hdr.is_user = snap->is_user;
-        hdr.cs_saved = snap->cs_saved;
-        hdr.ss_saved = snap->ss_saved;
-        hdr.regs = snap->regs;
-        hdr.stack_used = snap->stack_used;
-        memcpy(hdr.fd_flags, snap->fd_flags, sizeof(hdr.fd_flags));
-        memcpy(hdr.fd_offset, snap->fd_offset, sizeof(hdr.fd_offset));
-        memcpy(hdr.fd_present, snap->fd_present, sizeof(hdr.fd_present));
-        memcpy(hdr.events, snap->events, sizeof(hdr.events));
-        hdr.event_count = snap->event_count;
-        hdr.start_time = snap->start_time;
-        hdr.user_time = snap->user_time;
-        hdr.kernel_time = snap->kernel_time;
-        hdr.page_count = snap->page_count;
-        memcpy(hdr.page_vaddr, snap->page_vaddr, sizeof(hdr.page_vaddr));
-        memcpy(hdr.page_flags, snap->page_flags, sizeof(hdr.page_flags));
+        if (waiter_task)
+        {
+            task_t *src = waiter_task;
+            snap->stack_base_orig = src->kernel_stack_base;
+            snap->context_esp_offset = src->context_esp - src->kernel_stack_base;
+            snap->stack_used = STACK_PAGE_SIZE;
+            memcpy(snap->stack_data, (void *)src->kernel_stack_base, STACK_PAGE_SIZE);
+            snap->regs = src->regs;
+        }
 
-        sys_write(fd, (uint8_t*)&hdr, sizeof(hdr));
-        sys_write(fd, snap->stack_data, snap->stack_used);
-
-        for (uint32_t i = 0; i < snap->page_count; i++)
-            sys_write(fd, snap->page_data[i], 4096);
-
-        sys_close(fd);
+        write_snapshot_to_disk(snap);
+        kfree(snap->page_data);
         kfree(snap);
+
+        if (waiter_task)
+        {
+            task_t *w = waiter_task;
+            waiter_task = NULL;
+            task_add_ready(w);
+        }
     }
 }
+
 
 static void capture_self_snapshot(void)
 {
     task_t *self = current_task;
 
     fgpt_snapshot_t *snap = kmalloc(sizeof(fgpt_snapshot_t));
-    if (!snap) return;
+    if (!snap)
+    {
+        kprintf("checkpoint: out of memory, save aborted\n");
+        return;
+    }
     memset(snap, 0, sizeof(fgpt_snapshot_t));
 
     snap->magic = AEVROSPOINT_MAGIC;
@@ -223,12 +311,6 @@ static void capture_self_snapshot(void)
     snap->is_user = self->is_user ? 1 : 0;
     snap->cs_saved = self->is_user ? 0x1B : 0x08;
     snap->ss_saved = self->is_user ? 0x23 : 0x10;
-    snap->regs = self->regs;
-    snap->stack_used = (uint32_t)self->kernel_stack - (uint32_t)self->kernel_stack_base;
-
-    asm volatile("cli");
-    memcpy(snap->stack_data, (void*)self->kernel_stack_base, snap->stack_used);
-    asm volatile("sti");
 
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
@@ -248,8 +330,14 @@ static void capture_self_snapshot(void)
     if (self->is_user)
         snapshot_user_pages(self->cr3, snap);
 
+   
+    asm volatile("cli");
     work_snapshot = snap;
-    task_add_ready(worker_task);
+    waiter_task = self;
+    switch_to_task_state(worker_task, TASK_BLOCKED);
+    asm volatile("sti");
+
+    (void)snap; 
 }
 
 static int do_actual_save_to_file(task_t *target)
@@ -260,81 +348,58 @@ static int do_actual_save_to_file(task_t *target)
         return VFS_ERR;
     }
 
-    fgpt_header_t *header = kmalloc(sizeof(fgpt_header_t));
-    if (!header) return VFS_ERR;
-    memset(header, 0, sizeof(fgpt_header_t));
+    
+    asm volatile("cli");
+    task_state_t orig_state = target->state;
+    if (orig_state == TASK_READY)
+        target->state = TASK_BLOCKED;
+    asm volatile("sti");
 
-    header->magic = AEVROSPOINT_MAGIC;
-    strncpy(header->name, target->name, TASK_NAME_LEN);
-    header->saved_tick = get_ticks();
-    header->is_user = target->is_user ? 1 : 0;
-    header->cs_saved = target->is_user ? 0x1B : 0x08;
-    header->ss_saved = target->is_user ? 0x23 : 0x10;
-    header->regs = target->regs;
-    header->stack_used = (uint32_t)target->kernel_stack - (uint32_t)target->kernel_stack_base;
+    fgpt_snapshot_t *snap = kmalloc(sizeof(fgpt_snapshot_t));
+    if (!snap)
+    {
+        if (orig_state == TASK_READY) target->state = TASK_READY;
+        return VFS_ERR;
+    }
+    memset(snap, 0, sizeof(fgpt_snapshot_t));
+
+    snap->magic = AEVROSPOINT_MAGIC;
+    strncpy(snap->name, target->name, TASK_NAME_LEN);
+    snap->saved_tick = get_ticks();
+    snap->is_user = target->is_user ? 1 : 0;
+    snap->cs_saved = target->is_user ? 0x1B : 0x08;
+    snap->ss_saved = target->is_user ? 0x23 : 0x10;
+    snap->regs = target->regs;
+    snap->stack_base_orig = target->kernel_stack_base;
+    snap->context_esp_offset = target->context_esp - target->kernel_stack_base;
+    snap->stack_used = STACK_PAGE_SIZE;
+    memcpy(snap->stack_data, (void *)target->kernel_stack_base, STACK_PAGE_SIZE);
 
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
         if (target->fd_table[i])
         {
-            header->fd_present[i] = 1;
-            header->fd_flags[i] = target->fd_table[i]->flags;
-            header->fd_offset[i] = target->fd_table[i]->offset;
+            snap->fd_present[i] = 1;
+            snap->fd_flags[i] = target->fd_table[i]->flags;
+            snap->fd_offset[i] = target->fd_table[i]->offset;
         }
     }
-    header->event_count = target->event_count;
-    memcpy(header->events, target->events, sizeof(target->events));
-    header->start_time = target->start_time;
-    header->user_time = target->user_time;
-    header->kernel_time = target->kernel_time;
-    header->page_count = 0;
+    snap->event_count = target->event_count;
+    memcpy(snap->events, target->events, sizeof(target->events));
+    snap->start_time = target->start_time;
+    snap->user_time = target->user_time;
+    snap->kernel_time = target->kernel_time;
 
     if (target->is_user)
-    {
-        fgpt_snapshot_t *temp_snap = kmalloc(sizeof(fgpt_snapshot_t));
-        if (temp_snap)
-        {
-            memset(temp_snap, 0, sizeof(fgpt_snapshot_t));
-            if (snapshot_user_pages(target->cr3, temp_snap) == 0)
-            {
-                header->page_count = temp_snap->page_count;
-                memcpy(header->page_vaddr, temp_snap->page_vaddr, sizeof(temp_snap->page_vaddr));
-                memcpy(header->page_flags, temp_snap->page_flags, sizeof(temp_snap->page_flags));
-            }
-            kfree(temp_snap);
-        }
-    }
+        snapshot_user_pages(target->cr3, snap);
 
-    char path[64];
-    build_path(target->name, path, sizeof(path));
-    int fd = sys_open(path, READ_WRITE | CREAT);
-    if (fd < 0) { kfree(header); return VFS_ERR; }
+    if (orig_state == TASK_READY)
+        target->state = TASK_READY;
 
-    int written = sys_write(fd, (uint8_t *)header, sizeof(fgpt_header_t));
-    if (written != sizeof(fgpt_header_t)) { sys_close(fd); kfree(header); return VFS_ERR; }
-
-    written = sys_write(fd, (uint8_t *)target->kernel_stack_base, header->stack_used);
-    if (written != (int)header->stack_used) { sys_close(fd); kfree(header); return VFS_ERR; }
-
-    if (header->page_count > 0)
-    {
-        fgpt_snapshot_t *temp_snap = kmalloc(sizeof(fgpt_snapshot_t));
-        if (!temp_snap) { sys_close(fd); kfree(header); return VFS_ERR; }
-        memset(temp_snap, 0, sizeof(fgpt_snapshot_t));
-        if (snapshot_user_pages(target->cr3, temp_snap) == 0)
-        {
-            for (uint32_t i = 0; i < temp_snap->page_count && i < header->page_count; i++)
-            {
-                written = sys_write(fd, temp_snap->page_data[i], 4096);
-                if (written != 4096) break;
-            }
-        }
-        kfree(temp_snap);
-    }
-
-    sys_close(fd);
-    kfree(header);
-    return VFS_OK;
+    int result = write_snapshot_to_disk(snap);
+    kfree(snap->page_data);
+    kfree(snap);
+    return result;
 }
 
 int aevrospoint_save(const char *name)
@@ -350,6 +415,9 @@ int aevrospoint_save(const char *name)
     if (target == current_task)
     {
         capture_self_snapshot();
+
+        while (waiter_task == current_task || work_snapshot != NULL)
+            schedule();
         return VFS_OK;
     }
 
@@ -374,35 +442,59 @@ int aevrospoint_restore(const char *name)
     {
         sys_close(fd);
         kfree(hdr);
+        kprintf("checkpoint: '%s' is not a valid checkpoint file\n", name);
         return VFS_ERR;
     }
     fgpt_snapshot_t *snap = kmalloc(sizeof(fgpt_snapshot_t));
     if (!snap) { sys_close(fd); kfree(hdr); return VFS_ERR; }
     memset(snap, 0, sizeof(fgpt_snapshot_t));
     snap->magic = hdr->magic;
+
     strncpy(snap->name, hdr->name, TASK_NAME_LEN);
     snap->saved_tick = hdr->saved_tick;
     snap->is_user = hdr->is_user;
     snap->cs_saved = hdr->cs_saved;
     snap->ss_saved = hdr->ss_saved;
+
     snap->regs = hdr->regs;
+    snap->stack_base_orig = hdr->stack_base_orig;
+    snap->context_esp_offset = hdr->context_esp_offset;
     snap->stack_used = hdr->stack_used;
+
     memcpy(snap->fd_flags, hdr->fd_flags, sizeof(hdr->fd_flags));
     memcpy(snap->fd_offset, hdr->fd_offset, sizeof(hdr->fd_offset));
     memcpy(snap->fd_present, hdr->fd_present, sizeof(hdr->fd_present));
     memcpy(snap->events, hdr->events, sizeof(hdr->events));
+
     snap->event_count = hdr->event_count;
     snap->start_time = hdr->start_time;
     snap->user_time = hdr->user_time;
     snap->kernel_time = hdr->kernel_time;
     snap->page_count = hdr->page_count;
+
     memcpy(snap->page_vaddr, hdr->page_vaddr, sizeof(hdr->page_vaddr));
     memcpy(snap->page_flags, hdr->page_flags, sizeof(hdr->page_flags));
     kfree(hdr);
-    int stack_read = sys_read(fd, snap->stack_data, snap->stack_used);
-    if (stack_read != (int)snap->stack_used) { sys_close(fd); kfree(snap); return VFS_ERR; }
+
+    int stack_read = sys_read(fd, snap->stack_data, STACK_PAGE_SIZE);
+    if (stack_read != (int)STACK_PAGE_SIZE) { sys_close(fd); kfree(snap); return VFS_ERR; }
+
     if (snap->page_count > 0)
     {
+        if (snap->page_count > FP_MAX_PAGES)
+        {
+            sys_close(fd);
+            kfree(snap);
+            kprintf("checkpoint: '%s' has an invalid page_count\n", name);
+            return VFS_ERR;
+        }
+        snap->page_data = kmalloc(snap->page_count * 4096);
+        if (!snap->page_data)
+        {
+            sys_close(fd);
+            kfree(snap);
+            return VFS_ERR;
+        }
         uint32_t page_bytes = snap->page_count * 4096;
         uint32_t got_total = 0;
         uint8_t *pptr = (uint8_t *)snap->page_data;
@@ -414,38 +506,47 @@ int aevrospoint_restore(const char *name)
             if (got <= 0) break;
             got_total += got;
         }
-        if (got_total != page_bytes) { sys_close(fd); kfree(snap); return VFS_ERR; }
+        if (got_total != page_bytes) { sys_close(fd); kfree(snap->page_data); kfree(snap); return VFS_ERR; }
     }
     sys_close(fd);
+
     task_t *task = kmalloc(sizeof(task_t));
-    if (!task) { kfree(snap); return VFS_ERR; }
+    if (!task) { kfree(snap->page_data); kfree(snap); return VFS_ERR; }
     memset(task, 0, sizeof(task_t));
-    uint8_t *stack_base = kmalloc(4096);
-    if (!stack_base) { kfree(task); kfree(snap); return VFS_ERR; }
+    uint8_t *stack_base = kmalloc(STACK_PAGE_SIZE);
+
+    if (!stack_base) { kfree(task); kfree(snap->page_data); kfree(snap); return VFS_ERR; }
+
     task->pid = next_pid++;
     task->state = TASK_READY;
     task->parent = current_task;
     strncpy(task->name, snap->name, TASK_NAME_LEN);
     task->is_user = snap->is_user;
-    uint32_t stack_top = (uint32_t)stack_base + 4096;
+
     if (snap->is_user)
     {
         uint32_t new_cr3 = restore_user_pages(snap);
-        if (!new_cr3) { kfree(stack_base); kfree(task); kfree(snap); return VFS_ERR; }
+        if (!new_cr3) { kfree(stack_base); kfree(task); kfree(snap->page_data); kfree(snap); return VFS_ERR; }
         task->cr3 = new_cr3;
-        task->context_esp = build_initial_stack(stack_base, snap->regs.eip, snap->cs_saved, snap->ss_saved, 0xBFFF0000);
     }
     else
     {
         asm volatile("mov %%cr3, %0" : "=r"(task->cr3));
-        task->context_esp = build_initial_stack(stack_base, snap->regs.eip, snap->cs_saved, snap->ss_saved, stack_top);
     }
+
+  
+    memcpy(stack_base, snap->stack_data, STACK_PAGE_SIZE);
+    relocate_stack_pointers(stack_base, snap->stack_base_orig, (uint32_t)stack_base);
+
+    uint32_t stack_top = (uint32_t)stack_base + STACK_PAGE_SIZE;
+    task->kernel_stack = stack_top;
+    task->kernel_stack_base = (uint32_t)stack_base;
+    task->context_esp = (uint32_t)stack_base + snap->context_esp_offset;
     task->regs = snap->regs;
     task->regs.cs = snap->cs_saved;
     task->regs.ss = snap->ss_saved;
-    task->kernel_stack = stack_top;
-    task->kernel_stack_base = (uint32_t)stack_base;
-    task->first_run = 1;
+    task->first_run = 0; 
+
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
         if (snap->fd_present[i] && current_task->fd_table[i])
@@ -461,6 +562,8 @@ int aevrospoint_restore(const char *name)
     task->user_time = snap->user_time;
     task->kernel_time = snap->kernel_time;
     task_log_event(task, EVT_CREATED, 0);
+
+    kfree(snap->page_data);
     kfree(snap);
     task_register_all(task);
     task_add_ready(task);

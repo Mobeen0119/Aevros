@@ -275,6 +275,23 @@ void schedule(void)
 
 }
 
+
+void switch_to_task_state(task_t *target, task_state_t leave_prev_as)
+{
+    task_t *prev = current_task;
+    if (!target || !prev || target == prev)
+        return;
+
+    prev->state = leave_prev_as;
+    target->state = TASK_RUNNING;
+    current_task = target;
+
+    if (target->cr3)
+        asm volatile("mov %0, %%cr3" ::"r"(target->cr3) : "memory");
+
+    context_switch(&prev->context_esp, target->context_esp);
+}
+
 __attribute__((noinline)) void sys_exit(int status)
 {
     task_t *dead = current_task;

@@ -559,5 +559,12 @@ void shell_start(void)
         shell_prompt();
         terminal_readline(input);
         shell_execute(input);
+
+        if (current_task->is_checkpoint_clone)
+        {
+            kprintf("\n[checkpoint clone PID %d finished its resumed command, going idle -- keyboard/screen stay owned by the original shell]\n", current_task->pid);
+            while (1)
+                schedule();
+        }
     }
 }

@@ -74,7 +74,7 @@ static void build_path(const char *name, char *out, uint32_t outlen);
 static task_t *find_task_by_name(const char *name);
 static int snapshot_user_pages(uint32_t cr3, fgpt_snapshot_t *snap);
 static uint32_t restore_user_pages(fgpt_snapshot_t *snap);
-static void relocate_stack_pointers(uint8_t *stack, uint32_t old_base, uint32_t new_base);
+static void relocate_ebp_chain(uint8_t *new_stack, uint32_t old_base, uint32_t new_base, uint32_t context_esp_offset);
 static int write_snapshot_to_disk(fgpt_snapshot_t *snap);
 
 static void build_path(const char *name, char *out, uint32_t outlen)
@@ -87,20 +87,47 @@ static void build_path(const char *name, char *out, uint32_t outlen)
 
 static task_t *find_task_by_name(const char *name)
 {
+    if (current_task && strcmp(current_task->name, name) == 0)
+        return current_task;
     for (task_t *t = all_tasks; t; t = t->all_next)
         if (strcmp(t->name, name) == 0) return t;
     return NULL;
 }
 
-static void relocate_stack_pointers(uint8_t *stack, uint32_t old_base, uint32_t new_base)
+static int count_tasks_named(const char *name)
+{
+    int count = 0;
+    for (task_t *t = all_tasks; t; t = t->all_next)
+        if (strcmp(t->name, name) == 0) count++;
+    return count;
+}
+
+
+static void relocate_ebp_chain(uint8_t *new_stack, uint32_t old_base, uint32_t new_base, uint32_t context_esp_offset)
 {
     if (old_base == new_base) return;
-    uint32_t *words = (uint32_t *)stack;
-    for (uint32_t i = 0; i < STACK_PAGE_SIZE / 4; i++)
+
+    uint32_t *ebp_slot = (uint32_t *)(new_stack + context_esp_offset) + 3;
+    uint32_t last_offset = context_esp_offset;
+
+    for (int i = 0; i < 64; i++)
     {
-        uint32_t v = words[i];
-        if (v >= old_base && v < old_base + STACK_PAGE_SIZE)
-            words[i] = v - old_base + new_base;
+        uint32_t old_ebp = *ebp_slot;
+        if (old_ebp == 0)
+            break;
+        if (old_ebp < old_base || old_ebp >= old_base + STACK_PAGE_SIZE)
+            break;
+
+        uint32_t offset_in_page = old_ebp - old_base;
+
+        if (offset_in_page <= last_offset)
+            break;
+
+        uint32_t new_ebp = offset_in_page + new_base;
+        *ebp_slot = new_ebp;
+
+        last_offset = offset_in_page;
+        ebp_slot = (uint32_t *)(new_stack + offset_in_page);
     }
 }
 
@@ -404,8 +431,20 @@ int aevrospoint_save(const char *name)
 
     if (target == current_task)
     {
+        int dupes = count_tasks_named(name);
+        if (dupes > 1)
+        {
+            set_color(VGA_YELLOW, VGA_BLACK);
+            kprintf("checkpoint: refusing to checkpoint '%s' -- there are already\n", name);
+            kprintf("%d tasks with that name alive (likely from an earlier restore).\n", dupes);
+            kprintf("Checkpointing a task while a previous clone of it still exists\n");
+            kprintf("is a known-unsafe combination right now. Let the earlier clone\n");
+            kprintf("finish/exit first, then try again.\n");
+            reset_color();
+            return VFS_ERR;
+        }
+
         capture_self_snapshot();
-        
         while (waiter_task == current_task || work_snapshot != NULL)
             schedule();
         return VFS_OK;
@@ -417,6 +456,18 @@ int aevrospoint_save(const char *name)
 int aevrospoint_restore(const char *name)
 {
     if (!name) return VFS_ERR;
+
+    if (count_tasks_named(name) > 1)
+    {
+        set_color(VGA_YELLOW, VGA_BLACK);
+        kprintf("checkpoint: refusing to restore '%s' -- there are already\n", name);
+        kprintf("multiple tasks with that name alive. Restoring again right now\n");
+        kprintf("is a known-unsafe combination. Let the earlier clone(s)\n");
+        kprintf("finish/exit first, then try again.\n");
+        reset_color();
+        return VFS_ERR;
+    }
+
     char path[64];
     build_path(name, path, sizeof(path));
     int fd = sys_open(path, READ_ONLY);
@@ -519,7 +570,7 @@ int aevrospoint_restore(const char *name)
     }
 
     memcpy(stack_base, snap->stack_data, STACK_PAGE_SIZE);
-    relocate_stack_pointers(stack_base, snap->stack_base_orig, (uint32_t)stack_base);
+    relocate_ebp_chain(stack_base, snap->stack_base_orig, (uint32_t)stack_base, snap->context_esp_offset);
 
     uint32_t stack_top = (uint32_t)stack_base + STACK_PAGE_SIZE;
     task->kernel_stack = stack_top;
@@ -544,6 +595,8 @@ int aevrospoint_restore(const char *name)
     memcpy(task->events, snap->events, sizeof(task->events));
     task->start_time = snap->start_time;
     task->user_time = snap->user_time;
+    
+    
     task->kernel_time = snap->kernel_time;
     task_log_event(task, EVT_CREATED, 0);
     kfree(snap->page_data);
@@ -563,9 +616,11 @@ void aevrospoint_list(void)
     }
     dirent_t entry;
     int found = 0;
+   
     set_color(VGA_CYAN, VGA_BLACK);
     kprintf("\n CHECKPOINTS \n");
     kprintf("  -----------------\n");
+   
     reset_color();
     while (sys_readdir(fd, &entry) == 1)
     {
@@ -584,15 +639,19 @@ void aevrospoint_init(void)
 {
     uint8_t *ws = kmalloc(4096);
     if (!ws) return;
+  
     worker_task = kmalloc(sizeof(task_t));
     if (!worker_task) { kfree(ws); return; }
     memset(worker_task, 0, sizeof(task_t));
+  
     worker_task->pid = next_pid++;
     strncpy(worker_task->name, "ckptworker", TASK_NAME_LEN);
     worker_task->state = TASK_READY;
+    
     worker_task->is_user = 0;
     worker_task->kernel_stack = (uint32_t)ws + 4096;
     worker_task->kernel_stack_base = (uint32_t)ws;
+    
     worker_task->context_esp = build_initial_stack(ws, (uint32_t)worker_thread, 0x08, 0x10, worker_task->kernel_stack);
     asm volatile("mov %%cr3, %0" : "=r"(worker_task->cr3));
     worker_task->first_run = 1;

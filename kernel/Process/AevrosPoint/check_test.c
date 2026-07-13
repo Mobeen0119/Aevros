@@ -23,7 +23,7 @@ static void remove_extension(char *name) {
     }
 }
 
-void aevrospoint_test_save(void) {
+int aevrospoint_test_save(void) {
     kprintf("\n=== Testing Checkpoint SAVE ===\n");
     
     kprintf("Saving current task 'shell'...\n");
@@ -36,6 +36,7 @@ void aevrospoint_test_save(void) {
     
     aevrospoint_list();
     kprintf("=== Save Test Complete ===\n\n");
+    return result;
 }
 
 void aevrospoint_test_restore(void) {
@@ -59,13 +60,21 @@ void aevrospoint_full_test(void) {
     kprintf("        CHECKPOINT SYSTEM TEST            \n");
     kprintf("========================================\n");
     
-    aevrospoint_test_save();
+    int save_result = aevrospoint_test_save();
 
     if (current_task->is_checkpoint_clone) {
         kprintf("This task is a resumed checkpoint clone (PID %d).\n", current_task->pid);
         kprintf("Stopping here instead of restoring again, to avoid an endless chain.\n");
         kprintf("========================================\n");
         kprintf("     TEST COMPLETE (resumed clone)     \n");
+        kprintf("========================================\n\n");
+        return;
+    }
+
+    if (save_result != VFS_OK) {
+        kprintf("Skipping the restore test since the save step didn't succeed.\n");
+        kprintf("========================================\n");
+        kprintf("     TEST COMPLETE (save failed)       \n");
         kprintf("========================================\n\n");
         return;
     }

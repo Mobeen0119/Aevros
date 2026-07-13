@@ -30,17 +30,25 @@ void page_fault_handler(struct registers *reg)
     const char *verdict = "";
     decode_fault(err, addr, &what, &verdict);
 
-    set_color(VGA_RED, VGA_BLACK);
-    kprintf("\n--------------PAGE FAULT---------------\n");
-    kprintf("Address  : 0x%x\n", addr);
-    kprintf("What     : %s\n", what);
-    kprintf("Verdict  : %s\n", verdict);
-    kprintf("Access   : %s\n", (err & 0x2) ? "Write" : "Read");
-    kprintf("Mode     : User\n");
-    kprintf("EIP=%x ESP=%x CS=%x SS=%x\n", reg->eip, reg->esp, reg->cs, reg->ss);
-    kprintf("\n----USER PROCESS CRASH: killing pid %u----\n",
-            current_task ? current_task->pid : 0);
+    set_color(VGA_YELLOW, VGA_BLACK);
+    kprintf("\n===============================================\n");
+    kprintf(" A PROGRAM CRASHED (the rest of the system is fine)\n");
+    kprintf("===============================================\n");
     reset_color();
+
+    kprintf("\n Program PID %u %s\n", current_task ? current_task->pid : 0, what);
+    kprintf(" at address 0x%x (this was a %s).\n",
+            addr, (err & 0x2) ? "write" : "read");
+    kprintf("\n Most likely explanation:\n   %s\n", verdict);
+    kprintf("\n Where it happened: EIP=0x%x  ESP=0x%x  CS=0x%x  SS=0x%x\n",
+            reg->eip, reg->esp, reg->cs, reg->ss);
+
+    set_color(VGA_LIGHT_GREEN, VGA_BLACK);
+    kprintf("\n This program is being shut down. Nothing else on the system\n");
+    kprintf(" is affected -- user-mode crashes are contained to the one\n");
+    kprintf(" program that caused them.\n");
+    reset_color();
+    render();
 
     if (current_task)
     {

@@ -174,7 +174,7 @@ void tasklife_ps(void)
         }
 
         set_color(VGA_WHITE, VGA_BLACK);
-        kprintf("  %-5u      %s       ", t->pid, t->name);
+        kprintf("  %-5u   %s    ", t->pid, t->name);
         set_color(state_color, VGA_BLACK);
         kprintf("%s", state);
         set_color(VGA_WHITE, VGA_BLACK);

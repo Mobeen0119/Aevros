@@ -103,6 +103,7 @@ static int count_tasks_named(const char *name)
 }
 
 
+
 static void relocate_ebp_chain(uint8_t *new_stack, uint32_t old_base, uint32_t new_base, uint32_t context_esp_offset)
 {
     if (old_base == new_base) return;
@@ -120,6 +121,7 @@ static void relocate_ebp_chain(uint8_t *new_stack, uint32_t old_base, uint32_t n
 
         uint32_t offset_in_page = old_ebp - old_base;
 
+       
         if (offset_in_page <= last_offset)
             break;
 
@@ -595,8 +597,6 @@ int aevrospoint_restore(const char *name)
     memcpy(task->events, snap->events, sizeof(task->events));
     task->start_time = snap->start_time;
     task->user_time = snap->user_time;
-    
-    
     task->kernel_time = snap->kernel_time;
     task_log_event(task, EVT_CREATED, 0);
     kfree(snap->page_data);
@@ -616,11 +616,9 @@ void aevrospoint_list(void)
     }
     dirent_t entry;
     int found = 0;
-   
     set_color(VGA_CYAN, VGA_BLACK);
     kprintf("\n CHECKPOINTS \n");
     kprintf("  -----------------\n");
-   
     reset_color();
     while (sys_readdir(fd, &entry) == 1)
     {
@@ -639,19 +637,17 @@ void aevrospoint_init(void)
 {
     uint8_t *ws = kmalloc(4096);
     if (!ws) return;
-  
     worker_task = kmalloc(sizeof(task_t));
     if (!worker_task) { kfree(ws); return; }
     memset(worker_task, 0, sizeof(task_t));
-  
     worker_task->pid = next_pid++;
+   
     strncpy(worker_task->name, "ckptworker", TASK_NAME_LEN);
     worker_task->state = TASK_READY;
-    
+   
     worker_task->is_user = 0;
     worker_task->kernel_stack = (uint32_t)ws + 4096;
     worker_task->kernel_stack_base = (uint32_t)ws;
-    
     worker_task->context_esp = build_initial_stack(ws, (uint32_t)worker_thread, 0x08, 0x10, worker_task->kernel_stack);
     asm volatile("mov %%cr3, %0" : "=r"(worker_task->cr3));
     worker_task->first_run = 1;

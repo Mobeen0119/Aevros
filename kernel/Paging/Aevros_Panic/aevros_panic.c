@@ -23,7 +23,6 @@ static int addr_in_kernel_image(uint32_t addr)
 }
 
 
-
 static void print_stack_trace(uint32_t ebp, uint32_t stack_base, uint32_t stack_top)
 {
     kprintf(" How the kernel got here (each line called the one above it):\n\n");

@@ -13,16 +13,6 @@ static void build_path(const char *name, char *out, uint32_t outlen) {
     strncpy(out + strlen(out), ".ckpt", outlen - strlen(out));
 }
 
-static void remove_extension(char *name) {
-    int i = 0;
-    while (name[i] && name[i] != '.') {
-        i++;
-    }
-    if (name[i] == '.') {
-        name[i] = '\0';
-    }
-}
-
 int aevrospoint_test_save(void) {
     kprintf("\n=== Testing Checkpoint SAVE ===\n");
     
@@ -47,9 +37,7 @@ void aevrospoint_test_restore(void) {
     if (pid > 0) {
         kprintf("Restore SUCCESSFUL! New PID: %d\n", pid);
     } else {
-        set_color(VGA_RED,VGA_BLACK);
-        kprintf("                          Restore FAILED (error: %d)\n", pid);
-        reset_color();
+        kprintf("Restore FAILED (error: %d)\n", pid);
     }
     
     kprintf("=== Restore Test Complete ===\n\n");

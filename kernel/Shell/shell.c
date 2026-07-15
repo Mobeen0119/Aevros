@@ -23,14 +23,12 @@
 #include "../selftest.h"
 #include "../Process/exec.h"
 #include "Identity/identity.h"
+#include "Shell_UI/shell_ui.h"
+#include "Shell_Health/shell_health.h"
 
 void shell_prompt(void)
 {
-    set_color(VGA_LIGHT_GREEN, VGA_BLACK);
-    kprint("Aevros");
-    set_color(VGA_LIGHT_CYAN, VGA_BLACK);
-    kprint(" > ");
-    set_color(VGA_WHITE, VGA_BLACK);
+    shell_draw_prompt();
 }
 
 static void help_section(const char *title)
@@ -111,6 +109,49 @@ void shell_execute(char *input)
     else if (strcmp(argv[0], "identity") == 0)
     {
         identity_command();
+    }
+
+    else if (strcmp(argv[0], "health") == 0)
+    {
+        const char *status = shell_health();
+        uint32_t free_frames = pmm_free_frames();
+        uint32_t leaks = tracker_live_count();
+
+        set_color(VGA_CYAN, VGA_BLACK);
+        kprintf("\n SYSTEM HEALTH\n");
+        kprintf(" -------------\n");
+        reset_color();
+
+        set_color(VGA_WHITE, VGA_BLACK);
+        kprintf(" Overall status: ");
+        if (strcmp(status, "STABLE") == 0)
+            set_color(VGA_LIGHT_GREEN, VGA_BLACK);
+        else if (strcmp(status, "LOW MEMORY") == 0 || strcmp(status, "HIGH LOAD") == 0)
+            set_color(VGA_YELLOW, VGA_BLACK);
+        else
+            set_color(VGA_LIGHT_RED, VGA_BLACK);
+        kprintf("%s\n\n", status);
+        reset_color();
+
+        set_color(VGA_WHITE, VGA_BLACK);
+        kprintf(" Free memory frames : %u\n", free_frames);
+        kprintf(" Live allocations   : %u\n", leaks);
+        kprintf(" Tick count         : %u\n\n", get_ticks());
+        reset_color();
+
+        set_color(VGA_DARK_GREY, VGA_BLACK);
+        if (strcmp(status, "STABLE") == 0)
+            kprintf(" Everything looks normal -- plenty of free memory, no signs of trouble.\n");
+        else if (strcmp(status, "LOW MEMORY") == 0)
+            kprintf(" Free memory is getting low. Consider freeing some resources soon.\n");
+        else if (strcmp(status, "CRITICAL") == 0)
+            kprintf(" Very little free memory left -- the system may become unstable.\n");
+        else if (strcmp(status, "MEMORY LEAK") == 0)
+            kprintf(" A large number of allocations are still live. Something may not be\n freeing memory it's done with.\n");
+        else if (strcmp(status, "HIGH LOAD") == 0)
+            kprintf(" A lot of tasks are running right now. This is informational, not\n necessarily a problem.\n");
+        reset_color();
+        kprintf("\n");
     }
 
     else if (strcmp(argv[0], "ls") == 0)
@@ -498,6 +539,7 @@ void shell_execute(char *input)
         help_section("general");
         help_line("clear", "clear the screen");
         help_line("identity", "system dashboard");
+        help_line("health", "system health report");
         help_line("help", "show this list");
         kprint("\n");
 

@@ -2,7 +2,7 @@
 
 ## What you need
 
-Aevros builds a 32-bit ELF kernel from C and NASM assembly, then packs it into a GRUB-bootable ISO. You need:
+Aevros builds a 32-bit ELF kernel from C and NASM assembly, then packs it into a GRUB-bootable ISO. Confirmed working, this exact toolchain built the screenshots in [`docs/COMMANDS.md`](COMMANDS.md). You need:
 
 | Tool | Why | Debian/Ubuntu package |
 |---|---|---|

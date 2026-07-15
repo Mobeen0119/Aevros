@@ -1,8 +1,8 @@
 # Architecture
 
-This document walks through how Aevros is put together, from the moment GRUB hands control over, to a shell command running a program. Read [`PHILOSOPHY.md`](PHILOSOPHY.md) first if you haven't, it explains *why* several of these subsystems look the way they do.
+How Aevros is put together, from the moment GRUB hands over control to a shell command actually running a program. Read [`PHILOSOPHY.md`](PHILOSOPHY.md) first if you haven't, it explains *why* several of these subsystems look the way they do, this doc is more about the *how*.
 
-Aevros targets 32-bit x86. There is no dependency on another kernel's source, headers, or design beyond what the Multiboot specification and the x86 architecture itself require.
+Targets 32-bit x86. Nothing here depends on another kernel's source, headers, or design, beyond what the Multiboot spec and the x86 architecture itself require you to follow.
 
 ## 1. Boot flow
 
@@ -66,9 +66,9 @@ flowchart LR
 
 ### 2.1 Memory map: what actually lives where
 
-The section above explains the *layers*. This part answers a more concrete question: if you froze the machine right after boot and looked at physical memory address by address, what would you actually find, and why is it arranged that way? Every address below is real, taken directly from `kernel/main.c` and `linker.ld`, not simplified for the example.
+The section above covers the *layers*. Here's the more concrete version: freeze the machine right after boot, look at physical memory address by address, what's actually there, and why. Every number below is real, pulled straight from `kernel/main.c` and `linker.ld`, nothing simplified for the example.
 
-A quick note before the numbers, for anyone new to this: a computer's memory is really just one long strip of numbered boxes, called addresses, starting at `0x00000000`. "0x" just means the number that follows is written in hexadecimal instead of the usual base-10, it's the convention low-level code uses because it lines up neatly with how memory hardware is organized. You don't need to be able to convert it in your head, just read it as "a specific spot in memory," the same way a street address is a specific spot on a map.
+Quick note first, for anyone new to this: memory is just one long strip of numbered boxes, called addresses, starting at `0x00000000`. The `0x` just means the number's written in hexadecimal instead of base-10, that's the convention low-level code uses because it lines up cleanly with how memory hardware is organized. You don't need to convert it in your head, just read it as "a specific spot in memory," the same way a street address is a specific spot on a map.
 
 ```text
 0x00000000  ┐

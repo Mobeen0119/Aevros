@@ -1,69 +1,142 @@
 #include "keyboard.h"
 #include "../kernel/io.h"
-#include "../Lib/kprintf.h"
-<<<<<<< HEAD
 #include "../Include/terminal.h"
-#define KEY_RELEASE 0x80
-#define SCAN_PAGE_UP 0x49
+
+#define KEY_RELEASE    0x80
+
+#define SCAN_LSHIFT    0x2A
+#define SCAN_RSHIFT    0x36
+#define SCAN_LSHIFT_UP 0xAA
+#define SCAN_RSHIFT_UP 0xB6
+
+#define SCAN_HOME      0x47
+#define SCAN_UP        0x48
+#define SCAN_PAGE_UP   0x49
+
+#define SCAN_LEFT      0x4B
+#define SCAN_RIGHT     0x4D
+
+#define SCAN_END       0x4F
+#define SCAN_DOWN      0x50
 #define SCAN_PAGE_DOWN 0x51
-=======
-#define KEY_RELEASE 0x80
->>>>>>> origin/main
 
-unsigned char keyb[128] = {
-    0, 27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b', '\t',
-    'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
-    0, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`', 0, '\\',
-    'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 0, '*', 0, ' ', 0};
+unsigned char keyb[128] =
+{
+    0,27,'1','2','3','4','5','6','7','8','9','0','-','=','\b','\t',
+    'q','w','e','r','t','y','u','i','o','p','[',']','\n',
+    0,'a','s','d','f','g','h','j','k','l',';','\'','`',0,'\\',
+    'z','x','c','v','b','n','m',',','.','/',0,'*',0,' ',0
+};
 
-volatile int keyb_head = 0, keyb_tail = 0;
+unsigned char keyb_shift[128] =
+{
+    0,27,'!','@','#','$','%','^','&','*','(',')','_','+','\b','\t',
+    'Q','W','E','R','T','Y','U','I','O','P','{','}','\n',
+    0,'A','S','D','F','G','H','J','K','L',':','"','~',0,'|',
+    'Z','X','C','V','B','N','M','<','>','?',0,'*',0,' ',0
+};
+
+static int shift_pressed = 0;
+
+volatile int keyb_head=0,keyb_tail=0;
 volatile char keyboard_buffer[128];
 
 void keyboard_push(char c)
 {
-    int next = (keyb_head + 1) % 128;
-    if (next == keyb_tail) return; 
-    keyboard_buffer[keyb_head] = c;
-    keyb_head = next;
+    int next=(keyb_head+1)&127;
+    if(next==keyb_tail)
+        return;
+
+    keyboard_buffer[keyb_head]=c;
+    keyb_head=next;
 }
 
 volatile char keyboard_getchar()
 {
-    while (keyb_head == keyb_tail)
+    while(keyb_head==keyb_tail)
         asm volatile("hlt");
 
-    char c = keyboard_buffer[keyb_tail];
-    keyb_tail = (keyb_tail + 1) % 128;
+    char c=keyboard_buffer[keyb_tail];
+    keyb_tail=(keyb_tail+1)&127;
     return c;
 }
+
 void keyboard_handler()
 {
-    const char scan_code = inb(0x60);
+    uint8_t scan=inb(0x60);
 
-    if (scan_code & KEY_RELEASE)
-        return;
-
-<<<<<<< HEAD
-    if (scan_code == SCAN_PAGE_UP)
+    if(scan==SCAN_LSHIFT || scan==SCAN_RSHIFT)
     {
-        if (scroll_top > 0)
-            scroll_top--;
-        render();
+        shift_pressed=1;
         return;
     }
 
-    if (scan_code == SCAN_PAGE_DOWN)
+    if(scan==SCAN_LSHIFT_UP || scan==SCAN_RSHIFT_UP)
     {
-        if (scroll_top < MAX_LINES - HEIGHT)
-            scroll_top++;
-        render();
+        shift_pressed=0;
         return;
     }
 
-    char letter = keyb[(unsigned char)scan_code];
-=======
-    char letter = keyb[scan_code];
->>>>>>> origin/main
-    if (letter != 0)
-        keyboard_push(letter);
+    if(scan&KEY_RELEASE)
+        return;
+
+    switch(scan)
+    {
+        case SCAN_UP:
+            if(scroll_top>0)
+            {
+                scroll_top--;
+                render();
+            }
+            return;
+
+        case SCAN_DOWN:
+            if(scroll_top<cursor_y)
+            {
+                scroll_top++;
+                render();
+            }
+            return;
+
+        case SCAN_PAGE_UP:
+
+            scroll_top-=20;
+
+            if(scroll_top<0)
+                scroll_top=0;
+
+            render();
+            return;
+
+        case SCAN_PAGE_DOWN:
+
+            scroll_top+=20;
+
+            if(scroll_top>cursor_y)
+                scroll_top=cursor_y;
+
+            render();
+            return;
+
+        case SCAN_HOME:
+
+            scroll_top=0;
+            render();
+            return;
+
+        case SCAN_END:
+
+            if(cursor_y>=HEIGHT)
+                scroll_top=cursor_y-HEIGHT+1;
+            else
+                scroll_top=0;
+
+            render();
+            return;
+    }
+
+    char c=shift_pressed ? keyb_shift[scan] : keyb[scan];
+
+    if(c)
+        keyboard_push(c);
 }

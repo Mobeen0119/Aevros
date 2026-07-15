@@ -19,8 +19,10 @@ SECTIONS
     .bss : {
         *(COMMON)
         *(.bss*)
-    }
-
+    }  
+    . = ALIGN(4096);
+    kernel_end = .;
+    
 /DISCARD/ : {
     *(.eh_frame*)
     *(.got*)

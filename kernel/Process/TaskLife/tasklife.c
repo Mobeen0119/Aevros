@@ -2,6 +2,7 @@
 #include "../../../Lib/kprintf.h"
 #include "../../../Lib/string.h"
 #include "../../Memory/kheap.h"
+#include "../../../Include/terminal.h"
 
 static const char *event_name(task_event_type_t t)
 {
@@ -41,7 +42,8 @@ void task_log_event(task_t *task, task_event_type_t type, uint32_t data)
     if (!task || task->event_count >= TASK_MAX_EVENTS)
         return;
 
-    task_event_t *e =&task->events[task->event_count++];
+    task_event_t *e = &task->events[task->event_count];
+    task->event_count++;
 
     e->type = type;
     e->tick = get_ticks();
@@ -74,7 +76,7 @@ static void dump_task_life(task_t *t)
     if (t->parent)
         kprintf("  parent    : pid %u\n", t->parent->pid);
     kprintf("  events     : %u / %u\n", t->event_count, TASK_MAX_EVENTS);
-    kprintf("  ─────────────────────────────\n");
+    kprintf("  -----------------------------\n");
 
     for (int i = 0; i < t->event_count; i++)
     {
@@ -140,48 +142,52 @@ void tasklife_dump_current(void)
     dump_task_life(current_task);
 }
 
-void tasklife_ps(void){
-<<<<<<< HEAD
-    if(!all_tasks) {
-=======
-    if(!ready_queue) {
->>>>>>> origin/main
+void tasklife_ps(void)
+{
+    if (!all_tasks)
+    {
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprint("No tasks running\n");
+        reset_color();
         return;
     }
 
-     kprintf("\n  PID     NAME     STATE      TICKS ALIVE  PARENT\n");
-    kprintf("  ────────────────────────────────────────────────\n");
+    set_color(VGA_CYAN, VGA_BLACK);
+    kprintf(" ------------------------------------------------------------------------\n");
+    kprintf("\n  PID   ||   NAME   ||   STATE    ||   TICKS ALIVE   ||   PARENT\n");
+    kprintf(" ------------------------------------------------------------------------\n");
+    reset_color();
 
-<<<<<<< HEAD
-    task_t* t = all_tasks;
+    task_t *t = all_tasks;
 
     while (t)
     {
-=======
-    task_t* t =ready_queue;
+        int state_color;
+        const char *state;
+        switch (t->state)
+        {
+            case TASK_READY:   state = "READY    "; state_color = VGA_CYAN;   break;
+            case TASK_RUNNING: state = "RUNNING  "; state_color = VGA_GREEN;  break;
+            case TASK_BLOCKED: state = "BLOCKED  "; state_color = VGA_YELLOW; break;
+            case TASK_ZOMBIE:  state = "ZOMBIE   "; state_color = VGA_RED;    break;
+            default:           state = "SUSPENDED"; state_color = VGA_WHITE;  break;
+        }
 
-    do{
->>>>>>> origin/main
-        const char* state=t->state == TASK_READY    ? "READY    " :
-            t->state == TASK_RUNNING  ? "RUNNING  " :
-            t->state == TASK_BLOCKED  ? "BLOCKED  " :
-            t->state == TASK_ZOMBIE   ? "ZOMBIE   " : "SUSPENDED";
-        
-  kprintf("  %-5u   %s   %s %-13u  %u\n",
-                t->pid,
-                t->name,
-                state,
+        set_color(VGA_WHITE, VGA_BLACK);
+        kprintf("  %-5u   %s    ", t->pid, t->name);
+        set_color(state_color, VGA_BLACK);
+        kprintf("%s", state);
+        set_color(VGA_WHITE, VGA_BLACK);
+        kprintf("      %-13u        %u\n",
                 get_ticks() - t->start_time,
                 t->parent ? t->parent->pid : 0);
-<<<<<<< HEAD
-            t = t->all_next;
-  }
-=======
-            t=t->next;
-  }while(t!=ready_queue);
->>>>>>> origin/main
+        reset_color();
+        t = t->all_next;
+    }
 
-  kprint("\n");
+    set_color(VGA_CYAN, VGA_BLACK);
+    kprintf(" ------------------------------------------------------------------------\n");
+    reset_color();
+
+    kprint("\n");
 }
-

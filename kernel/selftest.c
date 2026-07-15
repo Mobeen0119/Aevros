@@ -16,6 +16,7 @@ static int pass = 0, fail = 0;
     else      { kprintf("  [FAIL] %s\n", name); fail++; } \
 } while (0)
 
+
 static int buddy_list_is_finite(int order, uint32_t limit)
 {
     extern buddy_block_t *free_lists[];

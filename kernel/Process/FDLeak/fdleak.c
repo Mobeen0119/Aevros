@@ -3,6 +3,7 @@
 #include "../TaskLife/tasklife.h"
 #include "../../../Include/vfs.h"
 #include "../../../Lib/kprintf.h"
+#include "../../../Include/terminal.h"
 
 #define FDLEAK_AGE_THRESHOLD 100
 
@@ -27,11 +28,13 @@ void fdleak_scan(void)
 {
     if (!ready_queue)
     {
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("fdleak: no tasks running...First Run\n");
+        reset_color();
         return;
     }
 
-    kprintf("\n fdleak scan: \n\n");
+    print_heading("FDLEAK SCAN");
 
     int leaks = 0, suspicious = 0;
     uint32_t now = get_ticks();
@@ -61,18 +64,22 @@ void fdleak_scan(void)
 
             if (t->state == TASK_ZOMBIE)
             {
+                set_color(VGA_RED, VGA_BLACK);
                 kprintf("    fd[%-2d]  %-14s opened tick %-5u age %-5u  "
                         "<- LEAK, dead task still holds this fd\n",
                         fd, path_for_inode(f->inode), opened_tick, age);
+                reset_color();
                 leaks++;
                 continue;
             }
 
             if (f->offset == 0 && age > FDLEAK_AGE_THRESHOLD)
             {
+                set_color(VGA_YELLOW, VGA_BLACK);
                 kprintf("    fd[%-2d]  %-14s opened tick %-5u age %-5u  "
                         "<- unused since open\n",
                         fd, path_for_inode(f->inode), opened_tick, age);
+                reset_color();
                 suspicious++;
                 continue;
             }
@@ -81,9 +88,11 @@ void fdleak_scan(void)
             {
                 if (t->fd_table[other] && t->fd_table[other]->inode == f->inode)
                 {
+                    set_color(VGA_YELLOW, VGA_BLACK);
                     kprintf("    fd[%-2d]  %-14s opened tick %-5u age %-5u  "
                             "<- duplicate of fd[%d], same file\n",
                             fd, path_for_inode(f->inode), opened_tick, age, other);
+                    reset_color();
                     suspicious++;
                     break;
                 }
@@ -92,5 +101,7 @@ void fdleak_scan(void)
         t = t->next;
     } while (t != ready_queue);
   
+    set_color(leaks ? VGA_RED : VGA_GREEN, VGA_BLACK);
     kprintf("\n Summary: %d confirmed leak(s), %d suspicious fd(s)\n\n", leaks, suspicious);
+    reset_color();
 }

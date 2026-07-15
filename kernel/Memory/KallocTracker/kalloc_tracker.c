@@ -35,7 +35,6 @@ void tracker_record(void *ptr, size_t size, const char *file, uint32_t line, con
         }
     }
 
-    /* table full — never silently drop */
     kprintf("[MEMSTORY] WARNING: tracker table full (%u slots), allocation at %x not recorded\n",
             TRACKER_MAX_ALLOCS, ptr);
 }
@@ -169,7 +168,7 @@ void tracker_dump_ghosts(void)
     }
 
     if (count == 0)
-        kprintf("  no ghost allocations — memory clean\n");
+        kprintf("  no ghost allocations - memory clean\n");
     else
         kprintf("\nTotal ghost bytes: %u across %u allocations\n", total, count);
 

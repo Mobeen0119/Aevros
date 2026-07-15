@@ -30,7 +30,6 @@ void buddy_init(uint32_t start, uint32_t end)
     for (int i = 0; i <= MAX_ORDER; i++)
         free_lists[i] = NULL;
 
-<<<<<<< HEAD
     buddy_total_mem = end - start;
 
     int order = MAX_ORDER;
@@ -57,30 +56,7 @@ void buddy_init(uint32_t start, uint32_t end)
     }
 
     add_to_list((void *)addr, order);
-=======
-    uint32_t block_size = (1 << MAX_ORDER) * 4096;
-    uint32_t addr = start;
-    buddy_total_mem = end - start;
 
-    if (addr & (block_size - 1))
-        addr = (addr + block_size-1) & ~(block_size - 1);
-
-    while (addr + block_size <= end)
-    {
-        add_to_list((void *)addr, MAX_ORDER);
-        addr += block_size;
-    }
-
-    if (free_lists[MAX_ORDER] == NULL)
-    {
-        addr = start;
-        while (addr + 4096 <= end)
-        {
-            add_to_list((void *)addr, 0);
-            addr += 4096;
-        }
-    }
->>>>>>> origin/main
 }
 
 void buddy_debug_list(int order)

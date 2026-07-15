@@ -7,6 +7,7 @@
 
 #include "../../Process/task.h"
 #include "../../Memory/kheap.h"
+#include "../../../Include/terminal.h"
 
 #define ROW(label, fmt, ...) \
     kprintf(" %-28s " fmt "\n", label ":", ##__VA_ARGS__)
@@ -43,22 +44,31 @@ static void print_bar(uint32_t used, uint32_t total, int width)
 
 static void div_line(void)
 {
+    set_color(VGA_DARK_GREY, VGA_BLACK);
     kprintf("  +----------------------------------------------------------+\n");
+    reset_color();
 }
 
 static void section(const char *title, const char *description)
 {
     kprintf("\n");
-    kprintf("  ╔══════════════════════════════════════════════════════════╗\n");
-    kprintf("  ║  %-56s  ║\n", title);
-    kprintf("  ║  %-56s  ║\n", description);
-    kprintf("  ╚══════════════════════════════════════════════════════════╝\n");
+    set_color(VGA_CYAN, VGA_BLACK);
+    kprintf("  ===========================================================|\n");
+    kprintf("  |  %-56s  |\n", title);
+    reset_color();
+    set_color(VGA_LIGHT_GREY, VGA_BLACK);
+    kprintf("  |  %-56s  |\n", description);
+    set_color(VGA_CYAN, VGA_BLACK);
+    kprintf("  ===========================================================\n");
+    reset_color();
 }
 
 void meminfo_pmm()
 {
     section("PHYSICAL MEMORY  (PMM)",
             "Raw 4 KB frames across all of RAM");
+
+    set_color(VGA_WHITE, VGA_BLACK);
 
     uint32_t total = pmm_total_frames();
     uint32_t free = pmm_free_frames();
@@ -82,15 +92,22 @@ void meminfo_pmm()
     ROW("Highest used address", "0x%08x", pmm_get_top());
 
     if (!consistent)
+    {
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("\n  [!] WARNING: used(%u) + free(%u) != total(%u) - "
                 "possible PMM bitmap corruption\n",
                 used, free, total);
+    }
+
+    reset_color();
 }
 
 void meminfo_heap(void)
 {
     section("HEAP",
             "Routes to slab (<=64B) or buddy (>64B)");
+
+    set_color(VGA_WHITE, VGA_BLACK);
 
     char buf_u[32], buf_f[32], buf_t[32];
 
@@ -108,12 +125,15 @@ void meminfo_heap(void)
     ROW("Largest free block", "%s", fmt_bytes(heap_largest_free_block(), buf_u, sizeof buf_u));
     ROW("Live allocations",   "%u", heap_live_allocation());
 
+    reset_color();
 }
 
 void meminfo_buddy(void)
 {
-    section("BUDDY ALLOCATOR",
+    section("                   BUDDY ALLOCATOR",
             "Manages above the PMM");
+
+    set_color(VGA_WHITE, VGA_BLACK);
 
     uint32_t total = buddy_total_memory();
     uint32_t free_mem = buddy_free_memory();
@@ -133,6 +153,7 @@ void meminfo_buddy(void)
     kprintf("\n\n");
     kprintf("  Free blocks by order (order N = 2^N * 4KB block):\n");
     div_line();
+    set_color(VGA_WHITE, VGA_BLACK);
     for (int order = 0; order <= MAX_ORDER; order++)
     {
         uint32_t block_size = ((uint32_t)1 << order) * 4096;
@@ -152,8 +173,13 @@ void meminfo_buddy(void)
     div_line();
 
     if (fragmented)
+    {
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("  [!] Fragmented: free memory exists but is split "
                 "large allocations may fail.\n");
+    }
+
+    reset_color();
 }
 
 void meminfo_slab_cache(const char *label, slab_t *cache,
@@ -174,14 +200,16 @@ void meminfo_slab_cache(const char *label, slab_t *cache,
 }
 void meminfo_slab(void)
 {
-    section("SLAB ALLOCATOR",
+    section("                    SLAB ALLOCATOR",
             "Fixed-size object pools: fast O(1) small allocations");
- 
+
+    set_color(VGA_WHITE, VGA_BLACK);
+
     uint32_t total_slots = 32 * 3;
     uint32_t used        = slab_objects_used();
     uint32_t free_objs   = total_slots - used;
  
-    ROW("Total object slots",    "%u  (3 caches × 32 slots)", total_slots);
+    ROW("Total object slots",    "%u  (3 caches x 32 slots)", total_slots);
     ROW("Slots in use",          "%u  (%u%%)", used,      pct(used,      total_slots));
     ROW("Slots free",            "%u  (%u%%)", free_objs, pct(free_objs, total_slots));
     kprintf("\n");
@@ -192,20 +220,26 @@ void meminfo_slab(void)
     meminfo_slab_cache("cache_64b",  &cache_64b,  64);
     meminfo_slab_cache("cache_128b", &cache_128b, 128);
     div_line();
+
+    reset_color();
 }
 
 void meminfo_task(void)
 {
-    section("TASKS",
+    section("                      TASKS",
             "All runnable kernel tasks and their memory context");
  
+    set_color(VGA_WHITE, VGA_BLACK);
+
     if (!ready_queue)
     {
         kprintf("  No tasks in ready queue.\n");
+        reset_color();
         return;
     }
  
     div_line();
+    set_color(VGA_WHITE, VGA_BLACK);
     kprintf("  %-6s  %-12s  %-12s  %s\n",
             "PID", "STATE", "CR3 (page dir)", "Notes");
     div_line();
@@ -213,18 +247,21 @@ void meminfo_task(void)
     task_t *t = ready_queue;
     do {
         const char *state_str;
+        int state_color = VGA_WHITE;
         switch (t->state)
         {
-            case TASK_RUNNING:  state_str = "RUNNING";  break;
-            case TASK_READY:    state_str = "READY";    break;
-            case TASK_ZOMBIE:   state_str = "ZOMBIE"; break;
-            case TASK_BLOCKED:  state_str = "BLOCKED";  break;
-            default:            state_str = "UNKNOWN";  break;
+            case TASK_RUNNING:  state_str = "RUNNING";  state_color = VGA_GREEN;  break;
+            case TASK_READY:    state_str = "READY";    state_color = VGA_CYAN;   break;
+            case TASK_ZOMBIE:   state_str = "ZOMBIE";   state_color = VGA_RED;    break;
+            case TASK_BLOCKED:  state_str = "BLOCKED";  state_color = VGA_YELLOW; break;
+            default:            state_str = "UNKNOWN";  state_color = VGA_WHITE;  break;
         }
  
-        kprintf("  %-6u  %-12s  0x%08x  %s\n",
-                t->pid,
-                state_str,
+        kprintf("  %-6u  ", t->pid);
+        set_color(state_color, VGA_BLACK);
+        kprintf("%-12s", state_str);
+        set_color(VGA_WHITE, VGA_BLACK);
+        kprintf("  0x%08x  %s\n",
                 t->cr3,
                 (t == current_task) ? "<-- currently executing" : "");
  
@@ -232,13 +269,16 @@ void meminfo_task(void)
     } while (t != ready_queue);
  
     div_line();
+    reset_color();
 }
  
 void meminfo_paging(void)
 {
-    section("PAGING",
-            "Virtual memory mapping — current page directory (CR3)");
+    section("                   PAGING",
+            "Virtual memory mapping .... current page directory (CR3)");
  
+    set_color(VGA_WHITE, VGA_BLACK);
+
     if (current_task)
     {
         ROW("Current task PID",  "%u",       current_task->pid);
@@ -249,9 +289,11 @@ void meminfo_paging(void)
     }
     else
     {
-        kprintf("  No current task — running in early boot / idle context.\n");
+        kprintf("  No current task running in early boot or idle context.\n");
         kprintf("  CR3 contains the kernel's own page directory.\n");
     }
+
+    reset_color();
 }
  
 static void meminfo_summary(void)
@@ -263,20 +305,26 @@ static void meminfo_summary(void)
     char t[32], u[32], f[32];
  
     kprintf("\n");
-    kprintf("  ┌─────────────────────────────────────────────────────────────┐\n");
-    kprintf("  │                  MEMORY REPORT — meminfo                    │\n");
-    kprintf("  │                                                              │\n");
-    kprintf("  │  Physical RAM:  %-44s│\n", fmt_bytes(phys_total, t, sizeof t));
-    kprintf("  │  In use:        %-44s│\n", fmt_bytes(phys_used,  u, sizeof u));
-    kprintf("  │  Free:          %-44s│\n", fmt_bytes(phys_free,  f, sizeof f));
-    kprintf("  │                                                              │\n");
-    kprintf("  │  Overall usage  ");
+    set_color(VGA_MAGENTA, VGA_BLACK);
+    kprintf("  ----------------------------------------------------------------\n");
+    kprintf("  |                 MEMORY REPORT :: meminfo                    |\n");
+    kprintf("  |                                                              |\n");
+    reset_color();
+    set_color(VGA_WHITE, VGA_BLACK);
+    kprintf("  |  Physical RAM:  %-44s|\n", fmt_bytes(phys_total, t, sizeof t));
+    kprintf("  |  In use:        %-44s|\n", fmt_bytes(phys_used,  u, sizeof u));
+    kprintf("  |  Free:          %-44s|\n", fmt_bytes(phys_free,  f, sizeof f));
+    kprintf("  |                                                              |\n");
+    kprintf("  |  Overall usage  ");
     print_bar(phys_used, phys_total, 32);
-    kprintf("  │\n");
-    kprintf("  │                                                              │\n");
-    kprintf("  │  Layers:  PMM → Buddy → Slab → Heap → (kmalloc)            │\n");
-    kprintf("  │           Each section below covers one layer.              │\n");
-    kprintf("  └─────────────────────────────────────────────────────────────┘\n");
+    kprintf("  |\n");
+    kprintf("  |                                                              |\n");
+    set_color(VGA_LIGHT_GREY, VGA_BLACK);
+    kprintf("  |  Layers:  PMM -> Buddy -> Slab -> Heap -> (kmalloc)          |\n");
+    kprintf("  |           Each section below covers one layer.              |\n");
+    set_color(VGA_MAGENTA, VGA_BLACK);
+    kprintf("  +-------------------------------------------------------------+\n");
+    reset_color();
 }
  
 void meminfo_all(void)
@@ -290,6 +338,8 @@ void meminfo_all(void)
     meminfo_task();     
     meminfo_paging();   
  
+    set_color(VGA_GREEN, VGA_BLACK);
     kprintf("\n  End of memory report.\n\n");
+    reset_color();
 }
  

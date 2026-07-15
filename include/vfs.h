@@ -24,8 +24,6 @@ struct task;
 typedef struct task task_t;
 typedef struct dentry dentry_t;
 
-//--------ptr to fnc-->ptr to file_node-->offset(start)-->size-->buffer
-
 typedef uint32_t (*read_fn)(dentry_t *, uint32_t, uint32_t, uint8_t *);
 typedef uint32_t (*write_fn)(dentry_t *, uint32_t, uint32_t, uint8_t *);
 
@@ -45,7 +43,7 @@ typedef struct dirent
 typedef struct vfs_node vfs_node_t;
 struct inode;
 
-typedef struct file_descriptor // Open file state
+typedef struct file_descriptor
 {
     struct inode *inode;
     dentry_t *dentry;
@@ -55,7 +53,7 @@ typedef struct file_descriptor // Open file state
 } file_t;
 
 typedef struct inode
-{ // File metadata
+{
     uint32_t size, flags, ref_count;
     vfs_ops_t *ops;
     void *fs_private;
@@ -71,14 +69,14 @@ typedef struct vfs_mount
     uint32_t flags;
 } vfs_mount_t;
 
-struct dentry // name Cache layer
+struct dentry
 {
     char *name;
     inode_t *inode;
     struct dentry *parent;
     struct dentry *children;
     struct vfs_mount *mount;
-    struct dentry *next; // bucket chain
+    struct dentry *next;
     struct dentry *hash_bucket[DENTRY_HASH];
     struct dentry *hash_next;
     int ref_count;

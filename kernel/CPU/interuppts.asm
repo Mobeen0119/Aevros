@@ -61,8 +61,6 @@ irq%1_handler:
     pop ds
     popa
     add esp, 8
-    mov al, 0x20
-    out 0x20, al
     sti
     iret
 %endmacro

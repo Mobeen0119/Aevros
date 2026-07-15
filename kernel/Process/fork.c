@@ -7,29 +7,24 @@
 #include "process-memory/process_memory.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
-#include "../io.h"
 
 extern uint32_t read_cr3(void);
 extern uint32_t read_eip(void);
 
-void dbg_hex32(uint32_t val)
-{
-    const char *hex = "0123456789ABCDEF";
-    for (int i = 28; i >= 0; i -= 4)
-        outb(0xE9, hex[(val >> i) & 0xF]);
-    outb(0xE9, ' ');
-}
-
 int do_fork(register_t *state_at_interuppt)
 {
     if (!current_task || !state_at_interuppt)
+    {
         return -VFS_ENOMEM;
+    }
 
     task_t *parent = current_task;
 
     task_t *child = (task_t *)kmalloc_raw(sizeof(task_t));
     if (!child)
+    {
         return VFS_ERR;
+    }
     memset(child, 0, sizeof(task_t));
 
     child->cr3 = clone_page_directory(parent->cr3);
@@ -53,27 +48,12 @@ int do_fork(register_t *state_at_interuppt)
     child->state = TASK_READY;
     child->next = NULL;
     child->first_run = 1;
-<<<<<<< HEAD
     child->is_user = 1;
-=======
->>>>>>> origin/main
 
     uint32_t stack_top = (uint32_t)new_stack + 4096;
     child->kernel_stack = stack_top;
     child->kernel_stack_base = (uint32_t)new_stack;
 
-
-    outb(0xE9, '[');
-    dbg_hex32(state_at_interuppt->eip);
-    dbg_hex32(state_at_interuppt->cs);
-    dbg_hex32(state_at_interuppt->eflags);
-    dbg_hex32(state_at_interuppt->esp);
-    dbg_hex32(state_at_interuppt->ss);
-    dbg_hex32(state_at_interuppt->useresp);
-
-    outb(0xE9, ']');
-
-<<<<<<< HEAD
     uint32_t *sp = (uint32_t *)stack_top;
     *(--sp) = state_at_interuppt->ss;
     *(--sp) = state_at_interuppt->useresp;
@@ -82,47 +62,25 @@ int do_fork(register_t *state_at_interuppt)
     *(--sp) = state_at_interuppt->eip;
     *(--sp) = state_at_interuppt->err_code;
     *(--sp) = state_at_interuppt->int_no;
-    *(--sp) = 0; // eax (fork return value in child)
+    *(--sp) = 0; 
     *(--sp) = state_at_interuppt->ecx;
     *(--sp) = state_at_interuppt->edx;
     *(--sp) = state_at_interuppt->ebx;
-    *(--sp) = 0; // esp (ignored by popa)
+    *(--sp) = 0; 
     *(--sp) = state_at_interuppt->ebp;
     *(--sp) = state_at_interuppt->esi;
     *(--sp) = state_at_interuppt->edi;
     *(--sp) = state_at_interuppt->ds;
 
-    *(--sp) = (uint32_t)trap_return; // eip for context_switch's ret
-    *(--sp) = 0; // ebp
-    *(--sp) = 0; // ebx
-    *(--sp) = 0; // esi
-    *(--sp) = 0; // edi
+    *(--sp) = (uint32_t)trap_return; 
+    *(--sp) = 0x202; 
+    *(--sp) = 0; 
+    *(--sp) = 0; 
+    *(--sp) = 0; 
+    *(--sp) = 0; 
 
     child->context_esp = (uint32_t)sp;
     child->regs.eip = state_at_interuppt->eip;
-=======
-   uint32_t *sp = (uint32_t *)stack_top;
-*(--sp) = state_at_interuppt->ss;
-*(--sp) = state_at_interuppt->useresp;
-*(--sp) = state_at_interuppt->eflags;
-*(--sp) = state_at_interuppt->cs;
-*(--sp) = state_at_interuppt->eip;
-*(--sp) = state_at_interuppt->edi;
-*(--sp) = state_at_interuppt->esi;
-*(--sp) = state_at_interuppt->ebx;
-*(--sp) = state_at_interuppt->ebp;
-
-child->regs.esp = (uint32_t)sp;
-child->regs.eip = state_at_interuppt->eip;
-child->regs.ebp = state_at_interuppt->ebp;
-
-    child->regs.esp = (uint32_t)sp;
-    child->regs.eip = state_at_interuppt->eip;
-    child->regs.ebp = state_at_interuppt->ebp;
-    outb(0xE9, '<');
-dbg_hex32(state_at_interuppt->ebp);
-outb(0xE9, '>');
->>>>>>> origin/main
 
     child->cwd = parent->cwd;
     if (child->cwd)
@@ -156,10 +114,8 @@ outb(0xE9, '>');
     task_log_event(child, EVT_CREATED, parent->pid);
 
     int pid = child->pid;
-<<<<<<< HEAD
     task_register_all(child);
-=======
->>>>>>> origin/main
+
     task_add_ready(child);
     return pid;
     

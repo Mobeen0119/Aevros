@@ -1,15 +1,10 @@
-<<<<<<< HEAD
+
 #ifndef ISR_H
 #define ISR_H
 
 #include <stdint.h>
 
-=======
-#define ISR_H
-#include <stdint.h>
 
-
->>>>>>> origin/main
 typedef struct registers {
     uint32_t ds;
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
@@ -21,8 +16,5 @@ typedef struct registers {
     uint32_t useresp;   
     uint32_t ss;
 } register_t;
-<<<<<<< HEAD
 
-#endif /* ISR_H */
-=======
->>>>>>> origin/main
+#endif 

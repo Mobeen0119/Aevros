@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 #include "Quarantine.h"
-=======
-#include "quarantine.h"
->>>>>>> origin/main
+
 #include "../TaskLife/tasklife.h"
 #include "../../../Lib/kprintf.h"
 #include "../../../Lib/string.h"
@@ -10,6 +7,8 @@
 #define QUARANTINE_FD_THRESHOLD_OPENS 9
 #define QUARANTINE_FD_THRESHOLD_CLOSES 1
 #define QUARANTINE_WINDOW_TICKS 200
+
+#include "../../../Include/terminal.h"
 
 static void try_quarantine(task_t *t, uint32_t now)
 {
@@ -32,6 +31,7 @@ static void try_quarantine(task_t *t, uint32_t now)
         t->state = TASK_QUARANTINED;
         task_log_event(t, EVT_QUARANTINED, opens);
 
+        set_color(VGA_YELLOW, VGA_BLACK);
         kprintf("\n  [KERNEL] pid %u (%s) auto-quarantined at tick %u\n",
                 t->pid, t->name, now);
         kprintf("           reason: fd open rate exceeded threshold "
@@ -39,7 +39,20 @@ static void try_quarantine(task_t *t, uint32_t now)
                 opens, closes, QUARANTINE_WINDOW_TICKS);
         kprintf("           task frozen, not killed -- state preserved "
                 "for inspection\n\n");
+        reset_color();
     }
+}
+
+static inline uint32_t save_and_disable_irq(void)
+{
+    uint32_t flags;
+    asm volatile("pushf; pop %0; cli" : "=r"(flags));
+    return flags;
+}
+
+static inline void restore_irq(uint32_t flags)
+{
+    asm volatile("push %0; popf" :: "r"(flags));
 }
 
 void quarantine_check_and_act(void)
@@ -49,6 +62,7 @@ void quarantine_check_and_act(void)
 
     uint32_t now = get_ticks();
 
+    uint32_t flags = save_and_disable_irq();
     task_t *t = ready_queue;
     do
     {
@@ -56,27 +70,47 @@ void quarantine_check_and_act(void)
         try_quarantine(t, now);
         t = t->next;
     } while (t != ready_queue);
+    restore_irq(flags);
 }
 
 void quarantine_list(void)
 {
     if (!ready_queue)
     {
-        kprintf("quarantine: no Tasks running\n");
+        set_color(VGA_YELLOW, VGA_BLACK);
+        kprintf("quarantine: no tasks running\n");
+        reset_color();
         return;
     }
 
+    #define QUARANTINE_LIST_MAX 64
+    uint32_t pids[QUARANTINE_LIST_MAX];
+    char names[QUARANTINE_LIST_MAX][TASK_NAME_LEN];
     int found = 0;
+
+    uint32_t flags = save_and_disable_irq();
     task_t *t = ready_queue;
     do
     {
-        if (t->state == TASK_QUARANTINED)
+        if (t->state == TASK_QUARANTINED && found < QUARANTINE_LIST_MAX)
         {
-            kprintf("  pid %-4u %-10s quarantined\n", t->pid, t->name);
+            pids[found] = t->pid;
+            strncpy(names[found], t->name, TASK_NAME_LEN);
             found++;
         }
         t = t->next;
     } while (t != ready_queue);
+    restore_irq(flags);
+
+    set_color(VGA_CYAN, VGA_BLACK);
+    kprintf("\n  QUARANTINE\n");
+    kprintf("  ----------\n");
+    reset_color();
+
+    set_color(VGA_YELLOW, VGA_BLACK);
+    for (int i = 0; i < found; i++)
+        kprintf("  pid %-4u %-10s quarantined\n", pids[i], names[i]);
+    reset_color();
 
     if (!found)
         kprintf("  (nothing quarantined)\n");
@@ -90,17 +124,26 @@ void quarantine_release(const char *name)
         return;
     }
 
+    uint32_t released_pid = 0;
+    int found = 0;
+
+    uint32_t flags = save_and_disable_irq();
     task_t *t = ready_queue;
     do
     {
         if (strcmp(t->name, name) == 0 && t->state == TASK_QUARANTINED)
         {
             t->state = TASK_READY;
-            kprintf("quarantine: pid %u ..... %s resumed\n", t->pid, name);
-            return;
+            released_pid = t->pid;
+            found = 1;
+            break;
         }
         t = t->next;
     } while (t != ready_queue);
+    restore_irq(flags);
 
-    kprintf("quarantine: pid %s not found or not quarantined\n", name);
+    if (found)
+        kprintf("quarantine: pid %u ..... %s resumed\n", released_pid, name);
+    else
+        kprintf("quarantine: pid %s not found or not quarantined\n", name);
 }

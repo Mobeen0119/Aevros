@@ -115,7 +115,7 @@ static void clone_rollback(uint32_t new_pd_phys, int pd_built)
     map_page(TEMP_PD_VIRT, new_pd_phys, PAGE_PRESENT | PAGE_WRITE);
     uint32_t *new_pd = (uint32_t *)TEMP_PD_VIRT;
 
-    for (int pd = 0; pd < pd_built; pd++)
+    for (int pd = 10; pd < 10 + pd_built; pd++)
     {
         if (!(new_pd[pd] & PAGE_PRESENT))
             continue;
@@ -147,18 +147,20 @@ uint32_t clone_page_directory(uint32_t src_cr3)
 
     uint32_t new_pd_phys = pmm_alloc();
     if (!new_pd_phys)
+    {
         return 0;
+    }
 
     map_page(TEMP_PD_VIRT, new_pd_phys, PAGE_PRESENT | PAGE_WRITE);
     uint32_t *new_pd = (uint32_t *)TEMP_PD_VIRT;
     memset(new_pd, 0, 4096);
 
-    for (int i = 0; i < 8; i++)
+    for (int i = 0; i < 10; i++)
         new_pd[i] = current_pd[i];
 
     int pd_built = 0;
 
-    for (int pd = 8; pd < 768; pd++)
+    for (int pd = 10; pd < 768; pd++)
     {
         if (!(current_pd[pd] & PAGE_PRESENT))
             continue;

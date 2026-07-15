@@ -10,13 +10,33 @@ struct Line buffer[MAX_LINES];
 
 char input_line[WIDTH];
 
-int input_length = 0; // Columns
+int input_length = 0;
 extern int cursor_y;
 
 int scroll_top = 0;
-extern int cursor_x; // input position
+extern int cursor_x;
 
-uint8_t current_color = 0x07;
+uint8_t current_color = VGA_COLOR(VGA_LIGHT_GREY, VGA_BLACK);
+
+void set_color(uint8_t fg, uint8_t bg)
+{
+    current_color = VGA_COLOR(fg, bg);
+}
+
+void reset_color(void)
+{
+    current_color = VGA_COLOR(VGA_LIGHT_GREY, VGA_BLACK);
+}
+
+void print_heading(const char *title)
+{
+    set_color(VGA_CYAN, VGA_BLACK);
+    kprint("\n  == ");
+    kprint(title);
+    kprint(" ==\n");
+    reset_color();
+    set_color(VGA_WHITE, VGA_BLACK);
+}
 
 void buffer_init()
 {
@@ -107,8 +127,13 @@ void handle_enter()
             input_line[i] = '\0';
         input_length = 0;
 
-        while (cursor_y >= scroll_top + HEIGHT)
-            scroll_top++;
+        if (scroll_top + HEIGHT >= cursor_y)
+        {
+            if (cursor_y >= HEIGHT)
+                scroll_top = cursor_y - HEIGHT + 1;
+            else
+                scroll_top = 0;
+        }
     }
 }
 
@@ -129,7 +154,11 @@ void render()
         }
     }
 
-    // Live Writing
+    render_input_line();
+}
+
+void render_input_line(void)
+{
     int input_row = cursor_y - scroll_top;
     if (input_row >= 0 && input_row < HEIGHT)
     {
@@ -145,11 +174,8 @@ void render()
         }
         if (input_length < WIDTH)
         {
-            if (input_length < WIDTH)
-            {
-                vga_memory[input_row * WIDTH + cursor_x] =
-                    ('_' | (current_color << 8));
-            }
+            vga_memory[input_row * WIDTH + cursor_x] =
+                ('_' | (current_color << 8));
         }
     }
 }
@@ -167,13 +193,13 @@ void terminal_readline(char *out)
 
         if (c == '\n')
         {
-            kput_char(c); 
+            kput_char(c);
             break;
         }
         else if (c == '\b' && i > 0)
         {
             handle_backspace();
-            i=input_length;
+            i = input_length;
         }
         else
         {
@@ -183,10 +209,11 @@ void terminal_readline(char *out)
                 handle_char(c);
             }
         }
-        render();
+        render_input_line();
     }
     input_line[i] = '\0';
 
     for (int j = 0; j <= i; j++)
         out[j] = input_line[j];
 }
+

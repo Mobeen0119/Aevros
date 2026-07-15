@@ -2,12 +2,13 @@
 #define PAGE_PRESENT 0X1
 #define PAGE_WRITE 0X2
 #define PAGE_USER 0X4
-#define PAGE_RECURSIVE (uint32_t*)0xFFFFF000   // page directory
-#define RECURSIVE_PT_BASE (uint32_t*)0xFFC00000  //starting address of all page table 
+#define PAGE_RECURSIVE (uint32_t*)0xFFFFF000   
+#define RECURSIVE_PT_BASE (uint32_t*)0xFFC00000   
 #define TEMP_SRC_PAGE 0xFF800000
 #define TEMP_DST_PAGE 0xFF801000
-#define TEMP_PD_VIRT 0xFFBFF000
-#define TEMP_PT_VIRT 0xFFBFE000
+#define TEMP_PD_VIRT  0xFFBFF000
+#define TEMP_PT_VIRT  0xFFBFE000
+#define TEMP_MAP_VIRT 0xFFBFD000
 
 
 void paging_init();

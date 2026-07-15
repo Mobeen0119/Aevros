@@ -25,7 +25,11 @@ _start_real:
     mov byte [0xB8004], '2'
     mov byte [0xB8005], 0x0F
 
+    
+    push ebx
+    push eax
     call kernel_main
+    add esp, 8
 
 .hang:
     cli

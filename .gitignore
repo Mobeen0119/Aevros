@@ -1,2 +1,6 @@
 *.o
+*.iso
+*.log
 kernel.elf
+iso/
+build_tmp/

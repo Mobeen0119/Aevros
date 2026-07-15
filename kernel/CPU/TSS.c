@@ -15,6 +15,6 @@ void write_tss(int32_t num, uint16_t ss0, uint32_t esp0) {
     memset(&tss, 0, sizeof(tss_entry_t));
     tss.ss0  = ss0;
     tss.esp0 = esp0;
-    tss.cs   = 0x0B;   // user code segment 
-    tss.ss = tss.ds = tss.es = tss.fs = tss.gs = 0x13; // user data
+    tss.cs   = 0x0B;  
+    tss.ss = tss.ds = tss.es = tss.fs = tss.gs = 0x13;
 }

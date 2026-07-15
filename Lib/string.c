@@ -22,6 +22,34 @@ void *memcpy(void *dest, const void *src, uint32_t size)
     return dest;
 }
 
+char *strchr(const char *s, int c) {
+    while (*s) {
+        if (*s == (char)c) {
+            return (char *)s;
+        }
+        s++;
+    }
+    if (c == '\0') {
+        return (char *)s;
+    }
+    return NULL;
+}
+
+char *strncat(char *dest, const char *src, size_t n) {
+    char *orig_dest = dest;
+    
+    while (*dest) {
+        dest++;
+    }
+    
+    while (n-- && *src) {
+        *dest++ = *src++;
+    }
+    
+    *dest = '\0';
+    return orig_dest;
+}
+
 uint32_t strlen(const char *str)
 {
     uint32_t len = 0;
@@ -45,19 +73,20 @@ void strcpy(char *dest, const char *src)
     dest[i] = '\0';
 }
 
-void strncpy(char *dest, const char *src, int len)
+void strncpy(char *dest,const char *src,int len)
 {
-    if (!src && len < 1)
+    if(!dest || !src || len <= 0)
         return;
 
-    int i = 0;
+    int i=0;
 
-    while (src[i] && i < len)
+    while(i < len-1 && src[i])
     {
-        dest[i] = src[i];
+        dest[i]=src[i];
         i++;
     }
-    dest[i] = '\0';
+
+    dest[i]='\0';
 }
 
 int strcmp(const char *str1, const char *str2)
@@ -107,6 +136,7 @@ char *strdup(const char *str)
     {
         copy[i] = str[i];
     }
+    copy[len]='\0';
     return copy;
 }
 

@@ -1,8 +1,23 @@
 # Architecture
 
-How Aevros is put together, from the moment GRUB hands over control to a shell command actually running a program. Read [`PHILOSOPHY.md`](PHILOSOPHY.md) first if you haven't, it explains *why* several of these subsystems look the way they do, this doc is more about the *how*.
+How Aevros is put together, from the moment GRUB hands over control to a shell command actually running a program. Read `PHILOSOPHY.md` first if you haven't, it explains *why* several of these subsystems look the way they do, this doc is more about the *how*.
 
 Targets 32-bit x86. Nothing here depends on another kernel's source, headers, or design, beyond what the Multiboot spec and the x86 architecture itself require you to follow.
+
+## Why this document exists
+
+```mermaid
+flowchart LR
+    A[Developer asks: Why?] --> B[Typical kernel]
+    B --> C[Hex dump]
+    C --> D[More debugging]
+    D --> E[More printf]
+    E --> F[Coffee ]
+    F --> G[Existential crisis ]
+
+    A --> H[Aevros]
+    H --> I[whyalive]
+    I --> J[Plain-English answer(can improve)]
 
 ## 1. Boot flow
 
@@ -26,6 +41,46 @@ flowchart TD
 ```
 
 Every step in that list is a real, separate initialization call in `kernel/main.c`, in that order, because later steps depend on earlier ones (paging needs the PMM, the heap needs paging, tasking needs the heap and the VFS). If you're adding a new subsystem that needs memory or filesystem access, its `_init()` call belongs after those in `kernel_main`.
+
+### The boot sequence, translated into human
+
+```text
+GRUB:
+"Here's your kernel. Good luck."
+
+boot.s:
+"I can work with this."
+
+Kernel:
+"I need memory."
+
+PMM:
+"Here."
+
+Kernel:
+"I need virtual memory."
+
+Paging:
+"Done."
+
+Kernel:
+"I need a filesystem."
+
+VFS:
+"Also done."
+
+Kernel:
+"I think I'm finally ready."
+
+Shell:
+"help"
+
+User:
+"rm /"
+
+Kernel:
+"...Seriously?"
+```
 
 ## 2. Memory management
 

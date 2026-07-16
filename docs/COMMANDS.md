@@ -1,10 +1,14 @@
-# Shell commands, shown running for real
+# Shell commands, actually doing stuff
 
-Not a flat command reference. Every command below is either shown as a real screenshot from a booted VM, or a real session transcript, because the point of Aevros's shell is that the commands *are* the documentation for what's behind them. For the full one-line list, run `help` inside the shell, it's the same list this doc is organized around.
+Most command references tell you *what* a command does.
 
-Want all of this in motion instead of stills? [`docs/images/aevros-demo.gif`](images/aevros-demo.gif) (or the sharper [`aevros-demo.mp4`](images/aevros-demo.mp4)) is a ~70 second, unstaged run through most of the commands below, captured straight from a booted VM.
+This one shows you what actually happened when it ran.
 
-Every command lives in the dispatch table in `kernel/Shell/shell.c`. Add a subsystem and a command for it, add a matching entry here in the same PR.
+Every screenshot and terminal session below came from a real booted copy of Aevros, not a carefully Photoshopped "trust me, it works." If something looks weird, that's probably because the kernel really did it.
+
+Want the quick tour instead? Watch **`docs/images/aevros-demo.gif`** (or the sharper **`aevros-demo.mp4`**) for a ~70 second run through the shell.
+
+Every command starts with `help`, but the interesting part starts after you type one.
 
 ---
 
@@ -28,11 +32,11 @@ A full-screen dashboard: version, uptime, current pid, task count, memory summar
 
 ![identity dashboard](images/identity-dashboard.png)
 
-Numbered options open a module (memory, tasks, debug, storage, drivers, about), `ESC` drops you back to the shell. It's the "what is this system, right now" command, worth running right after boot or after recovering from a crash.
+Numbered options open a module (memory, tasks, debug, storage, drivers, about), `ESC` drops you back to the shell. 
 
 ### `health`
 
-A one-shot, plain-English read on system health: `STABLE`, `LOW MEMORY`, `CRITICAL`, `MEMORY LEAK`, or `HIGH LOAD`, plus the numbers behind the verdict and a sentence explaining what it means.
+A one-shot, plain-English read on system health: `STABLE`, `LOW MEMORY`, `CRITICAL`, `MEMORY LEAK`, or `HIGH LOAD`.
 
 ![health command output](images/health-command.png)
 
@@ -161,7 +165,7 @@ Not something you run to start, it's a safety net running on its own. If a task 
 
 ![quarantine command output](images/quarantine-command.png)
 
-Worth being straight about: every built-in shell command that opens a file (`cat`, `touch`, `write`) closes it again immediately, so there's currently no way to *trigger* a real quarantine event from the shell itself, the trigger needs a task that opens several file descriptors and leaks them, and no bundled test program does that yet. The screenshot above is genuinely accurate, just of the boring, nothing's-wrong case. A small `User/Programs` test binary that opens files in a loop without closing them would make this demonstrable end to end, and would be a solid first contribution if you want one, see [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+Worth being straight about: every built-in shell command that opens a file (`cat`, `touch`, `write`) closes it again immediately, so there's currently no way to *trigger* a real quarantine event from the shell itself, the trigger needs a task that opens several file descriptors and leaks them.A small `User/Programs` test binary that opens files in a loop without closing them would make this demonstrable end to end, and would be a solid first contribution if you want one, see [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 `quarantine check` forces an immediate sweep, `quarantine release <name>` puts a task back on the ready queue once you've decided it's fine. Here's what the kernel actually prints the moment a quarantine trips (from the source in `kernel/Process/Quarantine/Quarantine.c`, not yet captured live for the reason above):
 
@@ -209,25 +213,8 @@ A raw debug view of the buddy allocator's free lists, order by order. Lower-leve
 
 ### `selftest`
 
-Runs the in-kernel self-test suite (`kernel/selftest.c`) live, in the booted kernel, not a separate host-side runner. Checks the buddy allocator's free lists terminate, the heap allocates and survives a write, the ready queue terminates, the tokenizer splits arguments correctly, syscall dispatch handles bad input without crashing, and more. Each line prints `[PASS]` or `[FAIL]`.
+Runs the in-kernel self-test suite (`kernel/selftest.c`) live, in the booted kernel, not a separate host-side runner. Each line prints `[PASS]` or `[FAIL]`.
 
-```text
-Aevros > selftest
--- buddy --
-  [PASS] buddy list terminates
-  [PASS] buddy_alloc(0) non-null
-  [PASS] buddy list still finite after free
--- heap --
-  [PASS] kmalloc_raw(64) non-null
-  [PASS] write to allocated block doesn't fault
--- task list --
-  [PASS] ready_queue terminates (no cycle)
--- tokenize --
-  [PASS] tokenize('ls') argc==1
-  [PASS] tokenize('ls') argv[0]=='ls'
-  [PASS] tokenize('echo hi there') argc==3
-  [PASS] tokenize argv[1]=='hi'
-```
 
 Add a subsystem, add a matching `test_<subsystem>` function here, same `CHECK(name, condition)` pattern. See [`CONTRIBUTING.md`](../CONTRIBUTING.md), new features are expected to ship with a self-test in the same PR.
 

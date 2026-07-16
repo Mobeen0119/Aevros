@@ -1,30 +1,32 @@
-# Contributor Covenant Code of Conduct
+# Code of Conduct
 
-## Our pledge
+## A few expectations
 
-We as members, contributors, and maintainers pledge to make participation in the Aevros project and its community a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
+Aevros is a place to learn, experiment, ask questions, and occasionally break an operating system on purpose.
 
-We pledge to act and interact in ways that contribute to an open, welcoming, diverse, inclusive, and healthy community, one that especially welcomes people who are new to operating systems development and still learning.
+You don't need to be an expert to contribute. Everyone starts somewhere, and nobody should be made to feel unwelcome for asking questions, making mistakes, or learning in public.
 
-## Our standards
+Treat other people with respect. Challenge ideas, review code, debate designs, but don't attack the person behind them. A good technical argument should make the project better, not make someone regret participating.
 
-Examples of behavior that contributes to a positive environment:
+Simply put: **be the kind of person you'd want reviewing your own code.**
 
-- Demonstrating empathy and kindness toward other people
-- Being respectful of differing opinions, viewpoints, and experiences
-- Giving and gracefully accepting constructive feedback
-- Accepting responsibility for mistakes, apologizing, and learning from them
-- Focusing on what is best for the project and the community as a whole
-- Being patient with questions from people newer to kernel development than you
+## What we expect
 
-Examples of unacceptable behavior:
+Good contributors:
 
-- The use of sexualized language or imagery, and sexual attention or advances of any kind
-- Trolling, insulting or derogatory comments, and personal or political attacks
-- Public or private harassment
-- Publishing others' private information, such as a physical or email address, without their explicit permission
-- Dismissing or belittling a question or contribution because it came from someone with less experience
-- Other conduct which could reasonably be considered inappropriate in a professional setting
+- Be respectful and constructive.
+- Be patient with people who are still learning.
+- Accept feedback without making it personal.
+- Admit mistakes and learn from them.
+- Help make the project welcoming for everyone.
+
+What doesn't belong here:
+
+- Harassment or discrimination of any kind.
+- Personal attacks, insults, or bullying.
+- Trolling or deliberately disruptive behavior.
+- Sharing someone's private information without permission.
+- Belittling someone because they're inexperienced.
 
 ## Enforcement responsibilities
 

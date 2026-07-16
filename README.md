@@ -15,27 +15,29 @@
 
 ---
 
-![Aevros boot screen](docs/images/boot_welcome.png)
-
-*Real screenshot, booted straight off the ISO in QEMU. Not a mockup.*
+                          ![Aevros boot screen](docs/images/boot-welcome.png)
 
 
+
+*Real screenshot, booted straight off the ISO in QEMU.*
+
+              ![Aevros feature tour demo](docs/images/aevros-demo.gif)
 
 ## What is Aevros
 
-Aevros is a tiny operating system kernel written from scratch in C and x86 assembly. Give it a few minutes to boot, then start asking awkward questions.
+Aevros is a small operating system kernel, written from scratch in C and x86 assembly. Not production-level, not trying to be, at least not yet.
 
-Most educational kernels happily tell you what exploded. Aevros also tells you why it exploded, because "something went wrong" isn't exactly useful.
+It exists to answer a question most educational kernels don't bother with: not just *what* broke, but *why*. "Something went wrong" has never been useful information to anyone, ever.
 
-Everything from the scheduler to the memory manager, filesystem, and shell—was written by hand instead of recycled from another kernel.
+Everything in it, the scheduler, the memory manager, the filesystem, the shell, was written by hand instead of recycled from another kernel. Slower to build. Much better to actually understand.
 
-Its built-in tools can explain the system's state in plain English. Kill a process and see what you've just ruined. Inspect an allocation and discover who's responsible for it. Trigger a page fault and get an explanation instead of a wall of cryptic hex trying its best to ruin your afternoon.
+The part that makes it different: a handful of built-in tools let the system explain its own state, in plain English, from inside the shell instead of hex dump. Kill a process and see exactly what you just ruined. Inspect an allocation and find out who's responsible for it. Trigger a page fault and get a sentence back instead of a wall of hex doing its best to ruin your afternoon.
 
-That's the whole point of the project, a kernel that can answer "why" about itself. Full writeup in [`docs/PHILOSOPHY.md`](docs/PHILOSOPHY.md).
+That's the whole project in one line: a kernel that can answer "why" about itself. Full writeup in [`docs/PHILOSOPHY.md`](docs/PHILOSOPHY.md).
 
-## Seeing it run
+## In action
 
-This is the `health` command, one of the introspection tools, reporting on the system live:
+This is `health`, one of the introspection tools, reporting on the system live:
 
 ![health command output](docs/images/health-command.png)
 
@@ -43,48 +45,17 @@ And this is `fork()` and `exec()` actually running, a process forking into a par
 
 ![fork and exec demo](docs/images/fork-exec-demo.png)
 
-No debugger. No print statements added for the screenshot. The kernel just answers the question directly, this is what it looks like doing that.
+No debugger. No print statements added for the screenshot. The kernel just answers the question, this is what that looks like.
 
 ## Core ideas
 
-- **Nothing borrowed.** The physical memory manager, buddy and slab allocators, paging code, scheduler, VFS, ELF loader, and shell are all original, written to actually understand each piece rather than copy a known-good design.
+- **Nothing borrowed.** The physical memory manager, buddy and slab allocators, paging code, scheduler, VFS, ELF loader, and shell are all original, built to actually understand each piece rather than copy a known-good design.
 - **State is logged, not just changed.** Every task keeps a history of what happened to it. Every allocation is tied back to a file, a line, and an owning process. Nothing changes silently.
 - **Failures explain themselves.** A page fault doesn't just print a faulting address, it tells you in a sentence what kind of access failed and what that usually means. See [`decode_fault`](kernel/Paging/Aevros_Panic/aevros_panic.c) and the panic screen built on top of it.
 - **Built to be read, not just run.** A subsystem and the tool that explains it live next to each other in the tree. `kernel/Process/Blast` sits right beside `kernel/Process/task.c`.
 
-## What's implemented
 
-| Area | Status | Notes |
-|---|---|---|
-| Boot (Multiboot, GRUB) | Working | `boot/boot.s`, boots under QEMU |
-| GDT / IDT / PIC / interrupts | Working | Flat segmentation, remapped PIC, ISR/IRQ dispatch |
-| Physical memory manager (PMM) | Working | Bitmap-based frame allocator |
-| Paging | Working | Page directories/tables, page fault decoding |
-| Buddy allocator | Working | Power-of-two physical block allocator |
-| Slab allocator | Working | Fixed-size object caching on top of the buddy allocator |
-| Kernel heap (`kmalloc`/`kfree`) | Working | Backed by the slab/buddy layers |
-| Allocation tracker | Working | Every live allocation is tied to a file, line, function, and pid |
-| Tasking / scheduler | Working (cooperative) | Ready queue, context switching, not preemptive yet |
-| Fork / Exec | Working | `fork()` clones a task, `exec()` loads and runs an ELF binary |
-| ELF loader | Working | Loads flat ELF binaries built for the `User/` toolchain |
-| Syscalls | Working | `int 0x80` gate: write, read, open, close, fork, exit, waitpid, exec |
-| Virtual filesystem (VFS) | Working | Unified dentry/inode tree over pluggable backends |
-| RAMFS | Working | In-memory filesystem, the default root |
-| DevFS | Experimental | Device node registration, inode resolution still being hardened |
-| Shell | Working | Built-in commands, tokenizer/parser, colored output |
-| Checkpoint / restore (`AevrosPoint`) | Working | Save and restore a task's full state under a name |
-| Task lifetime log (`TaskLife`) | Working | Every task keeps an event history: created, forked, exited, quarantined |
-| Liveness inspector (`WhyAlive`) | Working | Explains why an inode, task, or allocation is still alive |
-| Leak scanner (`FDLeak`) | Working | Finds file descriptors that were opened and never closed |
-| Blast radius (`Blast`) | Working | Simulates what killing a task would break, before you kill it |
-| Quarantine | Working | Auto-freezes (never kills) tasks that look like they're leaking |
-| Memory snapshots (`MemFreeze`) | Working | Snapshots allocator state, diffs it later |
-| Self-test suite (`selftest`) | Working | In-kernel sanity checks, runs on demand |
-| User space / ring 3 | Partial | Programs run through `exec`, full isolation still maturing |
-
-Every "Working" row ships with a self-test in `kernel/selftest.c`, run it yourself with `selftest`. Nothing in this table is aspirational, it's what's actually in the tree right now.
-
-## Try it
+## Try it right now
 
 ```bash
 git clone https://github.com/Mobeen0119/Aevros.git
@@ -93,58 +64,41 @@ cd Aevros
 qemu-system-i386 -cdrom aevrosos.iso
 ```
 
-Full requirements, per-platform install commands, and what to expect on first boot: [`docs/BUILDING.md`](docs/BUILDING.md).
+Few Moments , and you're at a shell that can explain itself. Details: [`docs/BUILDING.md`](docs/BUILDING.md).
 
-## Documentation map
+## What's actually working
 
-| Document | What's in it |
+| Area | Status |
 |---|---|
-| [`docs/PHILOSOPHY.md`](docs/PHILOSOPHY.md) | Why Aevros exists, and what "a kernel that explains itself" actually means |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Full system design, subsystem by subsystem, with diagrams and a real memory map |
-| [`docs/COMMANDS.md`](docs/COMMANDS.md) | Every shell command, shown running for real, with screenshots |
-| [`docs/BUILDING.md`](docs/BUILDING.md) | Toolchain setup, build steps, QEMU, troubleshooting |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to propose changes, conventions, PR process |
-| [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) | Expected behavior in the project's spaces |
-| [`SECURITY.md`](SECURITY.md) | How to report a vulnerability |
+| Boot, GDT/IDT/PIC, interrupts | Working |
+| Physical memory, paging, buddy + slab allocators | Working |
+| Allocation tracker (file, line, owner, per alloc) | Working |
+| Scheduler, fork/exec, ELF loader | Working (cooperative) |
+| Syscalls (`int 0x80`), VFS, RAMFS | Working |
+| `whyalive`, `blast`, `quarantine`, `memfreeze`, checkpoint/restore | Working |
+| DevFS, full ring 3 isolation | Experimental / partial |
 
-## Project layout
+Every "Working" row has a real self-test in `kernel/selftest.c`, run `selftest` yourself. Full table: [`README` implementation matrix in the repo](docs/ARCHITECTURE.md).
 
-```text
-Aevros/
-├── boot/            Multiboot entry point (assembly) and GRUB config
-├── kernel/
-│   ├── CPU/         GDT, IDT, TSS
-│   ├── Memory/      PMM, paging, buddy allocator, slab allocator, heap,
-│   │                allocation tracker, memory snapshots
-│   ├── Paging/      Page fault handling and the self-explaining panic screen
-│   ├── Process/     Scheduler, tasks, fork/exec, and the introspection
-│   │                tools (WhyAlive, Blast, Quarantine, TaskLife, ...)
-│   ├── Syscall/     The int 0x80 syscall gate and dispatcher
-│   ├── VFS/         Virtual filesystem tree, RAMFS
-│   ├── Dev/         Device filesystem (experimental)
-│   ├── ELF/         ELF binary loader
-│   └── Shell/       The interactive shell and its built-in commands
-├── Drivers/         Keyboard, TTY, PIT (timer)
-├── Lib/             Freestanding string/printf/math helpers
-├── Include/         Shared public headers
-├── User/            Userspace test programs and their linker scripts
-└── build.sh         One-command build: assembles, compiles, links, makes the ISO
-```
+
 
 ## Where this is going
 
 Today, Aevros is a hobby kernel.
 
-Tomorrow?
+Tomorrow, hopefully, it's the operating system you reach for when you're tired of guessing why something broke.
 
-Hopefully it's the operating system you open when you're tired of guessing why something broke.
+Because debugging should feel less like archaeology, and more like asking a question.
 
-Because debugging should feel less like archaeology...
-and more like asking a question.
+**In the near term, concretely:**
+- Real memory protection between user tasks, full ring 3, not partial
+- A preemptive scheduler, so one task can't quietly hog the CPU
+- Proper Networking And GUI for better experience.
+- Every existing subsystem passing the two-question test from [`PHILOSOPHY.md`](docs/PHILOSOPHY.md): can it say why it's still alive, and can it say what breaks if it's removed
 
 ## Status and stability
 
- Subsystems get rewritten as understanding improves, they don't get left alone just because they work. If you're evaluating this for anything beyond learning and experimentation, don't, not yet. That's not false modesty, it's just accurate: no full ring 3 isolation, no preemptive scheduler.
+Aevros is under active development. Subsystems get rewritten as understanding improves, they don't get left alone just because they work. If you're evaluating this for anything beyond learning and experimentation, don't, not yet. That's not false modesty, it's just accurate: no full ring 3 isolation, no preemptive scheduler.
 
 ## License
 

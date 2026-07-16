@@ -131,6 +131,17 @@ Aevros/
 └── build.sh         One-command build: assembles, compiles, links, makes the ISO
 ```
 
+## Where this is going
+
+Today, Aevros is a hobby kernel.
+
+Tomorrow?
+
+Hopefully it's the operating system you open when you're tired of guessing why something broke.
+
+Because debugging should feel less like archaeology...
+and more like asking a question.
+
 ## Status and stability
 
  Subsystems get rewritten as understanding improves, they don't get left alone just because they work. If you're evaluating this for anything beyond learning and experimentation, don't, not yet. That's not false modesty, it's just accurate: no full ring 3 isolation, no preemptive scheduler.

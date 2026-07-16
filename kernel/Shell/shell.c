@@ -13,6 +13,7 @@
 #include "../Process/AevrosPoint/aevrospoint.h"
 #include "../Process/StackMap/stackmap.h"
 #include "../Memory/MemFreeze/memfreeze.h"
+#include "../Memory/pmm.h"
 #include "../Process/OutLook/outlook.h"
 #include "../Process/Quarantine/Quarantine.h"
 #include "../Process/Blast/blast.h"

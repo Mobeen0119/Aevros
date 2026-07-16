@@ -15,23 +15,21 @@
 
 ---
 
-![Aevros boot screen](docs/images/boot-welcome.png)
+![Aevros boot screen](docs/images/boot_welcome.png)
 
 *Real screenshot, booted straight off the ISO in QEMU. Not a mockup.*
 
-## Full feature tour, ~70 seconds
 
-![Aevros feature tour demo](docs/images/aevros-demo.gif)
-
-Every frame above is the actual kernel running in QEMU, screen-captured live, not staged. It walks `help`, `identity`, `health`, `meminfo`, `exec`/`fork`, `ps`, `memstory`, `memstory ghosts`, `fdleak`, `memfreeze`, `stackmap`, `whyalive`, `outlook`, `timeline`, `quarantine`, `blast`, and `selftest`, in that order, on a freshly booted system. Higher quality version: [`docs/images/aevros-demo.mp4`](docs/images/aevros-demo.mp4).
 
 ## What is Aevros
 
-Aevros is a small operating system kernel, written from scratch in C and x86 assembly. You can boot it in a couple minutes and start asking it questions.
+Aevros is a tiny operating system kernel written from scratch in C and x86 assembly. Give it a few minutes to boot, then start asking awkward questions.
 
-Most teaching kernels show you *what* happened. Aevros tries to tell you *why*. It has its own memory manager, its own scheduler, its own filesystem, its own shell, all built by hand, nothing borrowed from an existing kernel's code or design.
+Most educational kernels happily tell you what exploded. Aevros also tells you why it exploded, because "something went wrong" isn't exactly useful.
 
-The part that actually makes it different: a handful of built-in tools let the running system explain its own state, in plain sentences, from inside the shell. Kill a process and ask what would've broken first. Find a suspicious allocation and ask who owns it and whether that owner's even still alive. Trigger a page fault and get a sentence back instead of a raw hex dump.
+Everything from the scheduler to the memory manager, filesystem, and shell—was written by hand instead of recycled from another kernel.
+
+Its built-in tools can explain the system's state in plain English. Kill a process and see what you've just ruined. Inspect an allocation and discover who's responsible for it. Trigger a page fault and get an explanation instead of a wall of cryptic hex trying its best to ruin your afternoon.
 
 That's the whole point of the project, a kernel that can answer "why" about itself. Full writeup in [`docs/PHILOSOPHY.md`](docs/PHILOSOPHY.md).
 
@@ -135,7 +133,7 @@ Aevros/
 
 ## Status and stability
 
-Aevros is under active development. Subsystems get rewritten as understanding improves, they don't get left alone just because they work. If you're evaluating this for anything beyond learning and experimentation, don't, not yet. That's not false modesty, it's just accurate: no full ring 3 isolation, no preemptive scheduler.
+ Subsystems get rewritten as understanding improves, they don't get left alone just because they work. If you're evaluating this for anything beyond learning and experimentation, don't, not yet. That's not false modesty, it's just accurate: no full ring 3 isolation, no preemptive scheduler.
 
 ## License
 

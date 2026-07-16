@@ -47,10 +47,6 @@ void gdt_init()
 
     gdt_flush((uint32_t)&gdt_ptr);
     load_tss();
-        kprintf("GDT bytes: %x %x %x %x %x %x\n",
-            ((uint8_t*)&gdt_entries[1])[0], ((uint8_t*)&gdt_entries[1])[1],
-            ((uint8_t*)&gdt_entries[1])[2], ((uint8_t*)&gdt_entries[1])[3],
-            ((uint8_t*)&gdt_entries[1])[4], ((uint8_t*)&gdt_entries[1])[5]);
 }
 
 void update_tss(uint32_t stack)

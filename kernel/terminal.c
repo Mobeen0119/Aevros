@@ -193,6 +193,11 @@ void terminal_readline(char *out)
 
         if (c == '\n')
         {
+            set_color(VGA_LIGHT_MAGENTA, VGA_BLACK);
+            for (int k = 0; k < i; k++)
+                kput_char(input_line[k]);
+            reset_color();
+
             kput_char(c);
             break;
         }
@@ -215,5 +220,9 @@ void terminal_readline(char *out)
 
     for (int j = 0; j <= i; j++)
         out[j] = input_line[j];
-}
 
+    for (int j = 0; j < WIDTH; j++)
+        input_line[j] = '\0';
+    input_length = 0;
+    cursor_x = 0;
+}

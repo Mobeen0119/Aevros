@@ -185,7 +185,8 @@ void terminal_readline(char *out)
     int i = 0;
     char c;
 
-    input_length = cursor_x = 0;
+    input_length =0;
+     cursor_x = 10;
 
     while (1)
     {

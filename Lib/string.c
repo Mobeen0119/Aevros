@@ -22,6 +22,18 @@ void *memcpy(void *dest, const void *src, uint32_t size)
     return dest;
 }
 
+int memcmp(const void *a, const void *b, uint32_t size)
+{
+    const uint8_t *pa = (const uint8_t *)a;
+    const uint8_t *pb = (const uint8_t *)b;
+    for (uint32_t i = 0; i < size; i++)
+    {
+        if (pa[i] != pb[i])
+            return (int)pa[i] - (int)pb[i];
+    }
+    return 0;
+}
+
 char *strchr(const char *s, int c) {
     while (*s) {
         if (*s == (char)c) {

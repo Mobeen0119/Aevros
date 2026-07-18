@@ -21,6 +21,10 @@ void *memcpy(void *dest, const void *src, uint32_t size);
 
 void *memset(void *dest, uint8_t value, uint32_t size);
 
+void *memset(void *dest, uint8_t value, uint32_t size);
+
+int memcmp(const void *a, const void *b, uint32_t size);
+
 int katoi(const char *s);
 
 uint32_t parse_hex(const char *s);

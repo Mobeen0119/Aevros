@@ -18,6 +18,12 @@ uint32_t pci_config_read32(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offs
     return inl(PCI_CONFIG_DATA);
 }
 
+uint8_t pci_config_read8(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset)
+{
+    uint32_t val = pci_config_read32(bus, slot, func, offset & 0xFC);
+    return (uint8_t)((val >> ((offset & 3) * 8)) & 0xFF);
+}
+
 uint16_t pci_config_read16(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset)
 {
     uint32_t val = pci_config_read32(bus, slot, func, offset & 0xFC);
@@ -61,7 +67,7 @@ pci_device_t pci_find_device(uint16_t vendor_id, uint16_t device_id)
 
                 dev.bar0 = pci_config_read32((uint8_t)bus, (uint8_t)slot, (uint8_t)func, 0x10);
                 dev.interrupt_line = pci_config_read8((uint8_t)bus, (uint8_t)slot, (uint8_t)func, 0x3C);
-                dev.found = 0;
+                dev.found = 1;
 
                 return dev;
             }

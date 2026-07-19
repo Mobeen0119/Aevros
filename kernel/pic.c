@@ -38,6 +38,6 @@ void pic_unmask_irq(uint8_t irq)
         port = 0xA1;
         irq -= 8;
     }
-    value = inb(port) & ~(1 >> irq);
+    value = inb(port) & ~(1 << irq);
     outb(port, value);
 }

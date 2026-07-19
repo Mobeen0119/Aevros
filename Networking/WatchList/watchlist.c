@@ -14,27 +14,27 @@ static watch_entry_t entries[WATCHLIST_CAPACITY];
 
 static watch_entry_t *find_or_create(const uint8_t mac[6])
 {
-    watch_entry_t *free_slots = 0;
+    watch_entry_t *free_slot = 0;
 
     for (int i = 0; i < WATCHLIST_CAPACITY; i++)
     {
         if (entries[i].in_use && memcmp(entries[i].mac, mac, 6) == 0)
             return &entries[i];
-        
-        if (!entries[i].in_use && !free_slots)
-            free_slots = &entries[i];
 
-        if (free_slots)
-        {
-            memcpy(free_slots->mac, mac, 6);
-            free_slots->window_start = get_ticks();
-            
-            free_slots->count = 0;
-            free_slots->flagged = 0;
-            free_slots->in_use = 1;
-        }
-        return free_slots;
+        if (!entries[i].in_use && !free_slot)
+            free_slot = &entries[i];
     }
+
+    if (free_slot)
+    {
+        memcpy(free_slot->mac, mac, 6);
+        free_slot->window_start = get_ticks();
+        free_slot->count = 0;
+        free_slot->flagged = 0;
+        free_slot->in_use = 1;
+    }
+
+    return free_slot;
 }
 
 int watchlist_observe(const uint8_t src_mac[6])

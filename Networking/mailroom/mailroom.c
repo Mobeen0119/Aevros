@@ -1,7 +1,7 @@
 #include "mailroom.h"
 #include "directory.h"
-#include "../../../Lib/kprintf.h"
-#include "../../Process/task.h"
+#include "../../Lib/kprintf.h"
+#include "../../kernel/Process/task.h"
 
 #define ETHERTYPE_OFFSET 12
 #define ETH_HEADER_SIZE 14

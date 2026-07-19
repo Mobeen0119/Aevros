@@ -13,6 +13,6 @@ typedef struct
 } directory_entry_t;
 
 #define DIRECTORY_ENTRY(type, fn, label) \
-    __attribute__((section("aevros_directory"), used)) static const directory_entry_t _dirent_##fn = {(type), (fn), (label)}
+    __attribute__((section(".aevros_directory"), used)) static const directory_entry_t _dirent_##fn = {(type), (fn), (label)}
 
 #endif

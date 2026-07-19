@@ -12,6 +12,11 @@ SECTIONS
         *(.rodata*)
     }
 
+    .aevros_directory : {
+        __directory_start = .;
+        KEEP(*(.aevros_directory))
+        __directory_end = .;
+    }
     .data : {
         *(.data*)
     }

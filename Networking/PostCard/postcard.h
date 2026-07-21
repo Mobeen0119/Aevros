@@ -5,7 +5,7 @@
 
 typedef enum{
     UDP_ACCEPT=0,
-    UPD_REJECT_TOO_SHORT,
+    UDP_REJECT_TOO_SHORT,
     UDP_REJECT_LENGTH_MISMATCH,
     UDP_REJECT_BAD_CHECKSUM
 }udp_verdict_t;

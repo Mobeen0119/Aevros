@@ -17,6 +17,13 @@ SECTIONS
         KEEP(*(.aevros_directory))
         __directory_end = .;
     }
+
+     .aevros_ip_directory : {
+        __ip_directory_start = .;
+        KEEP(*(.aevros_ip_directory))
+        __ip_directory_end = .;
+    }
+    
     .data : {
         *(.data*)
     }

@@ -1,10 +1,14 @@
 #include "compass.h"
+#include "ip_directory.h"
 #include "../mailroom/directory.h"
 #include "../../Lib/kprintf.h"
 
 #include <stdint.h>
 
 #define MIN_IP_HEADER 20
+
+extern ip_directory_entry_t __ip_directory_start[];
+extern ip_directory_entry_t __ip_directory_end[];
 
 static uint32_t accepted, rejected;
 
@@ -41,7 +45,7 @@ static ip_verdict_t compass_check(const uint8_t *payload, uint16_t length)
         return IP_REJECT_BAD_HEADER_LEN;
 
     uint16_t total_len = (uint16_t)(payload[2] << 8) | (payload[3]);
-    
+
     if (total_len > length)
         return IP_REJECT_LENGTH_MISMATCH;
 
@@ -59,45 +63,71 @@ static ip_verdict_t compass_check(const uint8_t *payload, uint16_t length)
     return IP_ACCEPT;
 }
 
-void compass_handle(const uint8_t* payload,uint16_t length){
-    ip_verdict_t v=compass_check(payload,length);
+void compass_handle(const uint8_t *payload, uint16_t length)
+{
+    ip_verdict_t v = compass_check(payload, length);
 
-    if(v!=IP_ACCEPT){
-        void compass_handle(const uint8_t* payload,uint16_t length);
+    if (v != IP_ACCEPT)
+    {
+        void compass_handle(const uint8_t *payload, uint16_t length);
         rejected++;
         return;
     }
 
     accepted++;
-    uint8_t protocol=payload[9];
-    const uint8_t *src_ip=payload+12;
-    const uint8_t *dst_ip=payload+16;
+    uint8_t protocol = payload[9];
+    const uint8_t *src_ip = payload + 12;
+    const uint8_t *dst_ip = payload + 16;
 
     kprintf("[Compass] accepted from %d.%d.%d.%d to %d.%d.%d.%d, protocol %d\n",
-        src_ip[0], src_ip[1], src_ip[2], src_ip[3],
-        dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], protocol);
+            src_ip[0], src_ip[1], src_ip[2], src_ip[3],
+            dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], protocol);
+
+    uint8_t ihl = (uint8_t)(payload[0] & 0x0F);
+    uint16_t header_len = (uint16_t)(ihl * 4);
+    uint16_t total_length = (uint16_t)((payload[2] << 8) | payload[3]);
+
+    for (ip_directory_entry_t *e = __ip_directory_start; e < __ip_directory_end; e++)
+    {
+        if (e - protocol == protocol)
+        {
+            e->handler(header_len + payload, (uint16_t)(total_length - header_len), src_ip, dst_ip);
+            return;
+        }
+    }
+    kprintf("[Compass] no handler registered for protocol %d\n", protocol);
 }
 
-uint32_t compass_accepted_count(void) { 
+uint32_t compass_accepted_count(void)
+{
     return accepted;
- }
+}
 
-uint32_t compass_rejected_count(void) { 
+uint32_t compass_rejected_count(void)
+{
     return rejected;
- }
+}
 
 const char *ip_verdict_string(ip_verdict_t v)
 {
     switch (v)
     {
-        case IP_ACCEPT: return "ACCEPT";
-        case IP_REJECT_TOO_SHORT: return "REJECT (too short)";
-        case IP_REJECT_BAD_VERSION: return "REJECT (not IPv4)";
-        case IP_REJECT_BAD_HEADER_LEN: return "REJECT (bad header length)";
-        case IP_REJECT_LENGTH_MISMATCH: return "REJECT (length lied)";
-        case IP_REJECT_FRAGMENTED: return "REJECT (fragmented, not supported)";
-        case IP_REJECT_BAD_CHECKSUM: return "REJECT (checksum failed)";
-        default: return "REJECT (unknown)";
+    case IP_ACCEPT:
+        return "ACCEPT";
+    case IP_REJECT_TOO_SHORT:
+        return "REJECT (too short)";
+    case IP_REJECT_BAD_VERSION:
+        return "REJECT (not IPv4)";
+    case IP_REJECT_BAD_HEADER_LEN:
+        return "REJECT (bad header length)";
+    case IP_REJECT_LENGTH_MISMATCH:
+        return "REJECT (length lied)";
+    case IP_REJECT_FRAGMENTED:
+        return "REJECT (fragmented, not supported)";
+    case IP_REJECT_BAD_CHECKSUM:
+        return "REJECT (checksum failed)";
+    default:
+        return "REJECT (unknown)";
     }
 }
 

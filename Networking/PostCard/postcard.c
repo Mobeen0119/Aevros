@@ -1,6 +1,7 @@
 #include "postcard.h"
 #include "../Compass/ip_directory.h"
 #include "../../Lib/kprintf.h"
+#include "../Lockbox/lockbox.h"
 
 #define UDP_HEADER_LEN 8
 
@@ -68,10 +69,31 @@ void postcard_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
     kprintf("[Postcard] accepted, %d.%d.%d.%d:%d -> %d.%d.%d.%d:%d\n",
             src_ip[0], src_ip[1], src_ip[2], src_ip[3], src_port,
             dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], dst_port);
+
+    uint32_t slot = lockbox_find_listener(dst_port, 17);
+
+    if (slot == LOCKBOX_CAPACITY)
+    {
+        kprintf("[Postcard] nobody's listening on port %d, discarding\n", dst_port);
+        return;
+    }
+
+    uint16_t data_len = (uint16_t)(length - UDP_HEADER_LEN);
+
+    if (!lockbox_deposit(slot, data_len))
+        return;
+
+    kprintf("[Postcard] delivered %d bytes into slot %d\n", data_len, slot);
 }
 
-uint32_t postcard_accepted_count(void) { return accepted; }
-uint32_t postcard_rejected_count(void) { return rejected; }
+uint32_t postcard_accepted_count(void)
+{
+    return accepted;
+}
+uint32_t postcard_rejected_count(void)
+{
+    return rejected;
+}
 
 const char *udp_verdict_string(udp_verdict_t v)
 {

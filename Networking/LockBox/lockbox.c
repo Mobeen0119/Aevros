@@ -107,6 +107,20 @@ uint32_t lockbox_rejected_count(void)
     return rejected_count;
 }
 
+lockbox_result_t lockbox_listen(uint16_t local_port, uint8_t protocol, uint32_t *out_id)
+{
+    uint8_t zero_ip = {0, 0, 0, 0};
+
+    return lockbox_claim(local_port, zero_ip, 0, protocol, out_id);
+}
+
+uint32_t lockbox_find_listener(uint16_t local_port, uint8_t protocol)
+{
+    for (uint32_t i = 0; i < LOCKBOX_CAPACITY; i++)
+        if (table[i].in_use && table[i].protocol == protocol && table[i].local_port == local_port)
+            return i;
+    return LOCKBOX_CAPACITY;
+}
 const char *lockbox_result_string(lockbox_result_t r)
 {
     switch (r)

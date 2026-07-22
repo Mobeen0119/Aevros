@@ -34,6 +34,10 @@ void lockbox_release(uint32_t id);
 
 uint32_t lockbox_active_count(void);
 
+lockbox_result_t lockbox_listen(uint16_t local_port, uint8_t protocol, uint32_t *out_id);
+
+uint32_t lockbox_find_listener(uint16_t local_port, uint8_t protocol);
+
 uint32_t lockbox_rejected_count(void);
 
 const char *lockbox_result_string(lockbox_result_t r);

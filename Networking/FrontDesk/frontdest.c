@@ -79,6 +79,7 @@ void frontdest_init(void)
     }
 
     rx_buffer = (uint8_t *)kmalloc(RX_BUFFER_SIZE);
+    
     memset(rx_buffer, 0, RX_BUFFER_SIZE);
 
     rx_read_offset = 0;

@@ -101,6 +101,17 @@ int lockbox_deposit(uint32_t id, uint16_t bytes)
     return 1;
 }
 
+void lockbox_consume(uint32_t id, uint16_t bytes)
+{
+    if (id >= LOCKBOX_CAPACITY)
+        return;
+
+    if (bytes > table[id].buffered_bytes)
+        table[id].buffered_bytes = 0;
+    else
+        table[id].buffered_bytes -= bytes;
+}
+
 void lockbox_release(uint32_t id)
 {
     if (id < LOCKBOX_CAPACITY)

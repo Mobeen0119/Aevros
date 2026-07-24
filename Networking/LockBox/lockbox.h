@@ -44,6 +44,8 @@ uint32_t lockbox_next_for_port(uint16_t local_port, uint8_t protocol, uint32_t a
 
 const char *lockbox_result_string(lockbox_result_t r);
 
+void lockbox_consume(uint32_t id, uint16_t bytes);
+
 uint32_t lockbox_find_connection(uint16_t local_port, const uint8_t remote_ip[4], uint16_t remote_port, uint8_t protocol);
 
 #endif

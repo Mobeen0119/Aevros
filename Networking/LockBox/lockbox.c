@@ -15,23 +15,25 @@ static uint32_t count_for_ip(const uint8_t ip[4])
     return n;
 }
 
-static int already_claimed(uint16_t local_port, const uint8_t remote_ip[4], uint16_t remote_port, uint8_t protocol)
+uint32_t lockbox_find_connection(uint16_t local_port, const uint8_t remote_ip[4], uint16_t remote_port, uint8_t protocol)
 {
-    for (int i = 0; i < LOCKBOX_CAPACITY; i++)
+    for (uint32_t i = 0; i < LOCKBOX_CAPACITY; i++)
     {
-        if (table[i].in_use)
+        if (!table[i].in_use)
             continue;
-        if (table[i].remote_port == remote_port && table[i].local_port == local_port && table[i].protocol == protocol && memcmp(table[i].remote_ip, remote_ip, 4) == 0)
-            return 1;
+        if (table[i].local_port == local_port &&
+            table[i].remote_port == remote_port &&
+            table[i].protocol == protocol &&
+            memcmp(table[i].remote_ip, remote_ip, 4) == 0)
+            return i;
     }
-
-    return 0;
+    return LOCKBOX_CAPACITY;
 }
 
 lockbox_result_t lockbox_claim(uint16_t local_port, const uint8_t remote_ip[4], uint16_t remote_port,
                                uint8_t protocol, uint32_t *out_id)
 {
-    if (already_claimed(local_port, remote_ip, remote_port, protocol))
+    if (lockbox_find_connection(local_port, remote_ip, remote_port, protocol != LOCKBOX_CAPACITY))
     {
 
         kprintf("[Lockbox] rejected: socket already claimed for this exact pair\n");
@@ -39,7 +41,7 @@ lockbox_result_t lockbox_claim(uint16_t local_port, const uint8_t remote_ip[4], 
         return LOCKBOX_REJECT_ALREADY_EXISTS;
     }
 
-    if (count_for_ip(remote_ip) >= LOCKBOX_CAPACITY)
+    if (count_for_ip(remote_ip) >= LOCKBOX_MAX_PER_IP)
     {
         kprintf("[Lockbox] rejected: %d.%d.%d.%d already holds the max %d sockets\n",
                 remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3], LOCKBOX_MAX_PER_IP);
@@ -121,6 +123,7 @@ uint32_t lockbox_find_listener(uint16_t local_port, uint8_t protocol)
             return i;
     return LOCKBOX_CAPACITY;
 }
+
 const char *lockbox_result_string(lockbox_result_t r)
 {
     switch (r)

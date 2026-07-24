@@ -14,14 +14,10 @@
 </div>
 
 ---
-
-                          ![Aevros boot screen](docs/images/boot-welcome.png)
-
+![Aevros boot screen](docs/images/boot-welcome.png)
 
 
-*Real screenshot, booted straight off the ISO in QEMU.*
-
-              ![Aevros feature tour demo](docs/images/aevros-demo.gif)
+![Aevros feature tour demo](docs/images/aevros-demo.gif)
 
 ## What is Aevros
 

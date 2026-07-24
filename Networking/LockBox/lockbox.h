@@ -42,6 +42,8 @@ uint32_t lockbox_rejected_count(void);
 
 const char *lockbox_result_string(lockbox_result_t r);
 
+uint32_t lockbox_find_connection(uint16_t local_port, const uint8_t remote_ip[4], uint16_t remote_port, uint8_t protocol);
+
 #endif
 
 

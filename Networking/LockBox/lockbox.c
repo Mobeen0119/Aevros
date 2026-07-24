@@ -33,7 +33,7 @@ uint32_t lockbox_find_connection(uint16_t local_port, const uint8_t remote_ip[4]
 lockbox_result_t lockbox_claim(uint16_t local_port, const uint8_t remote_ip[4], uint16_t remote_port,
                                uint8_t protocol, uint32_t *out_id)
 {
-    if (lockbox_find_connection(local_port, remote_ip, remote_port, protocol != LOCKBOX_CAPACITY))
+    if (lockbox_find_connection(local_port, remote_ip, remote_port, protocol))
     {
 
         kprintf("[Lockbox] rejected: socket already claimed for this exact pair\n");
@@ -111,7 +111,7 @@ uint32_t lockbox_rejected_count(void)
 
 lockbox_result_t lockbox_listen(uint16_t local_port, uint8_t protocol, uint32_t *out_id)
 {
-    uint8_t zero_ip = {0, 0, 0, 0};
+    uint8_t zero_ip[4] = {0,0,0,0};
 
     return lockbox_claim(local_port, zero_ip, 0, protocol, out_id);
 }

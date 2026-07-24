@@ -129,7 +129,7 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
 
 uint32_t tcp_accepted_count(void)
 {
-    return tcp_accepted_count;
+    return accepted;
 }
 
 uint32_t conversation_rejected_count(void)

@@ -2,6 +2,7 @@
 #include "../Compass/ip_directory.h"
 #include "../Lockbox/lockbox.h"
 #include "../../Lib/kprintf.h"
+#include "rapport.h"
 
 #define TCP_MIN_HEADER 20
 
@@ -39,7 +40,7 @@ static int checksum_ok(const uint8_t *tcp, uint16_t tcp_len, const uint8_t src_i
 
 static int flag_make_sense(uint8_t flags)
 {
-    if ((flags == FLAG_SYN) && (flags == FLAG_FIN))
+    if ((flags & FLAG_SYN) && (flags & FLAG_FIN))
         return 0;
     if (flags == 0)
         return 0;
@@ -103,13 +104,16 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     if (flags & FLAG_SYN)
     {
         uint32_t conn_id;
+        uint32_t conn_id;
         lockbox_result_t r = lockbox_claim(dst_port, src_ip, src_port, 6, &conn_id);
         if (r != LOCKBOX_OK)
         {
             kprintf("[Conversation] SYN refused: %s\n", lockbox_result_string(r));
             return;
         }
-        kprintf("[Conversation] SYN accepted into its own slot %d (handshake state tracking is still a TODO)\n", conn_id);
+
+        rapport_on_syn(conn_id);
+        kprintf("[Conversation] SYN accepted into its own slot %d\n", conn_id);
         return;
     }
 
@@ -117,14 +121,31 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     uint16_t header_len = (uint16_t)(data_off * 4);
 
     uint32_t conn_id = lockbox_find_connection(dst_port, src_ip, src_port, 6);
-    if (conn_id != LOCKBOX_CAPACITY)
+
+    if (conn_id == LOCKBOX_CAPACITY)
     {
-        uint16_t data_len = (uint16_t)(length - header_len);
-        if (data_len > 0)
-            lockbox_deposit(conn_id, data_len);
+        kprintf("[Conversation] non-SYN segment with no known connection, discarding\n");
         return;
     }
-    kprintf("[Conversation] non-SYN segment with no known connection, discarding\n");
+
+    if (flags & FLAG_RST)
+    {
+        rapport_on_rst(conn_id);
+        return;
+    }
+
+    if (flags & FLAG_FIN)
+    {
+        rapport_on_fin(conn_id);
+        return;
+    }
+
+    if (flags & FLAG_ACK)
+        rapport_on_ack(conn_id);
+
+    uint16_t data_len = (uint16_t)(length - header_len);
+    if (data_len > 0)
+        lockbox_deposit(conn_id, data_len);
 }
 
 uint32_t tcp_accepted_count(void)
@@ -132,7 +153,7 @@ uint32_t tcp_accepted_count(void)
     return accepted;
 }
 
-uint32_t conversation_rejected_count(void)
+uint32_t tcp_rejected_count(void)
 {
     return rejected;
 }

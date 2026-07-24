@@ -15,6 +15,18 @@ static uint32_t count_for_ip(const uint8_t ip[4])
     return n;
 }
 
+uint32_t lockbox_next_for_port(uint16_t local_port, uint8_t protocol, uint32_t after_id)
+{
+    uint32_t start = (after_id >= LOCKBOX_CAPACITY) ? 0 : after_id + 1;
+
+    for (uint32_t i = start; i < LOCKBOX_CAPACITY; i++)
+    {
+        if (table[i].in_use && table[i].local_port == local_port && table[i].protocol == protocol)
+            return i;
+    }
+    return LOCKBOX_CAPACITY;
+}
+
 uint32_t lockbox_find_connection(uint16_t local_port, const uint8_t remote_ip[4], uint16_t remote_port, uint8_t protocol)
 {
     for (uint32_t i = 0; i < LOCKBOX_CAPACITY; i++)

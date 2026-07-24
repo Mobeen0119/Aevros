@@ -2,6 +2,7 @@
 #include "../LockBox/lockbox.h"
 #include "../../Lib/kprintf.h"
 
+static uint32_t generation[LOCKBOX_CAPACITY];
 static conversation_state_t status[LOCKBOX_CAPACITY];
 
 static int valid_id(uint32_t conn_id)
@@ -72,6 +73,13 @@ conversation_state_t rapport_get_state(uint32_t conn_id)
         return CONV_CLOSED;
 
     return status[conn_id];
+}
+uint32_t rapport_get_generation(uint32_t conn_id)
+{
+    if (!valid_id(conn_id))
+        return 0;
+
+    return generation[conn_id];
 }
 
 const char *rapport_state_string(conversation_state_t s)

@@ -4,6 +4,7 @@
 
 static lockbox_entry_t table[LOCKBOX_CAPACITY];
 static uint32_t rejected_count;
+static uint32_t generation[LOCKBOX_CAPACITY];
 
 static uint32_t count_for_ip(const uint8_t ip[4])
 {
@@ -70,6 +71,7 @@ lockbox_result_t lockbox_claim(uint16_t local_port, const uint8_t remote_ip[4], 
             table[i].remote_port = remote_port;
             table[i].protocol = protocol;
             table[i].buffered_bytes = 0;
+            generation[i]++;
             table[i].in_use = 1;
             *out_id = i;
 
@@ -137,6 +139,14 @@ lockbox_result_t lockbox_listen(uint16_t local_port, uint8_t protocol, uint32_t 
     uint8_t zero_ip[4] = {0, 0, 0, 0};
 
     return lockbox_claim(local_port, zero_ip, 0, protocol, out_id);
+}
+
+uint32_t lockbox_get_generation(uint32_t id)
+{
+    if (id >= LOCKBOX_CAPACITY)
+        return 0;
+
+    return generation[id];
 }
 
 uint32_t lockbox_find_listener(uint16_t local_port, uint8_t protocol)

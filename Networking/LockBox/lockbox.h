@@ -15,18 +15,18 @@ typedef enum
     LOCKBOX_REJECT_ALREADY_EXISTS,
 } lockbox_result_t;
 
-
-typedef struct {
+typedef struct
+{
     uint16_t local_port;
     uint8_t remote_ip[4];
     uint16_t remote_port;
     uint8_t protocol;
     uint32_t buffered_bytes;
     int in_use;
-}lockbox_entry_t;
+} lockbox_entry_t;
 
 lockbox_result_t lockbox_claim(uint16_t local_port, const uint8_t remote_ip[4], uint16_t remote_port,
-                                uint8_t protocol, uint32_t *out_id);
+                               uint8_t protocol, uint32_t *out_id);
 
 int lockbox_deposit(uint32_t id, uint16_t bytes);
 
@@ -46,10 +46,8 @@ const char *lockbox_result_string(lockbox_result_t r);
 
 void lockbox_consume(uint32_t id, uint16_t bytes);
 
+uint32_t lockbox_get_generation(uint32_t id);
+
 uint32_t lockbox_find_connection(uint16_t local_port, const uint8_t remote_ip[4], uint16_t remote_port, uint8_t protocol);
 
 #endif
-
-
-
-

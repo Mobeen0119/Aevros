@@ -3,6 +3,7 @@
 #include "../Lockbox/lockbox.h"
 #include "../../Lib/kprintf.h"
 #include "rapport.h"
+#include "../Inbox/inbox.h"
 
 #define TCP_MIN_HEADER 20
 
@@ -145,7 +146,7 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
 
     uint16_t data_len = (uint16_t)(length - header_len);
     if (data_len > 0)
-        lockbox_deposit(conn_id, data_len);
+        inbox_deposit(conn_id, payload + header_len, data_len);
 }
 
 uint32_t tcp_accepted_count(void)

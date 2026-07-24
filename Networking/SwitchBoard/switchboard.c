@@ -26,7 +26,7 @@ uint32_t switchboard_accept(uint16_t port)
 
     while ((id = lockbox_next_for_port(port, 6, &id)) != LOCKBOX_CAPACITY)
     {
-        uint32_t gen = rapport_get_generation(id);
+        uint32_t gen = lockbox_get_generation(id);
 
         if (accepted_generation[id] == gen)
             continue;

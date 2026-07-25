@@ -2,7 +2,7 @@
 #include "../Compass/ip_directory.h"
 #include "../../Lib/kprintf.h"
 #include "../Lockbox/lockbox.h"
-#include "../Inbox/inbox.h"
+#include "../Postbox/postbox.h"
 
 #define UDP_HEADER_LEN 8
 
@@ -81,7 +81,7 @@ void postcard_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
 
     uint16_t data_len = (uint16_t)(length - UDP_HEADER_LEN);
 
-    if (!inbox_deposit(slot,payload+UDP_HEADER_LEN,data_len));
+    if (!postbox_deposit(slot, src_ip, src_port, payload + UDP_HEADER_LEN, data_len))
         return;
 
     kprintf("[Postcard] delivered %d bytes into slot %d\n", data_len, slot);

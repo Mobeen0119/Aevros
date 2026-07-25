@@ -89,7 +89,7 @@ void compass_handle(const uint8_t *payload, uint16_t length)
 
     for (ip_directory_entry_t *e = __ip_directory_start; e < __ip_directory_end; e++)
     {
-        if (e - protocol == protocol)
+        if (e->protocol == protocol)
         {
             e->handler(header_len + payload, (uint16_t)(total_length - header_len), src_ip, dst_ip);
             return;

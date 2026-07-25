@@ -4,6 +4,8 @@
 #include "../../Lib/kprintf.h"
 #include "rapport.h"
 #include "../Inbox/inbox.h"
+#include "../LockBox/lockbox.h"
+
 
 #define TCP_MIN_HEADER 20
 

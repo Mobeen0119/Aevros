@@ -35,7 +35,7 @@ uint32_t switchboard_accept(uint16_t port)
 {
     uint32_t id = LOCKBOX_CAPACITY;
 
-    while ((id = lockbox_next_for_port(port, 6, &id)) != LOCKBOX_CAPACITY)
+    while ((id = lockbox_next_for_port(port, 6, id)) != LOCKBOX_CAPACITY)
     {
         uint32_t gen = lockbox_get_generation(id);
 

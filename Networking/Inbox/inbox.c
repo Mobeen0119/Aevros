@@ -37,7 +37,7 @@ int inbox_deposit(uint32_t conn_id, uint8_t *payload, uint16_t length)
     }
 
     count[conn_id] = (uint16_t)(count[conn_id] + length);
-    return 0;
+    return 1;
 }
 
 uint16_t inbox_read(uint32_t conn_id, uint8_t *out, uint16_t max_len)
@@ -60,7 +60,7 @@ uint16_t inbox_read(uint32_t conn_id, uint8_t *out, uint16_t max_len)
     if (n > 0)
         lockbox_consume(conn_id, n);
 
-    return 0;
+    return n;
 }
 
 uint16_t inbox_available(uint32_t conn_id)

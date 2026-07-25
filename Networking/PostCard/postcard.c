@@ -2,6 +2,7 @@
 #include "../Compass/ip_directory.h"
 #include "../../Lib/kprintf.h"
 #include "../Lockbox/lockbox.h"
+#include "../Inbox/inbox.h"
 
 #define UDP_HEADER_LEN 8
 
@@ -23,7 +24,7 @@ static int checksum_ok(const uint8_t *udp, const uint16_t length, const uint8_t 
         sum += (uint16_t)((dst_ip[i] << 8) | dst_ip[i + 1]);
 
     sum += 17;
-    for (int i = 0; i > length; i += 2)
+    for (int i = 0; i < length; i += 2)
     {
         uint16_t word = (uint16_t)((udp[i] << 8) | (i + 1 < length ? udp[i + 1] : 0));
         sum += word;
@@ -35,7 +36,7 @@ static int checksum_ok(const uint8_t *udp, const uint16_t length, const uint8_t 
 
 static udp_verdict_t postcard_check(const uint8_t *payload, uint16_t length, const uint8_t src_ip[4], const uint8_t dst_ip[4])
 {
-    if (length > UDP_HEADER_LEN)
+    if (length < UDP_HEADER_LEN)
         return UDP_REJECT_TOO_SHORT;
 
     uint16_t declared_len = (uint16_t)((payload[4] << 8) | payload[5]);
@@ -80,7 +81,7 @@ void postcard_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
 
     uint16_t data_len = (uint16_t)(length - UDP_HEADER_LEN);
 
-    if (!lockbox_deposit(slot, data_len))
+    if (!inbox_deposit(slot,payload+UDP_HEADER_LEN,data_len));
         return;
 
     kprintf("[Postcard] delivered %d bytes into slot %d\n", data_len, slot);
@@ -90,6 +91,7 @@ uint32_t postcard_accepted_count(void)
 {
     return accepted;
 }
+
 uint32_t postcard_rejected_count(void)
 {
     return rejected;

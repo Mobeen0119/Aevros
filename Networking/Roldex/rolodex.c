@@ -45,7 +45,7 @@ static void expire_stale_entries(void)
     }
 }
 
-void rolodex_set_our_ip(const uint8_t ip[4])
+void rolodex_set_ip(const uint8_t ip[4])
 {
     memcpy(our_ip, ip, 4);
     have_our_ip = 1;
@@ -53,38 +53,41 @@ void rolodex_set_our_ip(const uint8_t ip[4])
 
 void rolodex_handle(const uint8_t *payload, uint16_t length)
 {
-
     if (length != ARP_PACKET_SIZE)
     {
         kprintf("[Rolodex] rejected malformed ARP, wrong size (%d, expected 28)\n", length);
         return;
     }
+
     expire_stale_entries();
 
     uint16_t opcode = (uint16_t)((payload[6] << 8) | payload[7]);
     const uint8_t *sender_mac = payload + 8;
-    const uint8_t *sender_ip = payload + 14;
-    const uint8_t *target_ip = payload + 24;
+    const uint8_t *sender_ip  = payload + 14;
+    const uint8_t *target_ip  = payload + 24;
 
     rolodex_entry_t *existing = find_entry(sender_ip);
 
     if (existing)
     {
-        if (memcmp(existing->mac, sender_mac, 6))
+        if (memcmp(existing->mac, sender_mac, 6) != 0)
         {
             kprintf("[Rolodex] CONTRADICTION: %d.%d.%d.%d was %02x:%02x:%02x:%02x:%02x:%02x, now claimed by %x:%x:%x:%x:%x:%x\n",
                     sender_ip[0], sender_ip[1], sender_ip[2], sender_ip[3],
                     existing->mac[0], existing->mac[1], existing->mac[2], existing->mac[3], existing->mac[4], existing->mac[5],
                     sender_mac[0], sender_mac[1], sender_mac[2], sender_mac[3], sender_mac[4], sender_mac[5]);
-            contradictions++;
             existing->disputed = 1;
+            contradictions++;
         }
         else
+        {
             existing->last_seen = get_ticks();
+        }
     }
     else
     {
         rolodex_entry_t *slot = find_free_slot();
+
         if (!slot)
         {
             kprintf("[Rolodex] book is full, not learning %d.%d.%d.%d\n",
@@ -92,10 +95,8 @@ void rolodex_handle(const uint8_t *payload, uint16_t length)
         }
         else
         {
-
             memcpy(slot->ip, sender_ip, 4);
             memcpy(slot->mac, sender_mac, 6);
-
             slot->last_seen = get_ticks();
             slot->in_use = 1;
             slot->disputed = 0;
@@ -109,12 +110,11 @@ void rolodex_handle(const uint8_t *payload, uint16_t length)
     {
         pending_reply = 1;
         memcpy(pending_requester_ip, sender_ip, 4);
-        memcpy(pending_requester_mac, sender_mac, 4);
+        memcpy(pending_requester_mac, sender_mac, 6);
         kprintf("[Rolodex] %d.%d.%d.%d is asking who we are, reply ready\n",
                 sender_ip[0], sender_ip[1], sender_ip[2], sender_ip[3]);
     }
 }
-
 
 int rolodex_build_reply(uint8_t out_buf[ARP_PACKET_SIZE], const uint8_t our_mac[6])
 {
@@ -137,15 +137,27 @@ int rolodex_build_reply(uint8_t out_buf[ARP_PACKET_SIZE], const uint8_t our_mac[
     memcpy(out_buf + 18, pending_requester_mac, 6);
     memcpy(out_buf + 24, pending_requester_ip, 4);
 
-    pending_reply = 1;
+    pending_reply = 0;
     return 1;
+}
+
+int rolodex_disputed(const uint8_t ip[4])
+{
+    rolodex_entry_t *e = find_entry(ip);
+
+    if (!e)
+        return 0;
+
+    return e->disputed;
 }
 
 int rolodex_lookup(const uint8_t ip[4], uint8_t out_mac[6])
 {
     rolodex_entry_t *e = find_entry(ip);
+
     if (!e)
         return 0;
+
     memcpy(out_mac, e->mac, 6);
     return 1;
 }

@@ -23,7 +23,7 @@ int rolodex_lookup(const uint8_t ip[4],uint8_t out_mac[6]);
 
 int rolodex_disputed(const uint8_t ip[4]);
 
-void rolodex_set_tip(const uint8_t ip[4]);
+void rolodex_set_ip(const uint8_t ip[4]);
 
 int rolodex_build_reply(uint8_t out_buf[ARP_PACKET_SIZE], const uint8_t our_mac[6]);
 

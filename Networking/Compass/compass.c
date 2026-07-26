@@ -2,6 +2,7 @@
 #include "ip_directory.h"
 #include "../mailroom/directory.h"
 #include "../../Lib/kprintf.h"
+#include "../Curfew/curfew.h"
 
 #include <stdint.h>
 
@@ -74,7 +75,6 @@ void compass_handle(const uint8_t *payload, uint16_t length)
         return;
     }
 
-    accepted++;
     uint8_t protocol = payload[9];
     const uint8_t *src_ip = payload + 12;
     const uint8_t *dst_ip = payload + 16;
@@ -85,7 +85,16 @@ void compass_handle(const uint8_t *payload, uint16_t length)
 
     uint8_t ihl = (uint8_t)(payload[0] & 0x0F);
     uint16_t header_len = (uint16_t)(ihl * 4);
+    
     uint16_t total_length = (uint16_t)((payload[2] << 8) | payload[3]);
+
+    if (!curfew_check(src_ip))
+    {
+        rejected++;
+        return;
+    }
+
+    accepted++;
 
     for (ip_directory_entry_t *e = __ip_directory_start; e < __ip_directory_end; e++)
     {

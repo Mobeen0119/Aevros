@@ -43,6 +43,7 @@ static curfew_entry_t *find_or_create(const uint8_t ip[4])
     target->count = 0;
     target->denied = 0;
     target->in_use = 1;
+    target->last_seen=get_ticks();
 
     return target;
 }
@@ -58,12 +59,13 @@ int curfew_check(const uint8_t src_ip[4])
 
     e->last_seen = now;
 
-    if (now - e->last_seen > CURFEW_WINDOW_TICKS)
+    if (now - e->window_start > CURFEW_WINDOW_TICKS)
     {
         e->window_start = now;
         e->count = 0;
         e->denied = 0;
     }
+
     e->count++;
     if (e->count >= CURFEW_THRESHOLD && !e->denied)
     {

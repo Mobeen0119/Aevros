@@ -6,7 +6,6 @@
 #include "../Inbox/inbox.h"
 #include "../LockBox/lockbox.h"
 
-
 #define TCP_MIN_HEADER 20
 
 #define FLAG_FIN 0x1
@@ -104,6 +103,8 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
         return;
     }
 
+    uint32_t seq = (uint32_t)((payload[4] << 24) | (payload[5] << 16) | (payload[6] << 8) | payload[7]);
+
     if (flags & FLAG_SYN)
     {
         uint32_t conn_id;
@@ -115,7 +116,7 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
             return;
         }
 
-        rapport_on_syn(conn_id);
+        rapport_on_syn(conn_id, seq);
         kprintf("[Conversation] SYN accepted into its own slot %d\n", conn_id);
         return;
     }
@@ -128,6 +129,16 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     if (conn_id == LOCKBOX_CAPACITY)
     {
         kprintf("[Conversation] non-SYN segment with no known connection, discarding\n");
+        return;
+    }
+
+    if (!rapport_seq_expected(conn_id, seq))
+    {
+        uint16_t probe_len = (uint16_t)(length - header_len);
+        if (rapport_seq_is_stale_retransmit(conn_id, seq, probe_len))
+            kprintf("[Conversation] slot %d: seq=%u is an old retransmission, already have this - ignoring, not an attack\n", conn_id, seq);
+        else
+            kprintf("[Conversation] slot %d: seq=%u doesn't match expected, refusing to trust it\n", conn_id, seq);
         return;
     }
 
@@ -147,8 +158,9 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
         rapport_on_ack(conn_id);
 
     uint16_t data_len = (uint16_t)(length - header_len);
-    if (data_len > 0)
-        inbox_deposit(conn_id, payload + header_len, data_len);
+
+    if (data_len > 0 && inbox_deposit(conn_id, payload + header_len, data_len))
+        rapport_advance_seq(conn_id, data_len);
 }
 
 uint32_t tcp_accepted_count(void)

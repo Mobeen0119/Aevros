@@ -3,6 +3,7 @@
 #include "../mailroom/directory.h"
 #include "../../Lib/kprintf.h"
 #include "../Curfew/curfew.h"
+#include "../Roldex/rolodex.h"
 
 #include <stdint.h>
 
@@ -85,11 +86,19 @@ void compass_handle(const uint8_t *payload, uint16_t length)
 
     uint8_t ihl = (uint8_t)(payload[0] & 0x0F);
     uint16_t header_len = (uint16_t)(ihl * 4);
-    
+
     uint16_t total_length = (uint16_t)((payload[2] << 8) | payload[3]);
 
     if (!curfew_check(src_ip))
     {
+        rejected++;
+        return;
+    }
+
+    if (rolodex_disputed(src_ip))
+    {
+        kprintf("[Compass] %d.%d.%d.%d is currently disputed in Rolodex, refusing to trust its IP traffic\n",
+                src_ip[0], src_ip[1], src_ip[2], src_ip[3]);
         rejected++;
         return;
     }

@@ -51,6 +51,14 @@ static ip_verdict_t compass_check(const uint8_t *payload, uint16_t length)
     if (total_len > length)
         return IP_REJECT_LENGTH_MISMATCH;
 
+    // Nothing previously verified the packet's own claimed total length
+    // is at least as large as its own header. A forged total_len smaller
+    // than header_len causes (total_len - header_len) to underflow as an
+    // unsigned subtraction later in compass_handle, handing the protocol
+
+    if (total_len < header_len)
+        return IP_REJECT_LENGTH_MISMATCH;
+
     uint16_t flags_frag = (uint16_t)(payload[6] << 8) | (payload[7]);
     uint16_t frag_offset = (uint16_t)(flags_frag & 0x1FFF);
 
@@ -65,13 +73,12 @@ static ip_verdict_t compass_check(const uint8_t *payload, uint16_t length)
     return IP_ACCEPT;
 }
 
-void compass_handle(const uint8_t *payload, uint16_t length)
+void compass_handle(const uint8_t *payload, uint16_t length, const uint8_t src_mac[6])
 {
     ip_verdict_t v = compass_check(payload, length);
 
     if (v != IP_ACCEPT)
     {
-        void compass_handle(const uint8_t *payload, uint16_t length);
         rejected++;
         return;
     }
@@ -79,15 +86,6 @@ void compass_handle(const uint8_t *payload, uint16_t length)
     uint8_t protocol = payload[9];
     const uint8_t *src_ip = payload + 12;
     const uint8_t *dst_ip = payload + 16;
-
-    kprintf("[Compass] accepted from %d.%d.%d.%d to %d.%d.%d.%d, protocol %d\n",
-            src_ip[0], src_ip[1], src_ip[2], src_ip[3],
-            dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], protocol);
-
-    uint8_t ihl = (uint8_t)(payload[0] & 0x0F);
-    uint16_t header_len = (uint16_t)(ihl * 4);
-
-    uint16_t total_length = (uint16_t)((payload[2] << 8) | payload[3]);
 
     if (!curfew_check(src_ip))
     {
@@ -103,7 +101,16 @@ void compass_handle(const uint8_t *payload, uint16_t length)
         return;
     }
 
+    rolodex_learn(src_ip, src_mac);
     accepted++;
+
+    kprintf("[Compass] accepted from %d.%d.%d.%d to %d.%d.%d.%d, protocol %d\n",
+            src_ip[0], src_ip[1], src_ip[2], src_ip[3],
+            dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], protocol);
+
+    uint8_t ihl = (uint8_t)(payload[0] & 0x0F);
+    uint16_t header_len = (uint16_t)(ihl * 4);
+    uint16_t total_length = (uint16_t)((payload[2] << 8) | payload[3]);
 
     for (ip_directory_entry_t *e = __ip_directory_start; e < __ip_directory_end; e++)
     {

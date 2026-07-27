@@ -17,7 +17,9 @@ typedef struct {
 }rolodex_entry_t;
 
 
-void rolodex_handle(const uint8_t *payload,uint16_t length);
+void rolodex_handle(const uint8_t *payload, uint16_t length, const uint8_t src_mac[6]);
+
+void rolodex_learn(const uint8_t ip[4], const uint8_t mac[6]);
 
 int rolodex_lookup(const uint8_t ip[4],uint8_t out_mac[6]);
 
@@ -26,6 +28,8 @@ int rolodex_disputed(const uint8_t ip[4]);
 void rolodex_set_ip(const uint8_t ip[4]);
 
 int rolodex_build_reply(uint8_t out_buf[ARP_PACKET_SIZE], const uint8_t our_mac[6]);
+
+int rolodex_dispatch_reply(const uint8_t our_mac[6], uint32_t *out_pass_id);
 
 
 uint32_t rolodex_count(void);

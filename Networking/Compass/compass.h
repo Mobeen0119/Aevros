@@ -14,10 +14,13 @@ typedef enum
     IP_REJECT_BAD_CHECKSUM,
 } ip_verdict_t;
 
-void compass_handle(const uint8_t* payload,uint16_t length);
+
+void compass_handle(const uint8_t* payload, uint16_t length, const uint8_t src_mac[6]);
 
 uint32_t compass_rejected_count(void);
+
 uint32_t compass_accepted_count(void);
+
 
 const char* ip_verdict_string(ip_verdict_t v);
 

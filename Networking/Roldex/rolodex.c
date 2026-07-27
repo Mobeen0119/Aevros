@@ -3,6 +3,7 @@
 #include "../../Lib/kprintf.h"
 #include "../../Lib/string.h"
 #include "../../kernel/Process/task.h"
+#include "../Bailiff/bailiff.h"
 
 static rolodex_entry_t book[ROLODEX_CAPACITY];
 static uint32_t contradictions;
@@ -51,60 +52,72 @@ void rolodex_set_ip(const uint8_t ip[4])
     have_our_ip = 1;
 }
 
-void rolodex_handle(const uint8_t *payload, uint16_t length)
+static void learn_or_dispute(const uint8_t ip[4], const uint8_t mac[6])
 {
+    expire_stale_entries();
+
+    rolodex_entry_t *existing = find_entry(ip);
+
+    if (existing)
+    {
+        if (memcmp(existing->mac, mac, 6))
+        {
+            kprintf("[Rolodex] CONTRADICTION: %d.%d.%d.%d was %02x:%02x:%02x:%02x:%02x:%02x, now claimed by %x:%x:%x:%x:%x:%x\n",
+                    ip[0], ip[1], ip[2], ip[3],
+                    existing->mac[0], existing->mac[1], existing->mac[2], existing->mac[3], existing->mac[4], existing->mac[5],
+                    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+            contradictions++;
+            existing->disputed = 1;
+        }
+        else
+            existing->last_seen = get_ticks();
+        return;
+    }
+
+    rolodex_entry_t *slot = find_free_slot();
+    if (!slot)
+    {
+        kprintf("[Rolodex] book is full, not learning %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
+        return;
+    }
+
+    memcpy(slot->ip, ip, 4);
+    memcpy(slot->mac, mac, 6);
+    slot->last_seen = get_ticks();
+    slot->in_use = 1;
+    slot->disputed = 0;
+    kprintf("[Rolodex] learned %d.%d.%d.%d is at %02x:%02x:%02x:%02x:%02x:%02x\n",
+            ip[0], ip[1], ip[2], ip[3], mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+void rolodex_learn(const uint8_t ip[4], const uint8_t mac[6])
+{
+    learn_or_dispute(ip, mac);
+}
+
+void rolodex_handle(const uint8_t *payload, uint16_t length, const uint8_t src_mac[6])
+{
+
     if (length != ARP_PACKET_SIZE)
     {
         kprintf("[Rolodex] rejected malformed ARP, wrong size (%d, expected 28)\n", length);
         return;
     }
 
-    expire_stale_entries();
-
     uint16_t opcode = (uint16_t)((payload[6] << 8) | payload[7]);
     const uint8_t *sender_mac = payload + 8;
-    const uint8_t *sender_ip  = payload + 14;
-    const uint8_t *target_ip  = payload + 24;
+    const uint8_t *sender_ip = payload + 14;
+    const uint8_t *target_ip = payload + 24;
 
-    rolodex_entry_t *existing = find_entry(sender_ip);
-
-    if (existing)
+    if (memcmp(sender_mac, src_mac, 6) != 0)
     {
-        if (memcmp(existing->mac, sender_mac, 6) != 0)
-        {
-            kprintf("[Rolodex] CONTRADICTION: %d.%d.%d.%d was %02x:%02x:%02x:%02x:%02x:%02x, now claimed by %x:%x:%x:%x:%x:%x\n",
-                    sender_ip[0], sender_ip[1], sender_ip[2], sender_ip[3],
-                    existing->mac[0], existing->mac[1], existing->mac[2], existing->mac[3], existing->mac[4], existing->mac[5],
-                    sender_mac[0], sender_mac[1], sender_mac[2], sender_mac[3], sender_mac[4], sender_mac[5]);
-            existing->disputed = 1;
-            contradictions++;
-        }
-        else
-        {
-            existing->last_seen = get_ticks();
-        }
+        kprintf("[Rolodex] ARP payload claims sender %02x:%02x:%02x:%02x:%02x:%02x but the frame actually came from %02x:%02x:%02x:%02x:%02x:%02x - refusing to learn from this, ignoring\n",
+                sender_mac[0], sender_mac[1], sender_mac[2], sender_mac[3], sender_mac[4], sender_mac[5],
+                src_mac[0], src_mac[1], src_mac[2], src_mac[3], src_mac[4], src_mac[5]);
+        return;
     }
-    else
-    {
-        rolodex_entry_t *slot = find_free_slot();
 
-        if (!slot)
-        {
-            kprintf("[Rolodex] book is full, not learning %d.%d.%d.%d\n",
-                    sender_ip[0], sender_ip[1], sender_ip[2], sender_ip[3]);
-        }
-        else
-        {
-            memcpy(slot->ip, sender_ip, 4);
-            memcpy(slot->mac, sender_mac, 6);
-            slot->last_seen = get_ticks();
-            slot->in_use = 1;
-            slot->disputed = 0;
-            kprintf("[Rolodex] learned %d.%d.%d.%d is at %02x:%02x:%02x:%02x:%02x:%02x\n",
-                    sender_ip[0], sender_ip[1], sender_ip[2], sender_ip[3],
-                    sender_mac[0], sender_mac[1], sender_mac[2], sender_mac[3], sender_mac[4], sender_mac[5]);
-        }
-    }
+    learn_or_dispute(sender_ip, sender_mac);
 
     if (opcode == ARP_REQUEST && have_our_ip && memcmp(target_ip, our_ip, 4) == 0)
     {
@@ -160,6 +173,25 @@ int rolodex_lookup(const uint8_t ip[4], uint8_t out_mac[6])
 
     memcpy(out_mac, e->mac, 6);
     return 1;
+}
+
+int rolodex_dispatch_reply(const uint8_t our_mac[6], uint32_t *out_pass_id)
+{
+    uint8_t arp[ARP_PACKET_SIZE];
+
+    if (!rolodex_build_reply(arp, our_mac))
+        return 0;
+
+    static uint8_t frame[6 + 6 + 2 + ARP_PACKET_SIZE];
+
+
+    memcpy(frame, arp + 18, 6);
+    memcpy(frame + 6, our_mac, 6);
+    frame[12] = 0x08;
+    frame[13] = 0x06;
+    memcpy(frame + 14, arp, ARP_PACKET_SIZE);
+
+    return bailiff_request_pass(frame, sizeof(frame), out_pass_id);
 }
 
 uint32_t rolodex_count(void)

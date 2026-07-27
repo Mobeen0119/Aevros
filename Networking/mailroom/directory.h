@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-typedef void (*protocol_handler_t)(const uint8_t *payload, uint16_t length);
 
+typedef void (*protocol_handler_t)(const uint8_t *payload, uint16_t length, const uint8_t src_mac[6]);
 typedef struct
 {
     uint16_t ethertype;

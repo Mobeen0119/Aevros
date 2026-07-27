@@ -2,6 +2,8 @@
 #include "../Compass/ip_directory.h"
 #include "../../Lib/kprintf.h"
 #include "../../Lib/string.h"
+#include "../Rolodex/rolodex.h"
+#include "../Bailiff/bailiff.h"
 
 static uint32_t accepted, rejected;
 
@@ -141,6 +143,60 @@ int echo_build_reply(uint8_t *out_buf, uint16_t *out_len, uint8_t reply_dst_ip[4
     pending_count++;
 
     return 1;
+}
+
+int echo_dispatch_reply(const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
+{
+    uint8_t icmp[ICMP_MIN_HEADER + ECHO_MAX_PAYLOAD];
+    uint16_t icmp_len;
+    uint8_t dest_ip[4];
+
+    if (!echo_build_reply(icmp, &icmp_len, dest_ip))
+        return 0;
+
+    uint8_t dest_mac[6];
+    if (!rolodex_lookup(dest_ip, dest_mac))
+    {
+        kprintf("[Echo] have a reply ready for %d.%d.%d.%d but do not know their MAC yet - cannot frame it, dropping rather than guessing\n",
+                dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);
+        return 0;
+    }
+
+    static uint8_t frame[6 + 6 + 2 + 20 + ICMP_MIN_HEADER + ECHO_MAX_PAYLOAD];
+    uint16_t ip_total = (uint16_t)(20 + icmp_len);
+
+    memcpy(frame, dest_mac, 6);
+    memcpy(frame + 6, our_mac, 6);
+    frame[12] = 0x08;
+    frame[13] = 0x00;
+
+    uint8_t *ip = frame + 14;
+    ip[0] = 0x45;
+    ip[1] = 0;
+    ip[2] = ip_total >> 8;
+    ip[3] = ip_total & 0xFF;
+    ip[4] = 0; ip[5] = 0; ip[6] = 0; ip[7] = 0;
+    ip[8] = 64;
+    ip[9] = 1; 
+    ip[10] = 0; ip[11] = 0;
+    memcpy(ip + 12, our_ip, 4);
+    memcpy(ip + 16, dest_ip, 4);
+
+    uint32_t ip_sum = 0;
+    for (int i = 0; i < 20; i += 2)
+    {
+        uint16_t word = (uint16_t)((ip[i] << 8) | ip[i + 1]);
+        ip_sum += word;
+    }
+    while (ip_sum >> 16) ip_sum = (ip_sum & 0xFFFF) + (ip_sum >> 16);
+    uint16_t ip_csum = (uint16_t)(0xFFFF - ip_sum);
+    ip[10] = ip_csum >> 8;
+    ip[11] = ip_csum & 0xFF;
+
+    memcpy(frame + 14 + 20, icmp, icmp_len);
+
+    uint16_t total_frame_len = (uint16_t)(14 + 20 + icmp_len);
+    return bailiff_request_pass(frame, total_frame_len, out_pass_id);
 }
 
 uint32_t echo_accepted_count(void)

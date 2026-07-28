@@ -3,23 +3,29 @@
 #include "../../Lib/kprintf.h"
 
 static conversation_state_t status[LOCKBOX_CAPACITY];
+
 static uint32_t expected_seq[LOCKBOX_CAPACITY];
+
+static uint32_t our_isn_table[LOCKBOX_CAPACITY];
 
 static int valid_id(uint32_t conn_id)
 {
     return conn_id < LOCKBOX_CAPACITY;
 }
 
-void rapport_on_syn(uint32_t conn_id, uint32_t isn)
+void rapport_on_syn(uint32_t conn_id, uint32_t peer_isn, uint32_t our_isn)
 {
     if (!valid_id(conn_id))
         return;
 
     status[conn_id] = CONV_SYN_RECEIVED;
-    expected_seq[conn_id] = isn + 1;
-
-    kprintf("[Rapport] slot %d: said hi, waiting to hear back (isn=%u)\n", conn_id, isn);
+    expected_seq[conn_id] = peer_isn + 1;
+    
+    our_isn_table[conn_id] = our_isn;
+   
+    kprintf("[Rapport] slot %d: said hi, waiting to hear back (peer_isn=%u, our_isn=%u)\n", conn_id, peer_isn, our_isn);
 }
+
 void rapport_on_ack(uint32_t conn_id)
 {
     if (!valid_id(conn_id))
@@ -68,20 +74,36 @@ void rapport_on_rst(uint32_t conn_id)
     lockbox_release(conn_id);
 }
 
-conversation_state_t rapport_get_state(uint32_t conn_id)
-{
-    if (!valid_id(conn_id))
-        return CONV_CLOSED;
-
-    return status[conn_id];
-}
-
 int rapport_seq_expected(uint32_t conn_id, uint32_t seq)
 {
     if (!valid_id(conn_id))
         return 0;
 
     return seq == expected_seq[conn_id];
+}
+
+uint32_t rapport_get_expected_seq(uint32_t conn_id)
+{
+    if (!valid_id(conn_id))
+        return 0;
+
+    return expected_seq[conn_id];
+}
+
+uint32_t rapport_get_our_isn(uint32_t conn_id)
+{
+    if (!valid_id(conn_id))
+        return 0;
+
+    return our_isn_table[conn_id];
+}
+
+int rapport_seq_is_stale_retransmit(uint32_t conn_id, uint32_t seq, uint16_t data_len)
+{
+    if (!valid_id(conn_id))
+        return 0;
+
+    return (seq < expected_seq[conn_id]) && (seq + data_len <= expected_seq[conn_id]);
 }
 
 void rapport_advance_seq(uint32_t conn_id, uint16_t amount)
@@ -92,13 +114,12 @@ void rapport_advance_seq(uint32_t conn_id, uint16_t amount)
     expected_seq[conn_id] += amount;
 }
 
-int rapport_seq_is_stale_retransmit(uint32_t conn_id, uint32_t seq, uint16_t data_len)
+conversation_state_t rapport_get_state(uint32_t conn_id)
 {
     if (!valid_id(conn_id))
-        return 0;
-   
-    return (seq < expected_seq[conn_id]) && (seq + data_len <= expected_seq[conn_id]);
-    
+        return CONV_CLOSED;
+
+    return status[conn_id];
 }
 
 const char *rapport_state_string(conversation_state_t s)

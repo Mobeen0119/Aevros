@@ -1,10 +1,13 @@
 #include "conversation.h"
 #include "../Compass/ip_directory.h"
-#include "../Lockbox/lockbox.h"
-#include "../../Lib/kprintf.h"
+#include "../LockBox/lockbox.h"
 #include "rapport.h"
 #include "../Inbox/inbox.h"
-#include "../LockBox/lockbox.h"
+#include "../Lottery/lottery.h"
+#include "../Roldex/rolodex.h"
+#include "../Bailiff/bailiff.h"
+#include "../../Lib/string.h"
+#include "../../Lib/kprintf.h"
 
 #define TCP_MIN_HEADER 20
 
@@ -108,15 +111,14 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     if (flags & FLAG_SYN)
     {
         uint32_t conn_id;
-        uint32_t conn_id;
         lockbox_result_t r = lockbox_claim(dst_port, src_ip, src_port, 6, &conn_id);
         if (r != LOCKBOX_OK)
         {
             kprintf("[Conversation] SYN refused: %s\n", lockbox_result_string(r));
             return;
         }
-
-        rapport_on_syn(conn_id, seq);
+        uint32_t our_isn = lottery_draw_isn(dst_ip, dst_port, src_ip, src_port);
+        rapport_on_syn(conn_id, seq, our_isn);
         kprintf("[Conversation] SYN accepted into its own slot %d\n", conn_id);
         return;
     }
@@ -125,7 +127,6 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     uint16_t header_len = (uint16_t)(data_off * 4);
 
     uint32_t conn_id = lockbox_find_connection(dst_port, src_ip, src_port, 6);
-
     if (conn_id == LOCKBOX_CAPACITY)
     {
         kprintf("[Conversation] non-SYN segment with no known connection, discarding\n");
@@ -158,7 +159,6 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
         rapport_on_ack(conn_id);
 
     uint16_t data_len = (uint16_t)(length - header_len);
-
     if (data_len > 0 && inbox_deposit(conn_id, payload + header_len, data_len))
         rapport_advance_seq(conn_id, data_len);
 }
@@ -195,3 +195,187 @@ const char *tcp_verdict_string(tcp_verdict_t v)
 }
 
 IP_DIRECTORY_ENTRY(6, conversation_handle, "Conversation (TCP) ");
+
+int conversation_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
+{
+    if (rapport_get_state(conn_id) != CONV_SYN_RECEIVED)
+        return 0;
+
+    uint16_t local_port;
+    uint8_t remote_ip[4];
+    uint16_t remote_port;
+
+    if (!lockbox_get_tuple(conn_id, &local_port, remote_ip, &remote_port))
+        return 0;
+
+    uint8_t dest_mac[6];
+    if (!rolodex_lookup(remote_ip, dest_mac))
+    {
+        kprintf("[Conversation] have a SYN-ACK ready for slot %d but don't know %d.%d.%d.%d's MAC yet - cannot frame it\n",
+                conn_id, remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+        return 0;
+    }
+
+    uint32_t our_isn = rapport_get_our_isn(conn_id);
+    uint32_t ack_num = rapport_get_expected_seq(conn_id);
+
+    static uint8_t frame[14 + 20 + 20];
+    memcpy(frame, dest_mac, 6);
+    memcpy(frame + 6, our_mac, 6);
+    frame[12] = 0x08;
+    frame[13] = 0x00;
+
+    uint8_t *ip = frame + 14;
+    uint16_t ip_total = 20 + 20;
+
+    ip[0] = 0x45;
+    ip[1] = 0;
+    ip[2] = ip_total >> 8;
+    ip[3] = ip_total & 0xFF;
+    ip[4] = 0; ip[5] = 0; ip[6] = 0; ip[7] = 0;
+    ip[8] = 64;
+    ip[9] = 6;
+    ip[10] = 0; ip[11] = 0;
+    memcpy(ip + 12, our_ip, 4);
+    memcpy(ip + 16, remote_ip, 4);
+
+    uint32_t ip_sum = 0;
+    for (int i = 0; i < 20; i += 2)
+    {
+        uint16_t word = (uint16_t)((ip[i] << 8) | ip[i + 1]);
+        ip_sum += word;
+    }
+    while (ip_sum >> 16) ip_sum = (ip_sum & 0xFFFF) + (ip_sum >> 16);
+    uint16_t ip_csum = (uint16_t)(0xFFFF - ip_sum);
+    ip[10] = ip_csum >> 8;
+    ip[11] = ip_csum & 0xFF;
+
+    uint8_t *tcp = ip + 20;
+    tcp[0] = local_port >> 8;
+    tcp[1] = local_port & 0xFF;
+    tcp[2] = remote_port >> 8;
+    tcp[3] = remote_port & 0xFF;
+    tcp[4] = (uint8_t)(our_isn >> 24);
+    tcp[5] = (uint8_t)(our_isn >> 16);
+    tcp[6] = (uint8_t)(our_isn >> 8);
+    tcp[7] = (uint8_t)our_isn;
+    tcp[8] = (uint8_t)(ack_num >> 24);
+    tcp[9] = (uint8_t)(ack_num >> 16);
+    tcp[10] = (uint8_t)(ack_num >> 8);
+    tcp[11] = (uint8_t)ack_num;
+    tcp[12] = 5 << 4;
+    tcp[13] = FLAG_SYN | FLAG_ACK;
+    tcp[14] = (LOCKBOX_MAX_BUFFERED >> 8) & 0xFF;
+    tcp[15] = LOCKBOX_MAX_BUFFERED & 0xFF;
+    tcp[16] = 0; tcp[17] = 0;
+    tcp[18] = 0; tcp[19] = 0;
+
+    uint32_t tcp_sum = 0;
+    for (int i = 0; i < 4; i += 2) tcp_sum += (uint16_t)((our_ip[i] << 8) | our_ip[i + 1]);
+    for (int i = 0; i < 4; i += 2) tcp_sum += (uint16_t)((remote_ip[i] << 8) | remote_ip[i + 1]);
+    tcp_sum += 6;
+    tcp_sum += 20;
+    for (int i = 0; i < 20; i += 2)
+    {
+        uint16_t word = (uint16_t)((tcp[i] << 8) | tcp[i + 1]);
+        tcp_sum += word;
+    }
+    while (tcp_sum >> 16) tcp_sum = (tcp_sum & 0xFFFF) + (tcp_sum >> 16);
+    uint16_t tcp_csum = (uint16_t)(0xFFFF - tcp_sum);
+    tcp[16] = tcp_csum >> 8;
+    tcp[17] = tcp_csum & 0xFF;
+
+    return bailiff_request_pass(frame, sizeof(frame), out_pass_id);
+}
+
+int conversation_dispatch_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
+{
+    if (rapport_get_state(conn_id) != CONV_ESTABLISHED)
+        return 0;
+
+    uint16_t local_port;
+    uint8_t remote_ip[4];
+    uint16_t remote_port;
+
+    if (!lockbox_get_tuple(conn_id, &local_port, remote_ip, &remote_port))
+        return 0;
+
+    uint8_t dest_mac[6];
+    if (!rolodex_lookup(remote_ip, dest_mac))
+    {
+        kprintf("[Conversation] have an ACK ready for slot %d but don't know %d.%d.%d.%d's MAC yet - cannot frame it\n",
+                conn_id, remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+        return 0;
+    }
+
+    uint32_t our_seq = rapport_get_our_isn(conn_id) + 1;
+    uint32_t ack_num = rapport_get_expected_seq(conn_id);
+
+    static uint8_t frame[14 + 20 + 20];
+    memcpy(frame, dest_mac, 6);
+    memcpy(frame + 6, our_mac, 6);
+    frame[12] = 0x08;
+    frame[13] = 0x00;
+
+    uint8_t *ip = frame + 14;
+    uint16_t ip_total = 20 + 20;
+
+    ip[0] = 0x45;
+    ip[1] = 0;
+    ip[2] = ip_total >> 8;
+    ip[3] = ip_total & 0xFF;
+    ip[4] = 0; ip[5] = 0; ip[6] = 0; ip[7] = 0;
+    ip[8] = 64;
+    ip[9] = 6;
+    ip[10] = 0; ip[11] = 0;
+    memcpy(ip + 12, our_ip, 4);
+    memcpy(ip + 16, remote_ip, 4);
+
+    uint32_t ip_sum = 0;
+    for (int i = 0; i < 20; i += 2)
+    {
+        uint16_t word = (uint16_t)((ip[i] << 8) | ip[i + 1]);
+        ip_sum += word;
+    }
+    while (ip_sum >> 16) ip_sum = (ip_sum & 0xFFFF) + (ip_sum >> 16);
+    uint16_t ip_csum = (uint16_t)(0xFFFF - ip_sum);
+    ip[10] = ip_csum >> 8;
+    ip[11] = ip_csum & 0xFF;
+
+    uint8_t *tcp = ip + 20;
+    tcp[0] = local_port >> 8;
+    tcp[1] = local_port & 0xFF;
+    tcp[2] = remote_port >> 8;
+    tcp[3] = remote_port & 0xFF;
+    tcp[4] = (uint8_t)(our_seq >> 24);
+    tcp[5] = (uint8_t)(our_seq >> 16);
+    tcp[6] = (uint8_t)(our_seq >> 8);
+    tcp[7] = (uint8_t)our_seq;
+    tcp[8] = (uint8_t)(ack_num >> 24);
+    tcp[9] = (uint8_t)(ack_num >> 16);
+    tcp[10] = (uint8_t)(ack_num >> 8);
+    tcp[11] = (uint8_t)ack_num;
+    tcp[12] = 5 << 4;
+    tcp[13] = FLAG_ACK;
+    tcp[14] = (LOCKBOX_MAX_BUFFERED >> 8) & 0xFF;
+    tcp[15] = LOCKBOX_MAX_BUFFERED & 0xFF;
+    tcp[16] = 0; tcp[17] = 0;
+    tcp[18] = 0; tcp[19] = 0;
+
+    uint32_t tcp_sum = 0;
+    for (int i = 0; i < 4; i += 2) tcp_sum += (uint16_t)((our_ip[i] << 8) | our_ip[i + 1]);
+    for (int i = 0; i < 4; i += 2) tcp_sum += (uint16_t)((remote_ip[i] << 8) | remote_ip[i + 1]);
+    tcp_sum += 6;
+    tcp_sum += 20;
+    for (int i = 0; i < 20; i += 2)
+    {
+        uint16_t word = (uint16_t)((tcp[i] << 8) | tcp[i + 1]);
+        tcp_sum += word;
+    }
+    while (tcp_sum >> 16) tcp_sum = (tcp_sum & 0xFFFF) + (tcp_sum >> 16);
+    uint16_t tcp_csum = (uint16_t)(0xFFFF - tcp_sum);
+    tcp[16] = tcp_csum >> 8;
+    tcp[17] = tcp_csum & 0xFF;
+
+    return bailiff_request_pass(frame, sizeof(frame), out_pass_id);
+}

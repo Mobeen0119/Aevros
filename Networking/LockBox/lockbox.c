@@ -157,6 +157,19 @@ uint32_t lockbox_find_listener(uint16_t local_port, uint8_t protocol)
     return LOCKBOX_CAPACITY;
 }
 
+int lockbox_get_tuple(uint32_t id, uint16_t *local_port, uint8_t remote_ip[4], uint16_t *remote_port)
+{
+    if (id >= LOCKBOX_CAPACITY || !table[id].in_use)
+        return 0;
+
+    *local_port = table[id].local_port;
+   
+    memcpy(remote_ip, table[id].remote_ip, 4);
+    *remote_port = table[id].remote_port;
+   
+    return 1;
+}
+
 const char *lockbox_result_string(lockbox_result_t r)
 {
     switch (r)

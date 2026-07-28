@@ -34,4 +34,9 @@ uint32_t tcp_rejected_count(void);
 
 const char* tcp_verdict_string(tcp_verdict_t v);
 
+int conversation_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id);
+
+
+int conversation_dispatch_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id);
+
 #endif

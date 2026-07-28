@@ -4,6 +4,7 @@
 #include "../../Lib/kprintf.h"
 #include "../Curfew/curfew.h"
 #include "../Roldex/rolodex.h"
+#include "../GuestList/guestlist.h"
 
 #include <stdint.h>
 
@@ -26,6 +27,7 @@ static int checksum_ok(const uint8_t *header, int header_len)
 
     while (sum >> 16)
         sum = (sum & 0xFFFF) + (sum >> 16);
+
     return sum == 0xFFFF;
 }
 
@@ -50,11 +52,6 @@ static ip_verdict_t compass_check(const uint8_t *payload, uint16_t length)
 
     if (total_len > length)
         return IP_REJECT_LENGTH_MISMATCH;
-
-    // Nothing previously verified the packet's own claimed total length
-    // is at least as large as its own header. A forged total_len smaller
-    // than header_len causes (total_len - header_len) to underflow as an
-    // unsigned subtraction later in compass_handle, handing the protocol
 
     if (total_len < header_len)
         return IP_REJECT_LENGTH_MISMATCH;
@@ -87,7 +84,17 @@ void compass_handle(const uint8_t *payload, uint16_t length, const uint8_t src_m
     const uint8_t *src_ip = payload + 12;
     const uint8_t *dst_ip = payload + 16;
 
-    if (!curfew_check(src_ip))
+       if (guestlist_check(src_ip) == GUESTLIST_DENIED)
+    {
+        kprintf("[Compass] %d.%d.%d.%d is on the Guestlist's deny list, refusing outright\n",
+                src_ip[0], src_ip[1], src_ip[2], src_ip[3]);
+        rejected++;
+        return;
+    }
+
+    int guestlist_allow=(guestlist_check(src_ip)==GUESTLIST_ALLOWED);
+
+    if (!guestlist_allow && !curfew_check(src_ip))
     {
         rejected++;
         return;

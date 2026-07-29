@@ -15,8 +15,11 @@ typedef struct {
 }frontdesk_state_t;
 
 void frontdesk_init(void);
+
 const frontdesk_state_t *frontdesk_get_state(void);
+
 int frontdesk_send(const void *data, uint16_t length);
+
 void frontdesk_irq_handler(void);
 
 

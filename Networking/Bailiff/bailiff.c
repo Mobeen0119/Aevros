@@ -45,7 +45,7 @@ int bailiff_request_pass(const uint8_t *frame, uint16_t len, uint32_t *out_pass_
 
     reclaim_expired();
 
-    int slot = 01;
+    int slot = -1;
 
     for (int i = 0; i < BAILIFF_MAX_PASSES; i++)
     {

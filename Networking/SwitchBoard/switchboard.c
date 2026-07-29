@@ -1,8 +1,9 @@
 #include "switchboard.h"
 #include "../LockBox/lockbox.h"
 #include "../Conversation/rapport.h"
-#include "../../Lib/kprintf.h"
 #include "../Inbox/inbox.h"
+#include "../Postbox/postbox.h"
+#include "../../Lib/kprintf.h"
 
 static uint32_t accepted_generation[LOCKBOX_CAPACITY];
 
@@ -19,16 +20,6 @@ int switchboard_bind(uint16_t port, uint8_t protocol)
 
     kprintf("[Switchboard] now taking calls on port %d\n", port);
     return 1;
-}
-
-uint16_t switchboard_recv_udp(uint16_t port, uint8_t *out, uint16_t max_len)
-{
-    uint32_t slot = lockbox_find_listener(port, 17);
-
-    if (slot == LOCKBOX_CAPACITY)
-        return 0;
-
-    return inbox_read(slot, out, max_len);
 }
 
 uint32_t switchboard_accept(uint16_t port)
@@ -65,4 +56,15 @@ uint16_t switchboard_recv(uint32_t conn_id, uint8_t *out, uint16_t max_len)
     }
 
     return inbox_read(conn_id, out, max_len);
+}
+
+uint16_t switchboard_recv_udp(uint16_t port, uint8_t src_ip_out[4], uint16_t *src_port_out,
+                               uint8_t *data_out, uint16_t max_len)
+{
+    uint32_t slot = lockbox_find_listener(port, 17);
+
+    if (slot == LOCKBOX_CAPACITY)
+        return 0;
+
+    return postbox_read(slot, src_ip_out, src_port_out, data_out, max_len);
 }

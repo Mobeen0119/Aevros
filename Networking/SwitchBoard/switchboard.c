@@ -21,7 +21,7 @@ int switchboard_bind(uint16_t port, uint8_t protocol)
     return 1;
 }
 
-uint16_t switchboard_recx_udp(uint16_t port, uint8_t *out, uint16_t max_len)
+uint16_t switchboard_recv_udp(uint16_t port, uint8_t *out, uint16_t max_len)
 {
     uint32_t slot = lockbox_find_listener(port, 17);
 

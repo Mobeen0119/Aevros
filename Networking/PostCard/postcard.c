@@ -1,8 +1,9 @@
 #include "postcard.h"
 #include "../Compass/ip_directory.h"
 #include "../../Lib/kprintf.h"
-#include "../Lockbox/lockbox.h"
+#include "../LockBox/lockbox.h"
 #include "../Postbox/postbox.h"
+#include "../Menu/menu.h"
 
 #define UDP_HEADER_LEN 8
 
@@ -34,12 +35,13 @@ static int checksum_ok(const uint8_t *udp, const uint16_t length, const uint8_t 
     return sum == 0xFFFF;
 }
 
-static udp_verdict_t postcard_check(const uint8_t *payload, uint16_t length, const uint8_t src_ip[4], const uint8_t dst_ip[4])
+static udp_verdict_t postcard_check(const uint8_t *payload, uint16_t length, const uint8_t src_ip[4], const uint8_t dst_ip[4], uint16_t *out_declared_len)
 {
     if (length < UDP_HEADER_LEN)
         return UDP_REJECT_TOO_SHORT;
 
     uint16_t declared_len = (uint16_t)((payload[4] << 8) | payload[5]);
+    *out_declared_len = declared_len;
 
     if (declared_len < UDP_HEADER_LEN || declared_len > length)
         return UDP_REJECT_LENGTH_MISMATCH;
@@ -53,7 +55,8 @@ static udp_verdict_t postcard_check(const uint8_t *payload, uint16_t length, con
 void postcard_handle(const uint8_t *payload, uint16_t length, const uint8_t src_ip[4], const uint8_t dst_ip[4])
 {
 
-    udp_verdict_t v = postcard_check(payload, length, src_ip, dst_ip);
+    uint16_t declared_len = 0;
+    udp_verdict_t v = postcard_check(payload, length, src_ip, dst_ip, &declared_len);
 
     if (v != UDP_ACCEPT)
     {
@@ -71,6 +74,12 @@ void postcard_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
             src_ip[0], src_ip[1], src_ip[2], src_ip[3], src_port,
             dst_ip[0], dst_ip[1], dst_ip[2], dst_ip[3], dst_port);
 
+    if (!menu_is_open(dst_port, 17))
+    {
+        kprintf("[Postcard] port %d isn't on the Menu, refusing regardless of any listener\n", dst_port);
+        return;
+    }
+
     uint32_t slot = lockbox_find_listener(dst_port, 17);
 
     if (slot == LOCKBOX_CAPACITY)
@@ -79,7 +88,7 @@ void postcard_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
         return;
     }
 
-    uint16_t data_len = (uint16_t)(length - UDP_HEADER_LEN);
+    uint16_t data_len = (uint16_t)(declared_len - UDP_HEADER_LEN);
 
     if (!postbox_deposit(slot, src_ip, src_port, payload + UDP_HEADER_LEN, data_len))
         return;

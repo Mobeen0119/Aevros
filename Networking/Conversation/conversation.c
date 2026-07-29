@@ -6,6 +6,7 @@
 #include "../Lottery/lottery.h"
 #include "../Roldex/rolodex.h"
 #include "../Bailiff/bailiff.h"
+#include "../Menu/menu.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
 
@@ -98,6 +99,12 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
             (flags & FLAG_SYN) ? " SYN (Start)" : "",
             (flags & FLAG_ACK) ? " ACK (Recieved)" : "",
             (flags & FLAG_FIN) ? " FIN (End)" : "");
+
+    if (!menu_is_open(dst_port, 6))
+    {
+        kprintf("[Conversation] port %d isn't on the Menu, refusing regardless of any listener\n", dst_port);
+        return;
+    }
 
     uint32_t listener = lockbox_find_listener(dst_port, 6);
     if (listener == LOCKBOX_CAPACITY)
@@ -232,10 +239,15 @@ int conversation_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], co
     ip[1] = 0;
     ip[2] = ip_total >> 8;
     ip[3] = ip_total & 0xFF;
-    ip[4] = 0; ip[5] = 0; ip[6] = 0; ip[7] = 0;
+    ip[4] = 0;
+   
+    ip[5] = 0;
+    ip[6] = 0;
+    ip[7] = 0;
     ip[8] = 64;
     ip[9] = 6;
-    ip[10] = 0; ip[11] = 0;
+    ip[10] = 0;
+    ip[11] = 0;
     memcpy(ip + 12, our_ip, 4);
     memcpy(ip + 16, remote_ip, 4);
 
@@ -245,7 +257,8 @@ int conversation_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], co
         uint16_t word = (uint16_t)((ip[i] << 8) | ip[i + 1]);
         ip_sum += word;
     }
-    while (ip_sum >> 16) ip_sum = (ip_sum & 0xFFFF) + (ip_sum >> 16);
+    while (ip_sum >> 16)
+        ip_sum = (ip_sum & 0xFFFF) + (ip_sum >> 16);
     uint16_t ip_csum = (uint16_t)(0xFFFF - ip_sum);
     ip[10] = ip_csum >> 8;
     ip[11] = ip_csum & 0xFF;
@@ -253,35 +266,49 @@ int conversation_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], co
     uint8_t *tcp = ip + 20;
     tcp[0] = local_port >> 8;
     tcp[1] = local_port & 0xFF;
+
     tcp[2] = remote_port >> 8;
     tcp[3] = remote_port & 0xFF;
+
     tcp[4] = (uint8_t)(our_isn >> 24);
     tcp[5] = (uint8_t)(our_isn >> 16);
+
     tcp[6] = (uint8_t)(our_isn >> 8);
     tcp[7] = (uint8_t)our_isn;
+
     tcp[8] = (uint8_t)(ack_num >> 24);
     tcp[9] = (uint8_t)(ack_num >> 16);
+
     tcp[10] = (uint8_t)(ack_num >> 8);
     tcp[11] = (uint8_t)ack_num;
     tcp[12] = 5 << 4;
     tcp[13] = FLAG_SYN | FLAG_ACK;
     tcp[14] = (LOCKBOX_MAX_BUFFERED >> 8) & 0xFF;
     tcp[15] = LOCKBOX_MAX_BUFFERED & 0xFF;
-    tcp[16] = 0; tcp[17] = 0;
-    tcp[18] = 0; tcp[19] = 0;
+    tcp[16] = 0;
+    tcp[17] = 0;
+    tcp[18] = 0;
+    tcp[19] = 0;
 
     uint32_t tcp_sum = 0;
-    for (int i = 0; i < 4; i += 2) tcp_sum += (uint16_t)((our_ip[i] << 8) | our_ip[i + 1]);
-    for (int i = 0; i < 4; i += 2) tcp_sum += (uint16_t)((remote_ip[i] << 8) | remote_ip[i + 1]);
+    for (int i = 0; i < 4; i += 2)
+        tcp_sum += (uint16_t)((our_ip[i] << 8) | our_ip[i + 1]);
+    for (int i = 0; i < 4; i += 2)
+        tcp_sum += (uint16_t)((remote_ip[i] << 8) | remote_ip[i + 1]);
+
     tcp_sum += 6;
     tcp_sum += 20;
+
     for (int i = 0; i < 20; i += 2)
     {
         uint16_t word = (uint16_t)((tcp[i] << 8) | tcp[i + 1]);
         tcp_sum += word;
     }
-    while (tcp_sum >> 16) tcp_sum = (tcp_sum & 0xFFFF) + (tcp_sum >> 16);
+
+    while (tcp_sum >> 16)
+        tcp_sum = (tcp_sum & 0xFFFF) + (tcp_sum >> 16);
     uint16_t tcp_csum = (uint16_t)(0xFFFF - tcp_sum);
+
     tcp[16] = tcp_csum >> 8;
     tcp[17] = tcp_csum & 0xFF;
 
@@ -314,6 +341,7 @@ int conversation_dispatch_ack(uint32_t conn_id, const uint8_t our_mac[6], const 
     static uint8_t frame[14 + 20 + 20];
     memcpy(frame, dest_mac, 6);
     memcpy(frame + 6, our_mac, 6);
+
     frame[12] = 0x08;
     frame[13] = 0x00;
 
@@ -324,10 +352,15 @@ int conversation_dispatch_ack(uint32_t conn_id, const uint8_t our_mac[6], const 
     ip[1] = 0;
     ip[2] = ip_total >> 8;
     ip[3] = ip_total & 0xFF;
-    ip[4] = 0; ip[5] = 0; ip[6] = 0; ip[7] = 0;
+
+    ip[4] = 0;
+    ip[5] = 0;
+    ip[6] = 0;
+    ip[7] = 0;
     ip[8] = 64;
     ip[9] = 6;
-    ip[10] = 0; ip[11] = 0;
+    ip[10] = 0;
+    ip[11] = 0;
     memcpy(ip + 12, our_ip, 4);
     memcpy(ip + 16, remote_ip, 4);
 
@@ -337,44 +370,61 @@ int conversation_dispatch_ack(uint32_t conn_id, const uint8_t our_mac[6], const 
         uint16_t word = (uint16_t)((ip[i] << 8) | ip[i + 1]);
         ip_sum += word;
     }
-    while (ip_sum >> 16) ip_sum = (ip_sum & 0xFFFF) + (ip_sum >> 16);
+
+    while (ip_sum >> 16)
+        ip_sum = (ip_sum & 0xFFFF) + (ip_sum >> 16);
     uint16_t ip_csum = (uint16_t)(0xFFFF - ip_sum);
     ip[10] = ip_csum >> 8;
     ip[11] = ip_csum & 0xFF;
 
     uint8_t *tcp = ip + 20;
+
     tcp[0] = local_port >> 8;
     tcp[1] = local_port & 0xFF;
     tcp[2] = remote_port >> 8;
     tcp[3] = remote_port & 0xFF;
     tcp[4] = (uint8_t)(our_seq >> 24);
     tcp[5] = (uint8_t)(our_seq >> 16);
+
     tcp[6] = (uint8_t)(our_seq >> 8);
     tcp[7] = (uint8_t)our_seq;
     tcp[8] = (uint8_t)(ack_num >> 24);
     tcp[9] = (uint8_t)(ack_num >> 16);
+
     tcp[10] = (uint8_t)(ack_num >> 8);
     tcp[11] = (uint8_t)ack_num;
     tcp[12] = 5 << 4;
     tcp[13] = FLAG_ACK;
     tcp[14] = (LOCKBOX_MAX_BUFFERED >> 8) & 0xFF;
     tcp[15] = LOCKBOX_MAX_BUFFERED & 0xFF;
-    tcp[16] = 0; tcp[17] = 0;
-    tcp[18] = 0; tcp[19] = 0;
+
+    tcp[16] = 0;
+    tcp[17] = 0;
+    tcp[18] = 0;
+    tcp[19] = 0;
 
     uint32_t tcp_sum = 0;
-    for (int i = 0; i < 4; i += 2) tcp_sum += (uint16_t)((our_ip[i] << 8) | our_ip[i + 1]);
-    for (int i = 0; i < 4; i += 2) tcp_sum += (uint16_t)((remote_ip[i] << 8) | remote_ip[i + 1]);
+    for (int i = 0; i < 4; i += 2)
+        tcp_sum += (uint16_t)((our_ip[i] << 8) | our_ip[i + 1]);
+    for (int i = 0; i < 4; i += 2)
+        tcp_sum += (uint16_t)((remote_ip[i] << 8) | remote_ip[i + 1]);
+
     tcp_sum += 6;
+
     tcp_sum += 20;
+
     for (int i = 0; i < 20; i += 2)
     {
         uint16_t word = (uint16_t)((tcp[i] << 8) | tcp[i + 1]);
         tcp_sum += word;
     }
-    while (tcp_sum >> 16) tcp_sum = (tcp_sum & 0xFFFF) + (tcp_sum >> 16);
+
+    while (tcp_sum >> 16)
+        tcp_sum = (tcp_sum & 0xFFFF) + (tcp_sum >> 16);
+
     uint16_t tcp_csum = (uint16_t)(0xFFFF - tcp_sum);
     tcp[16] = tcp_csum >> 8;
+
     tcp[17] = tcp_csum & 0xFF;
 
     return bailiff_request_pass(frame, sizeof(frame), out_pass_id);

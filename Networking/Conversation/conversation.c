@@ -22,6 +22,8 @@
 #define FLAG_URG 0x20
 
 static uint32_t accepted, rejected;
+static uint8_t last_dispatched_frame[14 + 20 + 20 + 1460];
+static uint16_t last_dispatched_len;
 
 static int checksum_ok(const uint8_t *tcp, uint16_t tcp_len, const uint8_t src_ip[4], const uint8_t dst_ip[4])
 {
@@ -146,7 +148,7 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     {
         uint16_t probe_len = (uint16_t)(length - header_len);
         if (rapport_seq_is_stale_retransmit(conn_id, seq, probe_len))
-            kprintf("[Conversation] slot %d: seq=%u is an old retransmission, already have this - ignoring, not an attack\n", conn_id, seq);
+            kprintf("[Conversation] slot %d: seq=%u is an old retransmission, already have this .... ignoring, not an attack\n", conn_id, seq);
         else
             kprintf("[Conversation] slot %d: seq=%u doesn't match expected, refusing to trust it\n", conn_id, seq);
         return;
@@ -233,8 +235,6 @@ int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_
         return 0;
     }
 
-    static uint8_t last_dispatched_frame[14 + 20 + 20 + 1460];
-    static uint16_t last_dispatched_len;
     memcpy(last_dispatched_frame, dest_mac, 6);
     memcpy(last_dispatched_frame + 6, our_mac, 6);
     last_dispatched_frame[12] = 0x08;

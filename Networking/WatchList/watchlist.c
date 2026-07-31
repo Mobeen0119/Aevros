@@ -1,6 +1,6 @@
 #include "watchlist.h"
-#include "../../Process/task.h"
-#include "../../../Lib/string.h"
+#include "../../kernel/Process/task.h"
+#include "../../Lib/string.h"
 
 typedef struct
 {

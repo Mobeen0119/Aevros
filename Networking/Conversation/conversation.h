@@ -26,8 +26,7 @@ typedef enum
     CONV_FIN_WAIT_1,
     CONV_FIN_WAIT_2,
     CONV_CLOSE_WAIT,
-    CONV_LAST_ACK,
-    CONV_TIME_WAIT
+    CONV_LAST_ACK
 } conversation_state_t;
 
 void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t src_ip[4], const uint8_t dst_ip[4]);

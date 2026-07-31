@@ -20,7 +20,7 @@ static void reset_if_stale(uint32_t conn_id)
     }
 }
 
-int inbox_deposit(uint32_t conn_id, uint8_t *payload, uint16_t length)
+int inbox_deposit(uint32_t conn_id,const uint8_t *payload, uint16_t length)
 {
     if (conn_id >= LOCKBOX_CAPACITY)
         return 0;

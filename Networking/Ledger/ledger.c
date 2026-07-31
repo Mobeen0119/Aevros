@@ -9,6 +9,7 @@
 #include "../Menu/menu.h"
 #include "../Bailiff/bailiff.h"
 #include "../LockBox/lockbox.h"
+#include "../Scheduler/scheduler.h"
 #include "../../Lib/kprintf.h"
 
 ledger_snapshot_t ledger_snapshot(void)
@@ -40,6 +41,9 @@ ledger_snapshot_t ledger_snapshot(void)
     s.menu_entries = menu_count();
 
     s.lockbox_active = lockbox_active_count();
+
+    s.scheduler_retransmit = scheduler_retransmit_count();
+    s.scheduler_gaveup = scheduler_giveup_count();
 
     return s;
 }
@@ -82,6 +86,10 @@ void ledger_print(void)
     kprintf("\n---------------- Outbound -----------------------\n");
     kprintf("  Bailiff Frames Authorized ...... %u\n", s.bailiff_transmitted);
     kprintf("  Bailiff Frames Refused ......... %u\n", s.bailiff_denied);
+
+    kprintf("\n---------------- Reliability ---------------------\n");
+    kprintf("  Scheduler Retransmits .......... %u\n", s.scheduler_retransmit);
+    kprintf("  Scheduler Gave-Up Connections ... %u\n", s.scheduler_gaveup);
 
     kprintf("=============================================================\n");
 }

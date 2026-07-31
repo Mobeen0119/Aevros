@@ -9,6 +9,7 @@
 #include "../Menu/menu.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
+#include "../Scheduler/scheduler.h"
 
 #define TCP_MAX_PAYLOAD 1460 // Ethernet MTU(1500)...Ipv4(20)...TCP header(20)
 #define TCP_MIN_HEADER 20
@@ -164,7 +165,11 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     }
 
     if (flags & FLAG_ACK)
+    {
+        uint32_t ack_num = (uint32_t)((payload[8] << 24) | (payload[9] << 16) | (payload[10] << 8) | payload[11]);
         rapport_on_ack(conn_id);
+        scheduler_ack(conn_id, ack_num);
+    }
 
     uint16_t data_len = (uint16_t)(length - header_len);
     if (data_len > 0 && inbox_deposit(conn_id, payload + header_len, data_len))
@@ -228,13 +233,14 @@ int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_
         return 0;
     }
 
-    static uint8_t frame[14 + 20 + 20 + TCP_MAX_PAYLOAD];
-    memcpy(frame, dest_mac, 6);
-    memcpy(frame + 6, our_mac, 6);
-    frame[12] = 0x08;
-    frame[13] = 0x00;
+    static uint8_t last_dispatched_frame[14 + 20 + 20 + 1460];
+    static uint16_t last_dispatched_len;
+    memcpy(last_dispatched_frame, dest_mac, 6);
+    memcpy(last_dispatched_frame + 6, our_mac, 6);
+    last_dispatched_frame[12] = 0x08;
+    last_dispatched_frame[13] = 0x00;
 
-    uint8_t *ip = frame + 14;
+    uint8_t *ip = last_dispatched_frame + 14;
     uint16_t ip_total = 20 + 20 + payload_len;
 
     ip[0] = 0x45;
@@ -321,5 +327,27 @@ int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_
     tcp[16] = tcp_csum >> 8;
     tcp[17] = tcp_csum & 0xFF;
 
-    return bailiff_request_pass(frame, 14 + ip_total, out_pass_id);
+    last_dispatched_len = (uint16_t)(14 + ip_total);
+
+    return bailiff_request_pass(last_dispatched_frame, 14 + ip_total, out_pass_id);
+}
+
+int conversation_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
+{
+    uint32_t our_isn = rapport_get_our_isn(conn_id);
+    uint32_t ack = rapport_get_expected_seq(conn_id);
+
+    if (!conversation_dispatch(conn_id, FLAG_SYN | FLAG_ACK, our_isn, ack, 0, 0, our_mac, our_ip, out_pass_id))
+        return 0;
+
+    scheduler_track(conn_id, our_isn, last_dispatched_frame, last_dispatched_len);
+    return 1;
+}
+
+int conversation_dispatch_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
+{
+    uint32_t our_isn = rapport_get_our_isn(conn_id);
+    uint32_t ack = rapport_get_expected_seq(conn_id);
+
+    return conversation_dispatch(conn_id, FLAG_ACK, our_isn, ack, 0, 0, our_mac, our_ip, out_pass_id);
 }

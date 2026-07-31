@@ -17,6 +17,8 @@ typedef struct
     uint32_t menu_entries;
     uint32_t bailiff_denied, bailiff_transmitted;
     uint32_t lockbox_active;
+
+    uint32_t scheduler_retransmit,scheduler_gaveup;
 } ledger_snapshot_t;
 
 ledger_snapshot_t ledger_snapshot(void);

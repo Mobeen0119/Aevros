@@ -10,6 +10,9 @@ static uint32_t contradictions;
 static uint8_t our_ip[4];
 static int have_our_ip;
 
+static uint8_t last_request_frame[6 + 6 + 2 + ARP_PACKET_SIZE];
+static uint16_t last_request_len;
+
 static int pending_reply;
 static uint8_t pending_requester_mac[6];
 static uint8_t pending_requester_ip[4];
@@ -184,7 +187,6 @@ int rolodex_dispatch_reply(const uint8_t our_mac[6], uint32_t *out_pass_id)
 
     static uint8_t frame[6 + 6 + 2 + ARP_PACKET_SIZE];
 
-
     memcpy(frame, arp + 18, 6);
     memcpy(frame + 6, our_mac, 6);
     frame[12] = 0x08;
@@ -207,5 +209,40 @@ uint32_t rolodex_contradiction_count(void)
 {
     return contradictions;
 }
+
+int rolodex_dispatch_request(const uint8_t target_ip[4], const uint8_t our_mac[6], uint32_t *out_pass_id)
+{
+    if (!have_our_ip)
+        return 0;
+
+    uint8_t arp[ARP_PACKET_SIZE];
+    memset(arp, 0, ARP_PACKET_SIZE);
+
+    arp[0] = 0x00;
+    arp[1] = 0x01;
+    arp[2] = 0x08;
+    arp[3] = 0x00;
+    arp[4] = 6;
+    arp[5] = 4;
+    arp[6] = 0x00;
+    arp[7] = ARP_REQUEST;
+
+    memcpy(arp + 8, our_mac, 6);
+    memcpy(arp + 14, our_ip, 4);
+    memset(arp + 18, 0, 6);
+    memcpy(arp + 24, target_ip, 4);
+
+    memset(last_request_frame, 0xFF, 6);
+    memcpy(last_request_frame + 6, our_mac, 6);
+    last_request_frame[12] = 0x08;
+    last_request_frame[13] = 0x06;
+    memcpy(last_request_frame + 14, arp, ARP_PACKET_SIZE);
+    last_request_len = sizeof(last_request_frame);
+
+    return bailiff_request_pass(last_request_frame, last_request_len, out_pass_id);
+}
+
+const uint8_t *rolodex_last_request_frame(void) { return last_request_frame; }
+uint16_t rolodex_last_request_len(void) { return last_request_len; }
 
 DIRECTORY_ENTRY(0x0806, rolodex_handle, "Rolodex (ARP)");

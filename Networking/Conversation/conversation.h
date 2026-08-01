@@ -41,4 +41,10 @@ int conversation_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], co
 
 int conversation_dispatch_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id);
 
+int conversation_dispatch_syn(uint32_t conn_id, uint32_t our_isn, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id);
+
+const uint8_t *conversation_last_frame(void);
+
+uint16_t conversation_last_len(void);
+
 #endif

@@ -11,6 +11,7 @@
 #include "../Waystation/waystation.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
+#include "../Foyer/foyer.h"
 
 #define TCP_MAX_PAYLOAD 1460 // Ethernet MTU(1500)...Ipv4(20)...TCP header(20)
 #define TCP_MIN_HEADER 20
@@ -172,6 +173,7 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     if (!rapport_seq_expected(conn_id, seq))
     {
         uint16_t probe_len = (uint16_t)(length - header_len);
+
         if (rapport_seq_is_stale_retransmit(conn_id, seq, probe_len))
             kprintf("[Conversation] slot %d: seq=%u is an old retransmission, already have this - ignoring, not an attack\n", conn_id, seq);
         else if (probe_len > 0)
@@ -259,12 +261,10 @@ int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_
         return 0;
 
     uint8_t dest_mac[6];
-    if (!rolodex_lookup(remote_ip, dest_mac))
-    {
-        kprintf("[Conversation] ready to transmit.....\n",
-                conn_id, remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
-        return 0;
-    }
+    int known_mac = rolodex_lookup(remote_ip, dest_mac);
+
+    if (!known_mac)
+        memset(dest_mac, 0, 6);
 
     uint8_t *frame = last_dispatched_frame;
     memcpy(frame, dest_mac, 6);
@@ -362,6 +362,14 @@ int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_
 
     last_dispatched_len = (uint16_t)(14 + ip_total);
 
+    if (!known_mac)
+    {
+        foyer_queue(remote_ip, our_mac, frame, last_dispatched_len);
+        kprintf("[Conversation] slot %d: no MAC for %d.%d.%d.%d yet, handed off to Foyer\n",
+                conn_id, remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+        return 0;
+    }
+
     return bailiff_request_pass(frame, 14 + ip_total, out_pass_id);
 }
 
@@ -376,6 +384,18 @@ int conversation_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], co
     scheduler_track(conn_id, our_isn, last_dispatched_frame, last_dispatched_len);
     return 1;
 }
+
+int conversation_dispatch_syn(uint32_t conn_id, uint32_t our_isn, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
+{
+    if (!conversation_dispatch(conn_id, FLAG_SYN, our_isn, 0, 0, 0, our_mac, our_ip, out_pass_id))
+        return 0;
+
+    scheduler_track(conn_id, our_isn, last_dispatched_frame, last_dispatched_len);
+    return 1;
+}
+
+const uint8_t *conversation_last_frame(void) { return last_dispatched_frame; }
+uint16_t conversation_last_len(void) { return last_dispatched_len; }
 
 int conversation_dispatch_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
 {

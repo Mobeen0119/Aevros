@@ -21,11 +21,11 @@
 
 ## What is Aevros
 
-Aevros is a small operating system kernel, written from scratch in C and x86 assembly. Not production-level, not trying to be, at least not yet.
+Aevros is a small operating system kernel, written from scratch in C and x86 assembly.
 
 It exists to answer a question most educational kernels don't bother with: not just *what* broke, but *why*. "Something went wrong" has never been useful information to anyone, ever.
 
-Everything in it, the scheduler, the memory manager, the filesystem, the shell, was written by hand instead of recycled from another kernel. Slower to build. Much better to actually understand.
+Everything was written from scratch so every subsystem can be understood and modified without hidden dependencies.
 
 The part that makes it different: a handful of built-in tools let the system explain its own state, in plain English, from inside the shell instead of hex dump. Kill a process and see exactly what you just ruined. Inspect an allocation and find out who's responsible for it. Trigger a page fault and get a sentence back instead of a wall of hex doing its best to ruin your afternoon.
 
@@ -82,7 +82,7 @@ Every "Working" row has a real self-test in `kernel/selftest.c`, run `selftest` 
 
 Today, Aevros is a hobby kernel.
 
-Tomorrow, hopefully, it's the operating system you reach for when you're tired of guessing why something broke.
+**Long-term vision:** it's the operating system you reach for when you're tired of guessing why something broke.
 
 Because debugging should feel less like archaeology, and more like asking a question.
 

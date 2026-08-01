@@ -7,9 +7,10 @@
 #include "../Roldex/rolodex.h"
 #include "../Bailiff/bailiff.h"
 #include "../Menu/menu.h"
+#include "../Scheduler/scheduler.h"
+#include "../Waystation/waystation.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
-#include "../Scheduler/scheduler.h"
 
 #define TCP_MAX_PAYLOAD 1460 // Ethernet MTU(1500)...Ipv4(20)...TCP header(20)
 #define TCP_MIN_HEADER 20
@@ -22,6 +23,7 @@
 #define FLAG_URG 0x20
 
 static uint32_t accepted, rejected;
+
 static uint8_t last_dispatched_frame[14 + 20 + 20 + 1460];
 static uint16_t last_dispatched_len;
 
@@ -148,7 +150,9 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     {
         uint16_t probe_len = (uint16_t)(length - header_len);
         if (rapport_seq_is_stale_retransmit(conn_id, seq, probe_len))
-            kprintf("[Conversation] slot %d: seq=%u is an old retransmission, already have this .... ignoring, not an attack\n", conn_id, seq);
+            kprintf("[Conversation] slot %d: seq=%u is an old retransmission, already have this - ignoring, not an attack\n", conn_id, seq);
+        else if (probe_len > 0)
+            waystation_hold(conn_id, seq, payload + header_len, probe_len);
         else
             kprintf("[Conversation] slot %d: seq=%u doesn't match expected, refusing to trust it\n", conn_id, seq);
         return;
@@ -169,13 +173,17 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     if (flags & FLAG_ACK)
     {
         uint32_t ack_num = (uint32_t)((payload[8] << 24) | (payload[9] << 16) | (payload[10] << 8) | payload[11]);
+
         rapport_on_ack(conn_id);
         scheduler_ack(conn_id, ack_num);
     }
 
     uint16_t data_len = (uint16_t)(length - header_len);
     if (data_len > 0 && inbox_deposit(conn_id, payload + header_len, data_len))
+    {
         rapport_advance_seq(conn_id, data_len);
+        waystation_drain(conn_id);
+    }
 }
 
 uint32_t tcp_accepted_count(void)
@@ -235,12 +243,13 @@ int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_
         return 0;
     }
 
-    memcpy(last_dispatched_frame, dest_mac, 6);
-    memcpy(last_dispatched_frame + 6, our_mac, 6);
-    last_dispatched_frame[12] = 0x08;
-    last_dispatched_frame[13] = 0x00;
+    uint8_t *frame = last_dispatched_frame;
+    memcpy(frame, dest_mac, 6);
+    memcpy(frame + 6, our_mac, 6);
+    frame[12] = 0x08;
+    frame[13] = 0x00;
 
-    uint8_t *ip = last_dispatched_frame + 14;
+    uint8_t *ip = frame + 14;
     uint16_t ip_total = 20 + 20 + payload_len;
 
     ip[0] = 0x45;
@@ -292,8 +301,9 @@ int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_
     tcp[11] = (uint8_t)ack;
     tcp[12] = 5 << 4;
     tcp[13] = flags;
-    tcp[14] = (LOCKBOX_MAX_BUFFERED >> 8) & 0xFF;
-    tcp[15] = LOCKBOX_MAX_BUFFERED & 0xFF;
+    uint16_t recv_window = waystation_receive_window(conn_id);
+    tcp[14] = (recv_window >> 8) & 0xFF;
+    tcp[15] = recv_window & 0xFF;
     tcp[16] = 0;
     tcp[17] = 0;
     tcp[18] = 0;
@@ -329,7 +339,7 @@ int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_
 
     last_dispatched_len = (uint16_t)(14 + ip_total);
 
-    return bailiff_request_pass(last_dispatched_frame, 14 + ip_total, out_pass_id);
+    return bailiff_request_pass(frame, 14 + ip_total, out_pass_id);
 }
 
 int conversation_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)

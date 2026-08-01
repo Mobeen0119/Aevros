@@ -4,14 +4,19 @@
 #include <stdint.h>
 #include "conversation.h"
 
+#define CONV_TIME_WAIT_TICKS 400
 
 void rapport_on_syn(uint32_t conn_id, uint32_t peer_isn, uint32_t our_isn);
 
 void rapport_on_ack(uint32_t conn_id);
 
+void rapport_initiate_close(uint32_t conn_id, uint32_t fin_seq);
+
 void rapport_on_fin(uint32_t conn_id);
 
 void rapport_on_rst(uint32_t conn_id);
+
+void rapport_tick(void);
 
 int rapport_seq_expected(uint32_t conn_id, uint32_t seq);
 

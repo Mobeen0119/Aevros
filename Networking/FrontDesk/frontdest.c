@@ -8,6 +8,7 @@
 #include "../Bouncer/bouncer.h"
 #include "../mailroom/mailroom.h"
 #include "../WatchList/watchlist.h"
+#include "../Roldex/rolodex.h"
 
 #define RTL8139_VENDOR_ID 0x10EC
 #define RTL8139_DEVICE_ID 0x8139
@@ -46,7 +47,7 @@ const frontdesk_state_t *frontdesk_get_state()
     return &state;
 }
 
-void frontdest_init(void)
+void frontdesk_init(void)
 {
     memset(&state, 0, sizeof(state));
     nic_pci = pci_find_device(RTL8139_VENDOR_ID, RTL8139_DEVICE_ID);
@@ -79,7 +80,7 @@ void frontdest_init(void)
     }
 
     rx_buffer = (uint8_t *)kmalloc(RX_BUFFER_SIZE);
-    
+
     memset(rx_buffer, 0, RX_BUFFER_SIZE);
 
     rx_read_offset = 0;
@@ -97,6 +98,25 @@ void frontdest_init(void)
     kprintf("[FrontDesk] RTL8139 found at PCI %x:%x.%x, io_base=%x, irq=%d, mac=%x:%x:%x:%x:%x:%x\n",
             nic_pci.bus, nic_pci.slot, nic_pci.function, io_base, nic_pci.interrupt_line,
             state.mac[0], state.mac[1], state.mac[2], state.mac[3], state.mac[4], state.mac[5]);
+}
+
+void frontdesk_bringup(void)
+{
+    frontdesk_init();
+
+    if (state.present)
+    {
+        pic_unmask_irq(state.irq_line);
+        kprintf("[FrontDesk] IRQ %d unmasked, ready to receive\n", state.irq_line);
+
+        static const uint8_t default_ip[4] = {10, 0, 2, 15};
+        rolodex_set_ip(default_ip);
+        kprintf("[FrontDesk] assigned default IP 10.0.2.15 (change in frontdesk_bringup if needed)\n");
+    }
+    else
+    {
+        kprintf("[FrontDesk] no RTL8139 found on the PCI bus, networking stays offline\n");
+    }
 }
 
 int frontdesk_send(const void *data, uint16_t length)
@@ -153,7 +173,7 @@ void frontdesk_irq_handler(void)
             }
             else
             {
-                bounce_log(BOUNCE_REJECT_TOO_SHORT, packet_length, 0, 0);
+                bouncer_log(BOUNCE_REJECT_TOO_SHORT, packet_length, 0, 0);
             }
             rx_read_offset = (uint16_t)((rx_read_offset + packet_length + 4 + 3) & ~3);
 
@@ -166,5 +186,18 @@ void frontdesk_irq_handler(void)
     if (status & (ISR_RXOVW | ISR_RER))
         state.rx_errors++;
 
-    outw(io_base + REG_ISR,status);
+    outw(io_base + REG_ISR, status);
+}
+
+int frontdesk_dispatch_irq(uint32_t int_no)
+{
+    if (!state.present || int_no != (uint32_t)(32 + state.irq_line))
+        return 0;
+
+    if (int_no >= 40)
+        outb(0xA0, 0x20);
+    outb(0x20, 0x20);
+
+    frontdesk_irq_handler();
+    return 1;
 }

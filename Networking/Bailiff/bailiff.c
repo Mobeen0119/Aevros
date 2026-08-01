@@ -1,6 +1,7 @@
 #include "bailiff.h"
 #include "../../kernel/Process/task.h"
 #include "../../Lib/kprintf.h"
+#include "../FrontDesk/frontdesk.h"
 
 static hall_pass_t passes[BAILIFF_MAX_PASSES];
 static uint32_t next_pass_id = 1;
@@ -97,9 +98,16 @@ int bailiff_present_pass(uint32_t pass_id, const uint8_t *frame, uint16_t len)
             denied_total++;
             return 0;
         }
-        transmitted_total++;
+        if (!frontdesk_send(frame, len))
+        {
+            kprintf("[Bailiff] pass %u honored but the driver refused the send\n", pass_id);
+            denied_total++;
+            passes[i].in_use = 0;
+            return 0;
+        }
 
-        kprintf("[Bailiff] pass %u honored ... would transmit %u bytes now (no driver connected yet)\n", pass_id, len);
+        transmitted_total++;
+        kprintf("[Bailiff] pass %u honored, %u bytes handed to FrontDesk\n", pass_id, len);
         passes[i].in_use = 0;
         return 1;
     }

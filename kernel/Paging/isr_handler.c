@@ -8,6 +8,7 @@
 #include "../io.h"
 #include "../Paging/paging.h"
 #include "../../Drivers/PIT/pit.h"
+#include "../../Networking/FrontDesk/frontdesk.h"
 
 #include "Aevros_Panic/aevros_panic.h"
 
@@ -26,15 +27,14 @@ void isr_handler(struct registers *r)
         return;
     }
 
-
-
-
     if (r->int_no == 33)
     {
         outb(0x20, 0x20);
         keyboard_handler();
         return;
     }
+
+    if(frontdesk_dispatch_irq(r->int_no)) return;
 
     if (r->int_no < 32)
     {

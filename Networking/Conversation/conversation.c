@@ -121,6 +121,26 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
 
     uint32_t seq = (uint32_t)((payload[4] << 24) | (payload[5] << 16) | (payload[6] << 8) | payload[7]);
 
+    uint32_t existing_conn = lockbox_find_connection(dst_port, src_ip, src_port, 6);
+
+    if (existing_conn != LOCKBOX_CAPACITY && rapport_get_state(existing_conn) == CONV_SYN_SENT)
+    {
+        if (flags & FLAG_RST)
+        {
+            kprintf("[Conversation] slot %d: connection refused\n", existing_conn);
+            rapport_on_rst(existing_conn);
+            return;
+        }
+        if ((flags & FLAG_SYN) && (flags & FLAG_ACK))
+        {
+            uint32_t ack_num = (uint32_t)((payload[8] << 24) | (payload[9] << 16) | (payload[10] << 8) | payload[11]);
+            rapport_on_syn_ack(existing_conn, seq, ack_num);
+            return;
+        }
+        kprintf("[Conversation] slot %d: unexpected segment while waiting on syn-ack, ignoring\n", existing_conn);
+        return;
+    }
+
     if (flags & FLAG_SYN)
     {
         uint32_t conn_id;
@@ -145,6 +165,9 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
         kprintf("[Conversation] non-SYN segment with no known connection, discarding\n");
         return;
     }
+
+    uint16_t peer_window = (uint16_t)((payload[14] << 8) | payload[15]);
+    rapport_set_peer_window(conn_id, peer_window);
 
     if (!rapport_seq_expected(conn_id, seq))
     {

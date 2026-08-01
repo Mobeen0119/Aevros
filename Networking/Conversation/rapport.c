@@ -13,6 +13,8 @@ static uint32_t our_isn_table[LOCKBOX_CAPACITY];
 static uint32_t our_fin_seq[LOCKBOX_CAPACITY];
 static uint32_t time_wait_started[LOCKBOX_CAPACITY];
 
+static uint16_t peer_window[LOCKBOX_CAPACITY];
+
 static int valid_id(uint32_t conn_id)
 {
     return conn_id < LOCKBOX_CAPACITY;
@@ -164,6 +166,66 @@ void rapport_tick(void)
         status[i] = CONV_CLOSED;
         lockbox_release(i);
     }
+}
+
+void rapport_set_peer_window(uint32_t conn_id, uint16_t window)
+{
+    if (!valid_id(conn_id))
+        return;
+
+    peer_window[conn_id] = window;
+}
+
+uint16_t rapport_get_peer_window(uint32_t conn_id)
+{
+    if (!valid_id(conn_id))
+        return;
+
+    return peer_window[conn_id];
+}
+
+void rapport_initiate_connect(uint32_t conn_id, uint32_t our_isn)
+{
+    if (!valid_id(conn_id))
+        return;
+
+    status[conn_id] = CONV_SYN_SENT;
+    our_isn_table[conn_id] = our_isn;
+
+    kprintf("[Rapport] slot %d: reaching out, said hi, waiting for a reply (our_isn=%u)\n", conn_id, our_isn);
+}
+
+int rapport_on_syn_ack(uint32_t conn_id, uint32_t peer_isn, uint32_t ack_num)
+{
+    if (!valid_id(conn_id))
+        return 0;
+
+    if (status[conn_id] != CONV_SYN_SENT)
+        return 0;
+
+    if (ack_num != our_isn_table[conn_id] + 1)
+    {
+        kprintf("[Rapport] slot %d: syn-ack didn't acknowledge our syn, ignoring\n", conn_id);
+        return 0;
+    }
+
+    expected_seq[conn_id] = peer_isn + 1;
+    status[conn_id] = CONV_ESTABLISHED;
+
+    kprintf("[Rapport] slot %d: they said hi back, we're officially talking now\n", conn_id);
+
+    return 1;
+}
+
+int rapport_send_allowed(uint32_t conn_id, uint16_t length)
+{
+    if (!valid_id(conn_id))
+        return 0;
+
+    uint32_t in_flight = scheduler_bytes_in_flight(conn_id);
+    uint32_t window = peer_window[conn_id];
+
+    return (in_flight + length) <= window;
 }
 
 int rapport_seq_expected(uint32_t conn_id, uint32_t seq)

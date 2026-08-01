@@ -49,4 +49,6 @@ void scheduler_tick(void);
 uint32_t scheduler_retransmit_count(void);
 uint32_t scheduler_giveup_count(void);
 
+uint16_t scheduler_bytes_in_flight(uint32_t conn_id);
+
 #endif

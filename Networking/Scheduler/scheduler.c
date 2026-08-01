@@ -169,6 +169,11 @@ void scheduler_tick(void)
     }
 }
 
+uint16_t scheduler_bytes_in_flight(uint32_t conn_id){
+    if(!valid_id(conn_id)) return 0;
+
+    return (entries[conn_id].state == PACKET_STATE_RETRY) ? entries[conn_id].length : 0;
+}
 uint32_t scheduler_retransmit_count(void)
 {
     return retransmit_total;

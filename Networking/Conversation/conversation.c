@@ -431,6 +431,32 @@ int conversation_dispatch_syn(uint32_t conn_id, uint32_t our_isn, const uint8_t 
 const uint8_t *conversation_last_frame(void) { return last_dispatched_frame; }
 uint16_t conversation_last_len(void) { return last_dispatched_len; }
 
+int conversation_dispatch_fin(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
+{
+    conversation_state_t *state = rapport_get_state(conn_id);
+
+    if (state != CONV_ESTABLISHED && state != CONV_CLOSE_WAIT)
+        return 0;
+
+    if (scheduler_bytes_in_flight(conn_id) > 0)
+    {
+        kprintf("[Conversation] slot %d: still have an unacked segment out, refusing to close yet\n", conn_id);
+        return 0;
+    }
+
+    uint32_t seq = rapport_get_send_seq(conn_id);
+    uint32_t ack = rapport_get_expected_seq(conn_id);
+
+    if (!conversation_dispatch(conn_id, FLAG_FIN | FLAG_ACK, seq, ack, 0, 0, our_mac, our_ip, out_pass_id))
+        return 0;
+
+    scheduler_track(conn_id, seq, last_dispatched_frame, last_dispatched_len);
+    rapport_advance_send_seq(conn_id, 1);
+    rapport_initiate_close(conn_id, seq);
+
+    return 1;
+}
+
 int conversation_dispatch_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
 {
     uint32_t our_isn = rapport_get_our_isn(conn_id);

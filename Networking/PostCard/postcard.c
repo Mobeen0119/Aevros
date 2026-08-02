@@ -6,6 +6,7 @@
 #include "../Menu/menu.h"
 #include "../Bailiff/bailiff.h"
 #include "../Foyer/foyer.h"
+#include "../Atlas/atlas.h"
 
 #define UDP_HEADER_LEN 8
 
@@ -98,7 +99,7 @@ void postcard_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
     kprintf("[Postcard] delivered %d bytes into slot %d\n", data_len, slot);
 }
 
-int postcard_dispatch(const uint8_t dest_ip[4], uint16_t dest_port, uint16_t src_port,const uint8_t our_mac[6], const uint8_t our_ip[4],
+int postcard_dispatch(const uint8_t dest_ip[4], uint16_t dest_port, uint16_t src_port, const uint8_t our_mac[6], const uint8_t our_ip[4],
                       const uint8_t *data, uint16_t len)
 {
     if (len > POSTCARD_MAX_PAYLOAD)
@@ -184,9 +185,14 @@ int postcard_dispatch(const uint8_t dest_ip[4], uint16_t dest_port, uint16_t src
 
     uint16_t total_len = (uint16_t)(14 + ip_total);
 
+    uint8_t next_hop[4];
+
+    if (!atlas_lookup(dest_ip, next_hop))
+        return 0;
+
     uint8_t dest_mac[6];
 
-    if (rolodex_lookup(dest_ip, dest_mac))
+    if (rolodex_lookup(next_hop, dest_mac))
     {
         memcpy(frame, dest_mac, 6);
 
@@ -203,7 +209,7 @@ int postcard_dispatch(const uint8_t dest_ip[4], uint16_t dest_port, uint16_t src
 
     memset(frame, 0, 6);
 
-    return foyer_queue(dest_ip, our_mac, frame, total_len);
+    return foyer_queue(next_hop, our_mac, frame, total_len);
 }
 
 uint32_t postcard_accepted_count(void)

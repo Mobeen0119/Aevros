@@ -17,18 +17,22 @@ static int same_net(const uint8_t ip[4], const uint8_t network[4], const uint8_t
 
 static int prefix_len(const uint8_t netmask[4])
 {
-    int bits = 0;
+    int prefix = 0;
 
     for (int i = 0; i < 4; i++)
     {
         uint8_t byte = netmask[i];
-        while (byte)
+
+        for (int bit = 7; bit >= 0; bit--)
         {
-            bits += byte & 1;
-            byte >>= 1;
+            if (byte & (1 << bit))
+                prefix++;
+            else
+                return prefix;
         }
     }
-    return bits;
+
+    return prefix;
 }
 
 int atlas_add_route(const uint8_t network[4], const uint8_t netmask[4], const uint8_t gateway[4])

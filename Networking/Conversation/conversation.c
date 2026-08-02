@@ -12,6 +12,7 @@
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
 #include "../Foyer/foyer.h"
+#include "../Atlas/atlas.h"
 
 #define TCP_MAX_PAYLOAD 1460 // Ethernet MTU(1500)...Ipv4(20)...TCP header(20)
 #define TCP_MIN_HEADER 20
@@ -260,8 +261,12 @@ int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_
     if (!lockbox_get_tuple(conn_id, &local_port, remote_ip, &remote_port))
         return 0;
 
+    uint8_t next_hop[4];
+    if (!atlas_lookup(remote_ip, next_hop))
+        return 0;
+
     uint8_t dest_mac[6];
-    int known_mac = rolodex_lookup(remote_ip, dest_mac);
+    int known_mac = rolodex_lookup(next_hop, dest_mac);
 
     if (!known_mac)
         memset(dest_mac, 0, 6);
@@ -364,9 +369,11 @@ int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_
 
     if (!known_mac)
     {
-        foyer_queue(remote_ip, our_mac, frame, last_dispatched_len);
-        kprintf("[Conversation] slot %d: no MAC for %d.%d.%d.%d yet, handed off to Foyer\n",
-                conn_id, remote_ip[0], remote_ip[1], remote_ip[2], remote_ip[3]);
+        foyer_queue(next_hop, our_mac, frame, last_dispatched_len);
+
+        kprintf("[Conversation] slot %d: no MAC for next hop %d.%d.%d.%d yet, handed off to Foyer\n",
+                conn_id, next_hop[0], next_hop[1], next_hop[2], next_hop[3]);
+
         return 0;
     }
 

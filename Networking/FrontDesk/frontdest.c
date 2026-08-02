@@ -2,6 +2,7 @@
 #include "../../kernel/PCI/pci.h"
 #include "../../kernel/io.h"
 #include "../../kernel/pic.h"
+#include "../Atlas/atlas.h"
 #include "../../kernel/Memory/kheap.h"
 #include "../../Lib/kprintf.h"
 #include "../../Lib/string.h"
@@ -109,9 +110,18 @@ void frontdesk_bringup(void)
         pic_unmask_irq(state.irq_line);
         kprintf("[FrontDesk] IRQ %d unmasked, ready to receive\n", state.irq_line);
 
-        static const uint8_t default_ip[4] = {10, 0, 2, 15};
-        rolodex_set_ip(default_ip);
-        kprintf("[FrontDesk] assigned default IP 10.0.2.15 (change in frontdesk_bringup if needed)\n");
+        static const uint8_t our_ip[4] = {10, 0, 2, 15};
+        static const uint8_t subnet_network[4] = {10, 0, 2, 0};
+
+        static const uint8_t subnet_mask[4] = {255, 255, 255, 0};
+        static const uint8_t on_link_gateway[4] = {0, 0, 0, 0};
+        static const uint8_t default_gateway[4] = {10, 0, 2, 2};
+
+        rolodex_set_ip(our_ip);
+        atlas_add_route(subnet_network, subnet_mask, on_link_gateway);
+
+        atlas_set_default_gateway(default_gateway);
+        kprintf("[FrontDesk] assigned 10.0.2.15/24, gateway 10.0.2.2 (QEMU NAT defaults, change here if needed)\n");
     }
     else
     {

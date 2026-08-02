@@ -4,6 +4,8 @@
 #include "../LockBox/lockbox.h"
 #include "../Postbox/postbox.h"
 #include "../Menu/menu.h"
+#include "../Bailiff/bailiff.h"
+#include "../Foyer/foyer.h"
 
 #define UDP_HEADER_LEN 8
 
@@ -94,6 +96,114 @@ void postcard_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
         return;
 
     kprintf("[Postcard] delivered %d bytes into slot %d\n", data_len, slot);
+}
+
+int postcard_dispatch(const uint8_t dest_ip[4], uint16_t dest_port, uint16_t src_port,const uint8_t our_mac[6], const uint8_t our_ip[4],
+                      const uint8_t *data, uint16_t len)
+{
+    if (len > POSTCARD_MAX_PAYLOAD)
+        return 0;
+
+    static int frame[14 + 20 + UDP_HEADER_LEN + POSTCARD_MAX_PAYLOAD];
+
+    uint16_t udp_len = (uint16_t)(UDP_HEADER_LEN + len);
+    uint16_t ip_total = (uint16_t)(20 + udp_len);
+
+    uint8_t *ip = frame + 14;
+    uint8_t *udp = ip + 20;
+
+    udp[0] = src_port >> 8;
+    udp[1] = src_port & 0xFF;
+    udp[2] = dest_port >> 8;
+    udp[3] = dest_port & 0xFF;
+
+    udp[4] = udp_len >> 8;
+    udp[5] = udp_len & 0xFF;
+    udp[6] = 0;
+    udp[7] = 0;
+
+    memcpy(udp + UDP_HEADER_LEN, data, len);
+
+    uint32_t sum = 0;
+
+    for (int i = 0; i < 4; i += 2)
+        sum += (uint16_t)((our_ip[i] << 8) | our_ip[i + 1]);
+    for (int i = 0; i < 4; i += 2)
+        sum += (uint16_t)((dest_ip[i] << 8) | dest_ip[i + 1]);
+
+    sum += 17;
+
+    for (int i = 0; i < udp_len; i += 2)
+        sum += (uint16_t)((udp[i] << 8) | i + 1 < udp_len ? udp[i + 1] : 0);
+    while (sum >> 16)
+        sum = (sum & 0xFFFF) + (sum >> 16);
+
+    uint16_t udp_csum = (uint16_t)(0xFFFF - sum);
+
+    if (udp_csum == 0)
+        udp_csum = 0xFFFF; // No Checksum
+
+    udp[6] = udp_csum >> 8;
+    udp[7] = udp_csum & 0xFF;
+
+    ip[0] = 0x45;
+    ip[1] = 0;
+    ip[2] = ip_total >> 8;
+    ip[3] = ip_total & 0xFF;
+    ip[4] = 0;
+
+    ip[5] = 0;
+    ip[6] = 0;
+    ip[7] = 0;
+    ip[8] = 64;
+
+    ip[9] = 17;
+    ip[10] = 0;
+    ip[11] = 0;
+
+    memcpy(ip + 12, our_ip, 4);
+    memcpy(ip + 16, dest_ip, 4);
+
+    uint32_t ip_sum = 0;
+
+    for (int i = 0; i < 20; i += 2)
+        ip_sum += (uint16_t)((ip[i] << 8) | ip[i + 1]);
+
+    while (ip_sum >> 16)
+        ip_sum = (ip_sum & 0xFFFF) + (ip_sum >> 16);
+
+    uint16_t ip_csum = (uint16_t)(0xFFFF - ip_sum);
+
+    ip[10] = ip_csum >> 8;
+    ip[11] = ip_csum & 0xFF;
+
+    frame[12] = 0x08;
+    frame[13] = 0x00;
+
+    memcpy(frame + 6, our_mac, 6);
+
+    uint16_t total_len = (uint16_t)(14 + ip_total);
+
+    uint8_t dest_mac[6];
+
+    if (rolodex_lookup(dest_ip, dest_mac))
+    {
+        memcpy(frame, dest_mac, 6);
+
+        uint32_t pass_id;
+
+        if (bailiff_request_pass(frame, total_len, &pass_id) && bailiff_present_pass(pass_id, frame, total_len))
+        {
+            kprintf("[Postcard] sent %u bytes to %d.%d.%d.%d:%d\n", len, dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3], dest_port);
+            return 1;
+        }
+
+        return 0;
+    }
+
+    memset(frame, 0, 6);
+
+    return foyer_queue(dest_ip, our_mac, frame, total_len);
 }
 
 uint32_t postcard_accepted_count(void)

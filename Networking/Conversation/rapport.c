@@ -14,6 +14,7 @@ static uint32_t our_fin_seq[LOCKBOX_CAPACITY];
 static uint32_t time_wait_started[LOCKBOX_CAPACITY];
 
 static uint16_t peer_window[LOCKBOX_CAPACITY];
+static uint32_t send_seq[LOCKBOX_CAPACITY];
 
 static int valid_id(uint32_t conn_id)
 {
@@ -212,6 +213,8 @@ int rapport_on_syn_ack(uint32_t conn_id, uint32_t peer_isn, uint32_t ack_num)
     expected_seq[conn_id] = peer_isn + 1;
     status[conn_id] = CONV_ESTABLISHED;
 
+    send_seq[conn_id] = our_isn_table[conn_id] + 1;
+
     kprintf("[Rapport] slot %d: they said hi back, we're officially talking now\n", conn_id);
 
     return 1;
@@ -242,6 +245,22 @@ uint32_t rapport_get_expected_seq(uint32_t conn_id)
         return 0;
 
     return expected_seq[conn_id];
+}
+
+uint32_t rapport_get_send_seq(uint32_t conn_id)
+{
+    if (!valid_id(conn_id))
+        return 0;
+
+    return send_seq[conn_id];
+}
+
+void rapport_advance_send_seq(uint32_t conn_id, uint16_t amount)
+{
+    if (!valid_id(conn_id))
+        return 0;
+
+    send_seq[conn_id] += amount;
 }
 
 uint32_t rapport_get_our_isn(uint32_t conn_id)

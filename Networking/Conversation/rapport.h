@@ -28,6 +28,10 @@ int rapport_seq_is_stale_retransmit(uint32_t conn_id, uint32_t seq, uint16_t dat
 
 void rapport_advance_seq(uint32_t conn_id, uint16_t amount);
 
+uint32_t rapport_get_send_seq(uint32_t conn_id);
+
+void rapport_advance_send_seq(uint32_t conn_id, uint16_t amount);
+
 conversation_state_t rapport_get_state(uint32_t conn_id);
 
 const char *rapport_state_string(conversation_state_t s);
@@ -37,7 +41,6 @@ void rapport_set_peer_window(uint32_t conn_id, uint16_t window);
 void rapport_initiate_connect(uint32_t conn_id, uint32_t our_isn);
 
 int rapport_on_syn_ack(uint32_t conn_id, uint32_t peer_isn, uint32_t ack_num);
-
 
 uint16_t rapport_get_peer_window(uint32_t conn_id);
 

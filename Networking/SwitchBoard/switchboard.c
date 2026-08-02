@@ -60,6 +60,22 @@ int switchboard_connect(const uint8_t dest_ip[4], uint16_t dest_port,
     return 1;
 }
 
+int switchboard_send(uint32_t conn_id, const uint8_t *data, const uint16_t len, const uint8_t our_mac[6], const uint8_t our_ip[4])
+{
+
+    uint32_t pass_id;
+
+    if (!conversation_dispatch_data(conn_id, data, len, our_mac, our_ip, &pass_id))
+        return 0;
+
+    if (!bailiff_present_pass(pass_id, conversation_last_frame(), conversation_last_len()))
+        return 0;
+
+    kprintf("[Switchboard] slot %d: sent %u bytes\n", conn_id, len);
+
+    return 1;
+}
+
 int switchboard_bind(uint16_t port, uint8_t protocol)
 {
     uint32_t id;

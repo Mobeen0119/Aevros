@@ -20,4 +20,6 @@ void landlord_tick(const uint8_t our_mac[6]);
 
 landlord_state_t landlord_get_state(void);
 
+void landlord_get_dns_server(uint8_t out_ip[4]);
+
 #endif

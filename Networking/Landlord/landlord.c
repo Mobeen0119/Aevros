@@ -15,6 +15,7 @@
 #define DHCP_RETRY_TICKS (5 * PIT_HZ)
 #define DHCP_RENEW_FRACTION_NUM 1
 #define DHCP_RENEW_FRACTION_DEN 2
+static uint8_t dns_server_ip[4];
 
 static const uint8_t zero_ip[4] = {0, 0, 0, 0};
 static const uint8_t broadcast_ip[4] = {255, 255, 255, 255};
@@ -179,6 +180,10 @@ static uint8_t parse_options(const uint8_t *packet, uint16_t len)
                 memcpy(subnet_mask, packet + i, 4);
             break;
         case 3:
+        case 6:
+            if (opt_len >= 4)
+                memcpy(dns_server_ip, packet + i, 4);
+            break;
             if (opt_len >= 4)
                 memcpy(router_ip, packet + i, 4);
             break;
@@ -297,4 +302,9 @@ void landlord_tick(const uint8_t our_mac[6])
 landlord_state_t landlord_get_state(void)
 {
     return state;
+}
+
+void landlord_get_dns_server(uint8_t out_ip[4])
+{
+    memcpy(out_ip, dns_server_ip, 4);
 }

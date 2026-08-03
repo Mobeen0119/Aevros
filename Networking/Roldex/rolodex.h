@@ -41,4 +41,6 @@ uint32_t rolodex_count(void);
 
 uint32_t rolodex_contradiction_count(void);
 
+void rolodex_get_ip(uint8_t out_ip[4]);
+
 #endif

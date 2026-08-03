@@ -242,7 +242,19 @@ int rolodex_dispatch_request(const uint8_t target_ip[4], const uint8_t our_mac[6
     return bailiff_request_pass(last_request_frame, last_request_len, out_pass_id);
 }
 
-const uint8_t *rolodex_last_request_frame(void) { return last_request_frame; }
-uint16_t rolodex_last_request_len(void) { return last_request_len; }
+void rolodex_get_ip(uint8_t out_ip[4])
+{
+    memcpy(out_ip, our_ip, 4);
+}
+
+const uint8_t *rolodex_last_request_frame(void)
+{
+    return last_request_frame;
+}
+
+uint16_t rolodex_last_request_len(void)
+{
+    return last_request_len;
+}
 
 DIRECTORY_ENTRY(0x0806, rolodex_handle, "Rolodex (ARP)");

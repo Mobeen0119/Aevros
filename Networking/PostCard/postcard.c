@@ -1,6 +1,7 @@
 #include "postcard.h"
 #include "../Compass/ip_directory.h"
 #include "../../Lib/kprintf.h"
+#include "../../Lib/string.h"
 #include "../LockBox/lockbox.h"
 #include "../Postbox/postbox.h"
 #include "../Menu/menu.h"
@@ -184,6 +185,21 @@ int postcard_dispatch(const uint8_t dest_ip[4], uint16_t dest_port, uint16_t src
     memcpy(frame + 6, our_mac, 6);
 
     uint16_t total_len = (uint16_t)(14 + ip_total);
+
+    int is_broadcast = (dest_ip[0] == 255 && dest_ip[1] == 255 && dest_ip[2] == 255 && dest_ip[3] == 255);
+
+    if (is_broadcast)
+    {
+
+        memset(frame, 0xFF, 6);
+        uint32_t pass_id;
+        if (bailiff_request_pass(frame, total_len, &pass_id) && bailiff_present_pass(pass_id, frame, total_len))
+        {
+            kprintf("[Postcard] broadcast %u bytes to 255.255.255.255:%d\n", len, dest_port);
+            return 1;
+        }
+        return 0;
+    }
 
     uint8_t next_hop[4];
 

@@ -11,6 +11,15 @@
 #define SYS_EXIT    6
 #define SYS_WAITPID 7
 #define SYS_EXEC    8
+#define SYS_SOCKET 9
+#define SYS_BIND   10
+#define SYS_CONNECT  11
+#define SYS_ACCEPT 12
+#define SYS_SEND 13
+#define SYS_RECV  14
+#define SYS_SENDTO 15
+#define SYS_RECVFROM 16
+#define SYS_SOCKCLOSE 17
 
 int syscall(int num, int arg1, int arg2, int arg3);
 

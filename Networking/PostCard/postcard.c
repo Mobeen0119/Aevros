@@ -8,6 +8,7 @@
 #include "../Bailiff/bailiff.h"
 #include "../Foyer/foyer.h"
 #include "../Atlas/atlas.h"
+#include "../Sentry/sentry.h"
 
 #define UDP_HEADER_LEN 8
 
@@ -73,6 +74,13 @@ void postcard_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
 
     uint16_t src_port = (uint16_t)((payload[0] << 8) | payload[1]);
     uint16_t dst_port = (uint16_t)((payload[2] << 8) | payload[3]);
+
+    if (sentry_observe(src_ip, dst_port))
+    {
+        kprintf("[Postcard] %d.%d.%d.%d just got banned by Sentry, refusing this datagram\n",
+                src_ip[0], src_ip[1], src_ip[2], src_ip[3]);
+        return;
+    }
 
     kprintf("[Postcard] accepted, %d.%d.%d.%d:%d -> %d.%d.%d.%d:%d\n",
             src_ip[0], src_ip[1], src_ip[2], src_ip[3], src_port,

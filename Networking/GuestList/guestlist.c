@@ -63,7 +63,7 @@ guestlist_verdict_t guestlist_check(const uint8_t ip[4])
     return e->action;
 }
 
-int guestlist_set_times(const uint8_t ip[4], guestlist_verdict_t action, uint32_t duration_ticks)
+int guestlist_set_timed(const uint8_t ip[4], guestlist_verdict_t action, uint32_t duration_ticks)
 {
 
     if (!guestlist_set(ip, action))

@@ -13,6 +13,7 @@
 #include "../../Lib/kprintf.h"
 #include "../Foyer/foyer.h"
 #include "../Atlas/atlas.h"
+#include "../Sentry/sentry.h"
 
 #define TCP_MAX_PAYLOAD 1460 // Ethernet MTU(1500)...Ipv4(20)...TCP header(20)
 #define TCP_MIN_HEADER 20
@@ -145,6 +146,14 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
 
     if (flags & FLAG_SYN)
     {
+        if (sentry_observe(src_ip, dst_port))
+        {
+            kprintf("[Conversation] %d.%d.%d.%d just got banned by Sentry, refusing this SYN\n",
+                    src_ip[0], src_ip[1], src_ip[2], src_ip[3]);
+
+            return;
+        }
+
         uint32_t conn_id;
         lockbox_result_t r = lockbox_claim(dst_port, src_ip, src_port, 6, &conn_id);
         if (r != LOCKBOX_OK)
@@ -152,6 +161,7 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
             kprintf("[Conversation] SYN refused: %s\n", lockbox_result_string(r));
             return;
         }
+
         uint32_t our_isn = lottery_draw_isn(dst_ip, dst_port, src_ip, src_port);
         rapport_on_syn(conn_id, seq, our_isn);
         kprintf("[Conversation] SYN accepted into its own slot %d\n", conn_id);
@@ -162,6 +172,7 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     uint16_t header_len = (uint16_t)(data_off * 4);
 
     uint32_t conn_id = lockbox_find_connection(dst_port, src_ip, src_port, 6);
+ 
     if (conn_id == LOCKBOX_CAPACITY)
     {
         kprintf("[Conversation] non-SYN segment with no known connection, discarding\n");
@@ -245,8 +256,7 @@ const char *tcp_verdict_string(tcp_verdict_t v)
 
 IP_DIRECTORY_ENTRY(6, conversation_handle, "Conversation (TCP) ");
 
-int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_t ack, const uint8_t *payload, uint16_t payload_len,
-                          const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
+int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_t ack, const uint8_t *payload, uint16_t payload_len,const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
 {
     if (payload_len > TCP_MAX_PAYLOAD)
         return 0;
@@ -435,8 +445,15 @@ int conversation_dispatch_syn(uint32_t conn_id, uint32_t our_isn, const uint8_t 
     return 1;
 }
 
-const uint8_t *conversation_last_frame(void) { return last_dispatched_frame; }
-uint16_t conversation_last_len(void) { return last_dispatched_len; }
+const uint8_t *conversation_last_frame(void)
+{
+    return last_dispatched_frame;
+}
+
+uint16_t conversation_last_len(void)
+{
+    return last_dispatched_len;
+}
 
 int conversation_dispatch_fin(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
 {

@@ -180,7 +180,17 @@ int frontdoor_recv(int fd, uint8_t *buf, uint16_t max_len)
     if (fd < 0 || fd >= FRONTDOOR_MAX_SOCKETS || !sockets[fd].in_use || sockets[fd].kind != SOCK_TCP || sockets[fd].listening)
         return -1;
 
-    return switchboard_recv(sockets[fd].conn_id, buf, max_len);
+    uint16_t got = switchboard_recv(sockets[fd].conn_id, buf, max_len);
+
+    if (got > 0)
+        return got;
+
+    conversation_state_t st = rapport_get_state(sockets[fd].conn_id);
+
+    if (st == CONV_CLOSED || st == CONV_TIME_WAIT)
+        return -1;
+
+    return 0;
 }
 
 int frontdoor_sendto(int fd, const sendto_args_t *args)

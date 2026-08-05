@@ -64,7 +64,7 @@ static int flag_make_sense(uint8_t flags)
     return 1;
 }
 
-static void send_cookie_syn_ack(const uint8_t peer_ip[4], uint16_t peer_port, const uint9_t ip[4], uint16_t our_port, uint32_t cookie_isn, uint32_t peer_isn, const uint8_t our_mac[6])
+static void send_cookie_syn_ack(const uint8_t peer_ip[4], uint16_t peer_port, const uint8_t our_ip[4], uint16_t our_port, uint32_t cookie_isn, uint32_t peer_isn, const uint8_t our_mac[6])
 {
     uint8_t dest_mac[6];
 
@@ -138,6 +138,7 @@ static void send_cookie_syn_ack(const uint8_t peer_ip[4], uint16_t peer_port, co
     uint32_t tcp_sum = 0;
     for (int i = 0; i < 4; i += 2)
         tcp_sum += (uint16_t)((our_ip[i] << 8) | our_ip[i + 1]);
+
     for (int i = 0; i < 4; i += 2)
         tcp_sum += (uint16_t)((peer_ip[i] << 8) | peer_ip[i + 1]);
 
@@ -306,7 +307,7 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
                     uint32_t peer_isn = seq - 1;
                     uint32_t cookie_isn = ack_num - 1;
                     rapport_on_syn(conn_id, peer_isn, cookie_isn);
-                    rapport_on_ack(conn_id, ack_num);
+                    rapport_on_ack(conn_id);
                     kprintf("[Conversation] slot %d: cookie handshake completed, slot allocated now that it's proven real\n", conn_id);
                 }
                 else

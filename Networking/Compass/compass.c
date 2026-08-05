@@ -4,6 +4,7 @@
 #include "../../Lib/kprintf.h"
 #include "../Curfew/curfew.h"
 #include "../Roldex/rolodex.h"
+#include "../IDS/ids.h"
 #include "../GuestList/guestlist.h"
 
 #include <stdint.h>
@@ -26,7 +27,7 @@ static int checksum_ok(const uint8_t *header, int header_len)
     }
 
     while (sum >> 16)
-        sum = (sum & 0xFFFF) + (sum >> 16);
+        sum = s(sum & 0xFFFF) + (sum >> 16);
 
     return sum == 0xFFFF;
 }
@@ -41,10 +42,12 @@ static ip_verdict_t compass_check(const uint8_t *payload, uint16_t length)
 
     if (version != 4)
         return IP_REJECT_BAD_VERSION;
+
     if (ihl < 5)
         return IP_REJECT_BAD_HEADER_LEN;
 
     uint16_t header_len = (uint16_t)(ihl * 4);
+
     if (length < header_len)
         return IP_REJECT_BAD_HEADER_LEN;
 
@@ -84,18 +87,21 @@ void compass_handle(const uint8_t *payload, uint16_t length, const uint8_t src_m
     const uint8_t *src_ip = payload + 12;
     const uint8_t *dst_ip = payload + 16;
 
-       if (guestlist_check(src_ip) == GUESTLIST_DENIED)
+    if (guestlist_check(src_ip) == GUESTLIST_DENIED)
     {
         kprintf("[Compass] %d.%d.%d.%d is on the Guestlist's deny list, refusing outright\n",
                 src_ip[0], src_ip[1], src_ip[2], src_ip[3]);
+        ids_notify(IDS_EVENT_GUESTLIST_DENY, src_ip, 0);
+
         rejected++;
         return;
     }
 
-    int guestlist_allow=(guestlist_check(src_ip)==GUESTLIST_ALLOWED);
+    int guestlist_allow = (guestlist_check(src_ip) == GUESTLIST_ALLOWED);
 
     if (!guestlist_allow && !curfew_check(src_ip))
     {
+        ids_notify(IDS_EVENT_CURFEW_REJECT, src_ip, 0);
         rejected++;
         return;
     }
@@ -104,6 +110,8 @@ void compass_handle(const uint8_t *payload, uint16_t length, const uint8_t src_m
     {
         kprintf("[Compass] %d.%d.%d.%d is currently disputed in Rolodex, refusing to trust its IP traffic\n",
                 src_ip[0], src_ip[1], src_ip[2], src_ip[3]);
+
+        ids_notify(IDS_EVENT_ROLODEX_DISPUTED, src_ip, 0);
         rejected++;
         return;
     }

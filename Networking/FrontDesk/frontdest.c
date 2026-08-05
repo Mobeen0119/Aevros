@@ -10,6 +10,7 @@
 #include "../mailroom/mailroom.h"
 #include "../WatchList/watchlist.h"
 #include "../Roldex/rolodex.h"
+#include "../Audit/audit.h"
 
 #define RTL8139_VENDOR_ID 0x10EC
 #define RTL8139_DEVICE_ID 0x8139
@@ -20,6 +21,7 @@
 #define REG_CAPR 0x38
 #define REG_IMR 0x3C
 #define REG_ISR 0x3E
+
 #define REG_RCR 0x44
 #define REG_CONFIG1 0x52
 #define REG_TSAD0 0x20
@@ -104,6 +106,8 @@ void frontdesk_init(void)
 void frontdesk_bringup(void)
 {
     frontdesk_init();
+
+    audit_start();
 
     if (state.present)
     {

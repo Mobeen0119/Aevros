@@ -3,6 +3,7 @@
 #include "../../kernel/Process/task.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
+#include "../IDS/ids.h"
 
 typedef struct
 {
@@ -100,7 +101,10 @@ int sentry_observe(const uint8_t src_ip[4], uint16_t dst_port)
         kprintf("[Sentry] %d.%d.%d.%d hit %d distinct ports in the last %d ticks, looks like a port scan - banning\n",
                 src_ip[0], src_ip[1], src_ip[2], src_ip[3], distinct, SENTRY_WINDOW_TICKS);
         guestlist_set_timed(src_ip, GUESTLIST_DENIED, SENTRY_BAN_TICKS);
+
+        ids_notify(IDS_EVENT_PORT_SCAN_BAN, src_ip, 0);
         flagged_total++;
+
         return 1;
     }
     return 0;

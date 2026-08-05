@@ -1,6 +1,7 @@
 #include "watchlist.h"
 #include "../../kernel/Process/task.h"
 #include "../../Lib/string.h"
+#include "../IDS/ids.h"
 
 typedef struct
 {
@@ -53,7 +54,12 @@ int watchlist_observe(const uint8_t src_mac[6])
 
     e->count++;
     if (e->count >= WATCH_THRESHOLD)
+    {
+        if (!e->flagged)
+            ids_notify(IDS_EVENT_WATCHLIST_FLAG, 0, "flagged by MAC,No ip available in this layer ");
+
         e->flagged = 1;
+    }
 
     return e->flagged;
 }

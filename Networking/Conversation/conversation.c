@@ -12,6 +12,8 @@
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
 #include "../Foyer/foyer.h"
+#include "../SynCookie/syncookie.h"
+#include "../FrontDesk/frontdesk.h"
 #include "../Atlas/atlas.h"
 #include "../Sentry/sentry.h"
 
@@ -60,6 +62,103 @@ static int flag_make_sense(uint8_t flags)
     if (flags == 0)
         return 0;
     return 1;
+}
+
+static void send_cookie_syn_ack(const uint8_t peer_ip[4], uint16_t peer_port, const uint9_t ip[4], uint16_t our_port, uint32_t cookie_isn, uint32_t peer_isn, const uint8_t our_mac[6])
+{
+    uint8_t dest_mac[6];
+
+    if (!rolodex_lookup(peer_ip, dest_mac))
+        return;
+
+    static uint8_t frame[14 + 20 + 20];
+
+    memcpy(frame, dest_mac, 6);
+    memcpy(frame + 6, our_mac, 6);
+    frame[12] = 0x08;
+    frame[13] = 0x00;
+
+    uint8_t *ip = frame + 14;
+    ip[0] = 0x45;
+    ip[1] = 0;
+    ip[2] = 0;
+    ip[3] = 40;
+    ip[4] = 0;
+    ip[5] = 0;
+
+    ip[6] = 0;
+    ip[7] = 0;
+    ip[8] = 64;
+    ip[9] = 6;
+    ip[10] = 0;
+    ip[11] = 0;
+    memcpy(ip + 12, our_ip, 4);
+    memcpy(ip + 16, peer_ip, 4);
+
+    uint32_t ip_sum = 0;
+
+    for (int i = 0; i < 20; i += 2)
+        ip_sum += (uint16_t)((ip[i] << 8) | ip[i + 1]);
+
+    while (ip_sum >> 16)
+        ip_sum = (ip_sum & 0xFFFF) + (ip_sum >> 16);
+
+    uint16_t ip_csum = (uint16_t)(0xFFFF - ip_sum);
+
+    ip[10] = ip_csum >> 8;
+    ip[11] = ip_csum & 0xFF;
+
+    uint8_t *tcp = ip + 20;
+    tcp[0] = our_port >> 8;
+
+    tcp[1] = our_port & 0xFF;
+    tcp[2] = peer_port >> 8;
+    tcp[3] = peer_port & 0xFF;
+    tcp[4] = (uint8_t)(cookie_isn >> 24);
+    tcp[5] = (uint8_t)(cookie_isn >> 16);
+
+    tcp[6] = (uint8_t)(cookie_isn >> 8);
+    tcp[7] = (uint8_t)cookie_isn;
+    uint32_t ack = peer_isn + 1;
+    tcp[8] = (uint8_t)(ack >> 24);
+
+    tcp[9] = (uint8_t)(ack >> 16);
+    tcp[10] = (uint8_t)(ack >> 8);
+    tcp[11] = (uint8_t)ack;
+    tcp[12] = 5 << 4;
+    tcp[13] = FLAG_SYN | FLAG_ACK;
+
+    tcp[14] = (LOCKBOX_MAX_BUFFERED >> 8) & 0xFF;
+    tcp[15] = LOCKBOX_MAX_BUFFERED & 0xFF;
+    tcp[16] = 0;
+    tcp[17] = 0;
+    tcp[18] = 0;
+    tcp[19] = 0;
+
+    uint32_t tcp_sum = 0;
+    for (int i = 0; i < 4; i += 2)
+        tcp_sum += (uint16_t)((our_ip[i] << 8) | our_ip[i + 1]);
+    for (int i = 0; i < 4; i += 2)
+        tcp_sum += (uint16_t)((peer_ip[i] << 8) | peer_ip[i + 1]);
+
+    tcp_sum += 6;
+
+    tcp_sum += 20;
+
+    for (int i = 0; i < 20; i += 2)
+        tcp_sum += (uint16_t)((tcp[i] << 8) | tcp[i + 1]);
+
+    while (tcp_sum >> 16)
+        tcp_sum = (tcp_sum & 0xFFFF) + (tcp_sum >> 16);
+
+    uint16_t tcp_csum = (uint16_t)(0xFFFF - tcp_sum);
+    tcp[16] = tcp_csum >> 8;
+    tcp[17] = tcp_csum & 0xFF;
+
+    uint32_t pass_id;
+
+    if (bailiff_request_pass(frame, sizeof(frame), &pass_id))
+        bailiff_present_pass(pass_id, frame, sizeof(frame));
 }
 
 static tcp_verdict_t conversation_check(const uint8_t *payload, uint16_t length,
@@ -153,6 +252,22 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
 
             return;
         }
+        uint8_t our_mac[6];
+
+        memcpy(our_mac, frontdesk_get_state()->mac, 6);
+
+        if (syncookie_should_activate())
+        {
+
+            uint32_t cookie_isn = syncookie_generate(src_ip, src_port, dst_ip, dst_port);
+
+            send_cookie_syn_ack(src_ip, src_port, dst_ip, dst_port, cookie_isn, seq, our_mac);
+
+            kprintf("[Conversation] under load, sent cookie syn-ack to %d.%d.%d.%d:%d without a slot\n",
+                    src_ip[0], src_ip[1], src_ip[2], src_ip[3], src_port);
+
+            return;
+        }
 
         uint32_t conn_id;
         lockbox_result_t r = lockbox_claim(dst_port, src_ip, src_port, 6, &conn_id);
@@ -164,7 +279,11 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
 
         uint32_t our_isn = lottery_draw_isn(dst_ip, dst_port, src_ip, src_port);
         rapport_on_syn(conn_id, seq, our_isn);
-        kprintf("[Conversation] SYN accepted into its own slot %d\n", conn_id);
+        uint32_t pass_id;
+        if (conversation_dispatch_syn_ack(conn_id, our_mac, dst_ip, &pass_id))
+            bailiff_present_pass(pass_id, conversation_last_frame(), conversation_last_len());
+
+        kprintf("[Conversation] SYN accepted into its own slot %d, syn-ack sent\n", conn_id);
         return;
     }
 
@@ -172,11 +291,41 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     uint16_t header_len = (uint16_t)(data_off * 4);
 
     uint32_t conn_id = lockbox_find_connection(dst_port, src_ip, src_port, 6);
- 
+
     if (conn_id == LOCKBOX_CAPACITY)
     {
-        kprintf("[Conversation] non-SYN segment with no known connection, discarding\n");
-        return;
+        if ((flags & FLAG_ACK) && !(flags & FLAG_SYN))
+        {
+            uint32_t ack_num = (uint32_t)((payload[8] << 24) | (payload[9] << 16) | (payload[10] << 8) | payload[11]);
+
+            if (syncookie_validate(src_ip, src_port, dst_ip, dst_port, ack_num))
+            {
+                lockbox_result_t r = lockbox_claim(dst_port, src_ip, src_port, 6, &conn_id);
+                if (r == LOCKBOX_OK)
+                {
+                    uint32_t peer_isn = seq - 1;
+                    uint32_t cookie_isn = ack_num - 1;
+                    rapport_on_syn(conn_id, peer_isn, cookie_isn);
+                    rapport_on_ack(conn_id, ack_num);
+                    kprintf("[Conversation] slot %d: cookie handshake completed, slot allocated now that it's proven real\n", conn_id);
+                }
+                else
+                {
+                    kprintf("[Conversation] cookie validated but couldn't claim a slot: %s\n", lockbox_result_string(r));
+                    return;
+                }
+            }
+            else
+            {
+                kprintf("[Conversation] non-SYN segment with no known connection, discarding\n");
+                return;
+            }
+        }
+        else
+        {
+            kprintf("[Conversation] non-SYN segment with no known connection, discarding\n");
+            return;
+        }
     }
 
     uint16_t peer_window = (uint16_t)((payload[14] << 8) | payload[15]);
@@ -256,7 +405,7 @@ const char *tcp_verdict_string(tcp_verdict_t v)
 
 IP_DIRECTORY_ENTRY(6, conversation_handle, "Conversation (TCP) ");
 
-int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_t ack, const uint8_t *payload, uint16_t payload_len,const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
+int conversation_dispatch(uint32_t conn_id, uint8_t flags, uint32_t seq, uint32_t ack, const uint8_t *payload, uint16_t payload_len, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
 {
     if (payload_len > TCP_MAX_PAYLOAD)
         return 0;

@@ -23,6 +23,12 @@ SECTIONS
         KEEP(*(.aevros_ip_directory))
         __ip_directory_end = .;
     }
+
+      .aevros_ip6_directory : {
+        __ip6_directory_start = .;
+        KEEP(*(.aevros_ip6_directory))
+        __ip6_directory_end = .;
+    }
     
     .data : {
         *(.data*)

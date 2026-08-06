@@ -55,7 +55,14 @@ void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
 
     kprintf("[Compass6] accepted, next_header %d, payload %u bytes\n", next_header, payload_len);
 
-   
+    for (ip6_directory_entry_t *e = __ip6_directory_start; e < __ip6_directory_end; e++)
+    {
+        if (e->next_header == next_header)
+        {
+            e->handler(payload + MIN_IP6_HEADER, payload_len, src_ip, dst_ip);
+            return;
+        }
+    }
     kprintf("[Compass6] no handler registered for next_header %d\n", next_header);
 }
 

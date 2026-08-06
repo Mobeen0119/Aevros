@@ -42,8 +42,11 @@
 static frontdesk_state_t state;
 static pci_device_t nic_pci;
 static uint8_t *rx_buffer;
+
 static uint16_t rx_read_offset;
 static int tx_next_desc;
+
+static int tx_pending;
 
 const frontdesk_state_t *frontdesk_get_state()
 {
@@ -138,6 +141,12 @@ int frontdesk_send(const void *data, uint16_t length)
     if (!state.present || length > 1792)
         return 0;
 
+    if (tx_pending >= 4)
+    {
+        kprintf("[FrontDesk] all 4 TX descriptors believed busy, refusing send rather than risk overwriting one mid-transmit\n");
+        return 0;
+    }
+
     uint32_t tsad = state.io_base + REG_TSAD0 + (tx_next_desc * 4);
     uint32_t tsd = state.io_base + REG_TSD0 + (tx_next_desc * 4);
 
@@ -145,6 +154,7 @@ int frontdesk_send(const void *data, uint16_t length)
     outl(tsd, (uint32_t)length);
 
     tx_next_desc = (tx_next_desc + 1) % 4;
+    tx_pending++;
     state.packets_send++;
     return 1;
 }
@@ -197,6 +207,11 @@ void frontdesk_irq_handler(void)
             outw(io_base + REG_CAPR, (uint16_t)(rx_read_offset - 16));
         }
     }
+
+    if (status & ISR_ROK)
+        if (tx_pending > 0)
+            tx_pending--;
+
     if (status & (ISR_RXOVW | ISR_RER))
         state.rx_errors++;
 

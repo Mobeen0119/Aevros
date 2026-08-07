@@ -19,6 +19,9 @@ typedef struct
 static pending_ping_t queue[ECHO_MAX_PENDING];
 static uint16_t head, tail, pending_count;
 
+static uint8_t last_reply_frame[6 + 6 + 2 + 20 + ICMP_MIN_HEADER + ECHO_MAX_PAYLOAD];
+static uint16_t last_reply_len;
+
 static uint16_t icmp_checksum(const uint8_t *data, uint16_t len)
 {
     uint32_t sum = 0;
@@ -157,13 +160,13 @@ int echo_dispatch_reply(const uint8_t our_mac[6], const uint8_t our_ip[4], uint3
     uint8_t dest_mac[6];
     if (!rolodex_lookup(dest_ip, dest_mac))
     {
-        kprintf("[Echo] have a reply ready for %d.%d.%d.%d but do not know their MAC yet - cannot frame it, dropping rather than guessing\n",
+        kprintf("[Echo] have a reply ready for %d.%d.%d.%d but do not know their MAC yet ... cannot frame it, dropping rather than guessing\n",
                 dest_ip[0], dest_ip[1], dest_ip[2], dest_ip[3]);
         return 0;
     }
 
-    static uint8_t frame[6 + 6 + 2 + 20 + ICMP_MIN_HEADER + ECHO_MAX_PAYLOAD];
     uint16_t ip_total = (uint16_t)(20 + icmp_len);
+    uint8_t *frame = last_reply_frame;
 
     memcpy(frame, dest_mac, 6);
     memcpy(frame + 6, our_mac, 6);
@@ -196,7 +199,18 @@ int echo_dispatch_reply(const uint8_t our_mac[6], const uint8_t our_ip[4], uint3
     memcpy(frame + 14 + 20, icmp, icmp_len);
 
     uint16_t total_frame_len = (uint16_t)(14 + 20 + icmp_len);
+    last_reply_len = total_frame_len;
     return bailiff_request_pass(frame, total_frame_len, out_pass_id);
+}
+
+const uint8_t *echo_last_frame(void)
+{
+    return last_reply_frame;
+}
+
+uint16_t echo_last_len(void)
+{
+    return last_reply_len;
 }
 
 uint32_t echo_accepted_count(void)

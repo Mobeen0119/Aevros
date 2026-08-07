@@ -28,10 +28,10 @@ uint32_t echo_rejected_count(void);
 
 int echo_dispatch_reply(const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id);
 
-const char *icmp_verdict_string(icmp_verdict_t v);
-
 const uint8_t *echo_last_frame(void);
 
 uint16_t echo_last_len(void);
+
+const char *icmp_verdict_string(icmp_verdict_t v);
 
 #endif

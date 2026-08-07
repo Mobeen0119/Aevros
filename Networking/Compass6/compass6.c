@@ -1,6 +1,7 @@
 #include "compass6.h"
 #include "ip6_directory.h"
 #include "../mailroom/directory.h"
+#include "../Rolodex6/rolodex6.h"
 #include "../../Lib/kprintf.h"
 
 #define MIN_IP6_HEADER 40
@@ -33,13 +34,11 @@ static ip6_verdict_t compass6_check(const uint8_t *payload, uint16_t length)
 
 void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_mac[6])
 {
-
     ip6_verdict_t v = compass6_check(payload, length);
 
     if (v != IP6_ACCEPT)
     {
         kprintf("[Compass6] rejected: %s\n", ip6_verdict_string(v));
-
         rejected++;
         return;
     }
@@ -47,12 +46,11 @@ void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
     accepted++;
 
     uint8_t next_header = payload[6];
-    uint8_t *src_ip = payload + 8;
-    uint8_t *dst_ip = payload + 24;
-
+    const uint8_t *src_ip = payload + 8;
+    const uint8_t *dst_ip = payload + 24;
     uint16_t payload_len = (uint16_t)((payload[4] << 8) | payload[5]);
 
-     rolodex6_learn(src_ip, src_mac);
+    rolodex6_learn(src_ip, src_mac);
 
     kprintf("[Compass6] accepted, next_header %d, payload %u bytes\n", next_header, payload_len);
 
@@ -64,6 +62,7 @@ void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
             return;
         }
     }
+
     kprintf("[Compass6] no handler registered for next_header %d\n", next_header);
 }
 

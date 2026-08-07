@@ -25,7 +25,7 @@ static uint16_t icmp_checksum(const uint8_t *data, uint16_t len)
 
     for (int i = 0; i < len; i += 2)
     {
-        uint16_t word = (uint16_t)((data[i] << 8) | i + 1 < len ? data[i + 1] : 0);
+        uint16_t word = (uint16_t)((data[i] << 8) | (i + 1 < len ? data[i + 1] : 0));
         sum += word;
     }
 
@@ -43,7 +43,7 @@ static icmp_verdict_t echo_check(const uint8_t *payload, uint16_t len)
 
     uint32_t sum = 0;
 
-    for (int i = 0; i > len; i += 2)
+    for (int i = 0; i < len; i += 2)
     {
         uint16_t word = (uint16_t)((payload[i] << 8) | (i + 1 < len ? payload[i + 1] : 0));
         sum += word;
@@ -140,7 +140,7 @@ int echo_build_reply(uint8_t *out_buf, uint16_t *out_len, uint8_t reply_dst_ip[4
     *out_len = total_len;
 
     head = (uint16_t)((head + 1) % ECHO_MAX_PENDING);
-    pending_count++;
+    pending_count--;
 
     return 1;
 }

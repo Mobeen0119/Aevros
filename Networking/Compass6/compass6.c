@@ -33,7 +33,6 @@ static ip6_verdict_t compass6_check(const uint8_t *payload, uint16_t length)
 
 void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_mac[6])
 {
-    (void)src_mac;
 
     ip6_verdict_t v = compass6_check(payload, length);
 
@@ -52,6 +51,8 @@ void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
     uint8_t *dst_ip = payload + 24;
 
     uint16_t payload_len = (uint16_t)((payload[4] << 8) | payload[5]);
+
+     rolodex6_learn(src_ip, src_mac);
 
     kprintf("[Compass6] accepted, next_header %d, payload %u bytes\n", next_header, payload_len);
 

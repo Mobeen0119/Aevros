@@ -8,7 +8,7 @@
 
 void rapport_on_syn(uint32_t conn_id, uint32_t peer_isn, uint32_t our_isn);
 
-void rapport_on_ack(uint32_t conn_id);
+void rapport_on_ack(uint32_t conn_id, uint32_t ack_num);
 
 void rapport_initiate_close(uint32_t conn_id, uint32_t fin_seq);
 

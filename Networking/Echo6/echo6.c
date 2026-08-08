@@ -126,7 +126,7 @@ static icmp6_verdict_t echo6_check(const uint8_t *payload, uint16_t len, const u
 void echo6_handle(const uint8_t *payload, uint16_t len, const uint8_t src_ip[16], const uint8_t dst_ip[16])
 {
 
-    icmp6_verdict_t v = echo_check(payload, len, src_ip, dst_ip);
+    icmp6_verdict_t v = echo6_check(payload, len, src_ip, dst_ip);
 
     if (v != ICMP6_ACCEPT)
     {
@@ -210,7 +210,7 @@ int echo6_dispatch_reply(const uint8_t our_mac[6], const uint8_t our_ip[16], uin
 {
 
     if (pending_count == 0)
-        return;
+        return 0;
 
     pending_ping6_t *p = &queue[head];
     uint8_t icmp[ICMP6_MIN_HEADER + ECHO6_MAX_PAYLOAD];

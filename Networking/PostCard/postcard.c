@@ -9,6 +9,7 @@
 #include "../Foyer/foyer.h"
 #include "../Atlas/atlas.h"
 #include "../Sentry/sentry.h"
+#include "../Roldex/rolodex.h"
 
 #define UDP_HEADER_LEN 8
 
@@ -114,7 +115,7 @@ int postcard_dispatch(const uint8_t dest_ip[4], uint16_t dest_port, uint16_t src
     if (len > POSTCARD_MAX_PAYLOAD)
         return 0;
 
-    static int frame[14 + 20 + UDP_HEADER_LEN + POSTCARD_MAX_PAYLOAD];
+    static uint8_t frame[14 + 20 + UDP_HEADER_LEN + POSTCARD_MAX_PAYLOAD];
 
     uint16_t udp_len = (uint16_t)(UDP_HEADER_LEN + len);
     uint16_t ip_total = (uint16_t)(20 + udp_len);

@@ -5,7 +5,7 @@
 #include "../Echo/echo.h"
 #include "../Curfew/curfew.h"
 #include "../Roldex/rolodex.h"
-#include "../Guestlist/guestlist.h"
+#include "../GuestList/guestlist.h"
 #include "../Menu/menu.h"
 #include "../Bailiff/bailiff.h"
 #include "../LockBox/lockbox.h"

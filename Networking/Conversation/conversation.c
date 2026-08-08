@@ -8,7 +8,7 @@
 #include "../Bailiff/bailiff.h"
 #include "../Menu/menu.h"
 #include "../Scheduler/scheduler.h"
-#include "../Waystation/waystation.h"
+#include "../WayStation/waystation.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
 #include "../Foyer/foyer.h"
@@ -307,7 +307,7 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
                     uint32_t peer_isn = seq - 1;
                     uint32_t cookie_isn = ack_num - 1;
                     rapport_on_syn(conn_id, peer_isn, cookie_isn);
-                    rapport_on_ack(conn_id);
+                    rapport_on_ack(conn_id, ack_num);
                     kprintf("[Conversation] slot %d: cookie handshake completed, slot allocated now that it's proven real\n", conn_id);
                 }
                 else
@@ -361,7 +361,7 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     {
         uint32_t ack_num = (uint32_t)((payload[8] << 24) | (payload[9] << 16) | (payload[10] << 8) | payload[11]);
 
-        rapport_on_ack(conn_id);
+        rapport_on_ack(conn_id, ack_num);
         scheduler_ack(conn_id, ack_num);
     }
 
@@ -607,7 +607,7 @@ uint16_t conversation_last_len(void)
 
 int conversation_dispatch_fin(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
 {
-    conversation_state_t *state = rapport_get_state(conn_id);
+    conversation_state_t state = rapport_get_state(conn_id);
 
     if (state != CONV_ESTABLISHED && state != CONV_CLOSE_WAIT)
         return 0;

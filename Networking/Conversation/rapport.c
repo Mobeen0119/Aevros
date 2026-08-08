@@ -180,7 +180,7 @@ void rapport_set_peer_window(uint32_t conn_id, uint16_t window)
 uint16_t rapport_get_peer_window(uint32_t conn_id)
 {
     if (!valid_id(conn_id))
-        return;
+        return 0;
 
     return peer_window[conn_id];
 }
@@ -258,7 +258,7 @@ uint32_t rapport_get_send_seq(uint32_t conn_id)
 void rapport_advance_send_seq(uint32_t conn_id, uint16_t amount)
 {
     if (!valid_id(conn_id))
-        return 0;
+        return;
 
     send_seq[conn_id] += amount;
 }

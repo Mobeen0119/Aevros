@@ -85,7 +85,7 @@ void postcard6_handle(const uint8_t *payload, uint16_t length, const uint8_t src
 
     static uint8_t zero_ip4[4] = {0, 0, 0, 0};
 
-    postbox_deposit(slot, zero_ip4, src_ip, payload + UDP6_HEADER_LEN, udp_payload_len);
+    postbox_deposit(slot, zero_ip4, src_port, payload + UDP6_HEADER_LEN, udp_payload_len);
 }
 
 int postcard6_dispatch(const uint8_t dest_ip[16], uint16_t dest_port, uint16_t src_port, const uint8_t our_mac[6],

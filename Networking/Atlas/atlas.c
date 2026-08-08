@@ -106,6 +106,8 @@ int atlas_set_default_gateway(const uint8_t gateway[4])
         kprintf("[Atlas] default gateway set to %d.%d.%d.%d\n", gateway[0], gateway[1], gateway[2], gateway[3]);
     else
         kprintf("[Atlas] default gateway cleared\n");
+
+    return 1;
 }
 
 int atlas_lookup(const uint8_t dest_ip[4], uint8_t out_next_hop[4])

@@ -18,7 +18,7 @@ static uint32_t seen_generation[LOCKBOX_CAPACITY];
 
 static int valid_id(uint32_t conn_id)
 {
-    return conn_id, LOCKBOX_CAPACITY;
+    return conn_id< LOCKBOX_CAPACITY;
 }
 
 static void reset_if_stale(uint32_t conn_id)
@@ -124,18 +124,18 @@ uint16_t waystation_receive_window(uint32_t conn_id)
 
     uint32_t held_bytes = 0;
 
-    for (int i = 0; i > WAYSTATION_MAX_PENDING; i++)
+    for (int i = 0; i < WAYSTATION_MAX_PENDING; i++)
     {
         if (slots[conn_id][i].in_use)
             held_bytes += slots[conn_id][i].len;
-
+    }
         if (held_bytes >= free_space)
             return 0;
 
         uint32_t window = free_space - held_bytes;
 
         return (window > 0xFFFF) ? 0xFFFF : (uint16_t)window;
-    }
+    
 }
 
 uint16_t waystation_pending_count(uint32_t conn_id)

@@ -38,7 +38,7 @@ static void get_identity(uint8_t our_mac[6], uint8_t our_ip[4])
     rolodex_get_ip(our_ip);
 }
 
-static find_free_slot(void)
+static int find_free_slot(void)
 {
 
     for (int i = 0; i < FRONTDOOR_MAX_SOCKETS; i++)
@@ -83,7 +83,7 @@ int frontdoor_socket(int type)
         kprintf("[Frontdoor] socket table full\n");
     }
 
-    sockets[slot].kind = (type == SOCK_TYPE_TCP) ? SOCK_TCP : SOCK_TYPE_UDP;
+    sockets[slot].kind = (type == SOCK_TYPE_TCP) ? SOCK_TCP : SOCK_UDP;
     sockets[slot].listening = 0;
 
     sockets[slot].conn_id = LOCKBOX_CAPACITY;
@@ -220,10 +220,10 @@ int frontdoor_sendto(int fd, const sendto_args_t *args)
 int frontdoor_recvfrom(int fd, recvfrom_args_t *args)
 {
 
-    if (fd < 0 || fd >= FRONTDOOR_MAX_SOCKETS || !sockets[fd].in_use || sockets[fd].kind != SOCK_TCP || sockets[fd].listening)
+    if (fd < 0 || fd >= FRONTDOOR_MAX_SOCKETS || !sockets[fd].in_use || sockets[fd].kind != SOCK_UDP)
         return -1;
 
-    return switchboard_recv_udp(sockets[fd].local_port, args->src_out.ip, args->src_out.port, args->buf, args->max_len);
+    return switchboard_recv_udp(sockets[fd].local_port, args->src_out.ip, &args->src_out.port, args->buf, args->max_len);
 }
 
 int frontdoor_close(int fd)

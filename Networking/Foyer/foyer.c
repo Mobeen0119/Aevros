@@ -6,7 +6,7 @@
 
 typedef struct
 {
-    uint8_t target_ip[6];
+    uint8_t target_ip[4];
     uint8_t frame[FOYER_MAX_FRAME];
     uint16_t len;
     int8_t in_use;
@@ -18,7 +18,7 @@ static foyer_entry_t slots[FOYER_CAPACITY];
 static uint32_t flushed_total;
 static uint32_t dropped_total;
 
-static void send_arp_request(const uint8_t our_mac[6], const uint8_t target_ip[6])
+static void send_arp_request(const uint8_t our_mac[6], const uint8_t target_ip[4])
 {
     uint32_t pass_id;
 
@@ -71,6 +71,7 @@ int foyer_queue(const uint8_t target_ip[4], const uint8_t our_mac[6], const uint
     foyer_entry_t *e = &slots[free_slot];
     e->len = len;
     memcpy(e->frame, frame, len);
+  
     memcpy(e->target_ip, target_ip, 4);
     e->last_attempt = get_ticks();
     e->retry_count = 0;

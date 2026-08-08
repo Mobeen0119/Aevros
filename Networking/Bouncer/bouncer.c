@@ -10,7 +10,7 @@ static uint32_t log_head;
 static uint32_t log_total;
 static uint32_t turned_away;
 
-static mac_equal(const uint8_t *a, const uint8_t *b)
+static int mac_equal(const uint8_t *a, const uint8_t *b)
 {
     for (int i = 0; i < 6; i++)
         if (a[i] != b[i])
@@ -19,7 +19,7 @@ static mac_equal(const uint8_t *a, const uint8_t *b)
     return 1;
 }
 
-static mac_broadcast(const uint8_t *mac)
+static int mac_broadcast(const uint8_t *mac)
 {
     for (int i = 0; i < 6; i++)
         if (mac[i] != 0xFF)
@@ -27,7 +27,7 @@ static mac_broadcast(const uint8_t *mac)
     return 1;
 }
 
-static mac_multicast(const uint8_t *mac)
+static int mac_multicast(const uint8_t *mac)
 {
     return (mac[0] & 0x01) != 0;
 }
@@ -36,10 +36,11 @@ bounce_verdict_t bouncer_check(const uint8_t *frame, uint16_t length, const uint
 {
     if (length > MAX_ETHERNET_FRAME)
         return BOUNCE_REJECT_TOO_LONG;
+
     if (length < MIN_ETHERNET_FRAME)
         return BOUNCE_REJECT_TOO_SHORT;
 
-    uint8_t *dest = frame;
+    const uint8_t *dest = frame;
 
     if (mac_equal(dest, our_mac))
         return BOUNCE_ACCEPT;
@@ -70,29 +71,38 @@ void bouncer_log(bounce_verdict_t verdict, uint16_t length, const uint8_t *dest_
         turned_away++;
 }
 
-uint32_t bouncer_log_count(void){
-    return log_total < BOUNCER_LOG_CAPACITY ? log_total  : BOUNCER_LOG_CAPACITY;
+uint32_t bouncer_log_count(void)
+{
+    return log_total < BOUNCER_LOG_CAPACITY ? log_total : BOUNCER_LOG_CAPACITY;
 }
 
-const bouncer_log_entry_t *bouncer_log_get(uint32_t index){
-    if(index >= bouncer_log_count()) return 0;
+const bouncer_log_entry_t *bouncer_log_get(uint32_t index)
+{
+    if (index >= bouncer_log_count())
+        return 0;
 
-    uint32_t pos=(log_head + BOUNCER_LOG_CAPACITY -1 -index) % BOUNCER_LOG_CAPACITY;
-    
+    uint32_t pos = (log_head + BOUNCER_LOG_CAPACITY - 1 - index) % BOUNCER_LOG_CAPACITY;
+
     return &door_log[pos];
 }
 
 uint32_t bouncer_turned_away_count(void) { return turned_away; }
 
-const char *bounce_verdict_string(bounce_verdict_t v){
+const char *bounce_verdict_string(bounce_verdict_t v)
+{
 
-    switch(v){
-        case BOUNCE_ACCEPT : return "LET IN";
-        case BOUNCE_REJECT_BAD_DEST : return "TURNED_AWAY (Not in the List )";
-        case BOUNCE_REJECT_TOO_SHORT:  return "TURNED AWAY (too short)";
-        case BOUNCE_REJECT_TOO_LONG:   return "TURNED AWAY (too long)";
+    switch (v)
+    {
+    case BOUNCE_ACCEPT:
+        return "LET IN";
+    case BOUNCE_REJECT_BAD_DEST:
+        return "TURNED_AWAY (Not in the List )";
+    case BOUNCE_REJECT_TOO_SHORT:
+        return "TURNED AWAY (too short)";
+    case BOUNCE_REJECT_TOO_LONG:
+        return "TURNED AWAY (too long)";
 
-        default : return "TURNED AWAY(unknown)";
-        
+    default:
+        return "TURNED AWAY(unknown)";
     }
 }

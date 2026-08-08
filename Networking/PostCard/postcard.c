@@ -145,7 +145,7 @@ int postcard_dispatch(const uint8_t dest_ip[4], uint16_t dest_port, uint16_t src
     sum += 17;
 
     for (int i = 0; i < udp_len; i += 2)
-        sum += (uint16_t)((udp[i] << 8) | i + 1 < udp_len ? udp[i + 1] : 0);
+        sum += (uint16_t)((udp[i] << 8) | (i + 1 < udp_len ? udp[i + 1] : 0));
     while (sum >> 16)
         sum = (sum & 0xFFFF) + (sum >> 16);
 

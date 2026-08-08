@@ -7,6 +7,7 @@
 #include "../Roldex/rolodex.h"
 #include "../Bailiff/bailiff.h"
 #include "../Menu/menu.h"
+#include "../WayStation/waystation.h"
 #include "../Scheduler/scheduler.h"
 #include "../WayStation/waystation.h"
 #include "../../Lib/string.h"

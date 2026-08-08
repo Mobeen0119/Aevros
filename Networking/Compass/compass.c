@@ -27,7 +27,7 @@ static int checksum_ok(const uint8_t *header, int header_len)
     }
 
     while (sum >> 16)
-        sum = s(sum & 0xFFFF) + (sum >> 16);
+        sum = (sum & 0xFFFF) + (sum >> 16);
 
     return sum == 0xFFFF;
 }

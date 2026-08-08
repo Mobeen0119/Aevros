@@ -20,7 +20,7 @@ static menu_entry_t *menu_find_entry(uint16_t port, uint8_t protocol)
 
 int menu_open_port(uint16_t port, uint8_t protocol)
 {
-    if (find_entry(port, protocol))
+    if (menu_find_entry(port, protocol))
         return 1;
 
     for (int i = 0; i < MENU_CAPACITY; i++)
@@ -39,14 +39,14 @@ int menu_open_port(uint16_t port, uint8_t protocol)
 
 void menu_close_port(uint16_t port, uint8_t protocol)
 {
-    menu_entry_t *e = find_entry(port, protocol);
+    menu_entry_t *e = menu_find_entry(port, protocol);
     if (e)
         e->in_use = 0;
 }
 
 int menu_is_open(uint16_t port, uint8_t protocol)
 {
-    return find_entry(port, protocol) != 0;
+    return menu_find_entry(port, protocol) != 0;
 }
 
 uint32_t menu_count(void)
@@ -57,6 +57,5 @@ uint32_t menu_count(void)
         if (entries[i].in_use)
             n++;
 
-    
-    return n;
+        return n;
 }

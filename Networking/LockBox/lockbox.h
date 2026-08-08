@@ -50,7 +50,6 @@ int lockbox_get_tuple(uint32_t id, uint16_t *local_port, uint8_t remote_ip[4], u
 
 uint32_t lockbox_get_generation(uint32_t id);
 
-
 uint32_t lockbox_find_connection(uint16_t local_port, const uint8_t remote_ip[4], uint16_t remote_port, uint8_t protocol);
 
 #endif

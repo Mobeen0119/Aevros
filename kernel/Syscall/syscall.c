@@ -6,6 +6,7 @@
 #include "../../Include/screen.h"
 #include "../Process/exec.h"
 #include "../../Networking/FrontDoor/frontdoor.h"
+#include "../../Networking/Frontdoor6/frontdoor6.h"
 
 int syscall(int num, int arg1, int arg2, int arg3)
 {
@@ -95,6 +96,14 @@ void syscall_handler(register_t *regs)
 
     case SYS_SOCKCLOSE:
         res = (uint32_t)frontdoor_close((int)a1);
+        break;
+
+    case SYS_CONNECT6:
+        res = (uint32_t)frontdoor_connect6((int)a1, (const sock_addr6_t *)a2);
+        break;
+
+    case SYS_SENDTO6:
+        res = (uint32_t)frontdoor_sendto6((int)a1, (const sendto6_args_t *)a2);
         break;
 
     default:

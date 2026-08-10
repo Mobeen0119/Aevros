@@ -20,12 +20,17 @@
 #define SYS_SENDTO 15
 #define SYS_RECVFROM 16
 #define SYS_SOCKCLOSE 17
+#define SYS_CONNECT6 18
+#define SYS_SENDTO6  19
 
 int syscall(int num, int arg1, int arg2, int arg3);
 
 void syscall_handler(register_t *regs);
+
 void init_syscalls(void);
+
 void sys_print(char *user_string);
+
 int sys_fork(register_t *regs);
 
 #endif

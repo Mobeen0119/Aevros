@@ -10,6 +10,9 @@
 #include "../mailroom/mailroom.h"
 #include "../WatchList/watchlist.h"
 #include "../Roldex/rolodex.h"
+#include "../Rolodex6/rolodex6.h"
+#include "../Landlord/landlord.h"
+#include "../Directory/directory.h"
 #include "../Audit/audit.h"
 
 #define RTL8139_VENDOR_ID 0x10EC
@@ -129,6 +132,23 @@ void frontdesk_bringup(void)
 
         atlas_set_default_gateway(default_gateway);
         kprintf("[FrontDesk] assigned 10.0.2.15/24, gateway 10.0.2.2 (QEMU NAT defaults, change here if needed)\n");
+        landlord_start(state.mac);
+        directory_start();
+
+        uint8_t our_ip6[16] = {0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+        our_ip6[8] = state.mac[0] ^ 0x02;
+        our_ip6[9] = state.mac[1];
+        our_ip6[10] = state.mac[2];
+        our_ip6[11] = 0xFF;
+        our_ip6[12] = 0xFE;
+        our_ip6[13] = state.mac[3];
+        our_ip6[14] = state.mac[4];
+        our_ip6[15] = state.mac[5];
+
+        rolodex6_set_ip(our_ip6);
+        kprintf("[FrontDesk] IPv6 link-local self-assigned: fe80::%02x%02x:%02xff:fe%02x:%02x%02x (no DAD performed, no global address)\n",
+                our_ip6[8], our_ip6[9], our_ip6[10], our_ip6[13], our_ip6[14], our_ip6[15]);
     }
     else
     {

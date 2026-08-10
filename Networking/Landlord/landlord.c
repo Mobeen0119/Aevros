@@ -171,21 +171,25 @@ static uint8_t parse_options(const uint8_t *packet, uint16_t len)
 
         switch (opt)
         {
+
         case 53:
             if (opt_len >= 1)
                 msg_type = packet[i];
             break;
+
         case 1:
             if (opt_len >= 4)
                 memcpy(subnet_mask, packet + i, 4);
             break;
+
         case 3:
+            if (opt_len >= 4)
+                memcpy(router_ip, packet + i, 4);
+            break;
+
         case 6:
             if (opt_len >= 4)
                 memcpy(dns_server_ip, packet + i, 4);
-            break;
-            if (opt_len >= 4)
-                memcpy(router_ip, packet + i, 4);
             break;
         case 54:
             if (opt_len >= 4)

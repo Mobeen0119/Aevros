@@ -2,6 +2,8 @@
 #include "ip6_directory.h"
 #include "../mailroom/directory.h"
 #include "../Rolodex6/rolodex6.h"
+#include "../GuestList6/guestlist6.h"
+#include "../Curfew6/curfew6.h"
 #include "../../Lib/kprintf.h"
 
 #define MIN_IP6_HEADER 40
@@ -49,6 +51,22 @@ void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
     const uint8_t *src_ip = payload + 8;
     const uint8_t *dst_ip = payload + 24;
     uint16_t payload_len = (uint16_t)((payload[4] << 8) | payload[5]);
+
+   if (guestlist6_check(src_ip) == GUESTLIST6_DENIED)
+    {
+        kprintf("[Compass6] source is on the Guestlist6 deny list, refusing outright\n");
+        rejected++;
+        return;
+    }
+
+    int guestlist_allow = (guestlist6_check(src_ip) == GUESTLIST6_ALLOWED);
+
+    if (!guestlist_allow && !curfew6_check(src_ip))
+    {
+        kprintf("[Compass6] source tripped Curfew6's rate limit, refusing\n");
+        rejected++;
+        return;
+    }
 
     rolodex6_learn(src_ip, src_mac);
 

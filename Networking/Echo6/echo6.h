@@ -28,6 +28,8 @@ int echo6_dispatch_reply(const uint8_t our_mac[6], const uint8_t our_ip[16], uin
 
 const uint8_t *echo6_last_frame(void);
 
+int echo6_dispatch_neighbor_solicitation(const uint8_t target_ip[16], const uint8_t our_mac[6], const uint8_t our_ip[16], uint32_t *out_pass_id);
+
 uint16_t echo6_last_len(void);
 
 uint32_t echo6_accepted_count(void);

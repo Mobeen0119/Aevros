@@ -27,7 +27,7 @@ static uint32_t last_action_tick;
 static uint8_t offered_ip[6];
 static uint8_t server_ip[6];
 
-static uint8_t subnet_mask[4] = {255, 255, 255, 0};
+static uint8_t subnet_mask[4] = {255, 255, 255, 0}; //Not used in Ipv6 ...TODO
 static uint8_t router_ip[6];
 static uint32_t lease_seconds;
 static uint32_t lease_start_tick;
@@ -221,7 +221,7 @@ static void apply_lease(void)
 
     atlas_add_route(network, subnet_mask, on_link);
 
-    if (router_ip[0] || router_ip[1] || router_ip[2] || router_ip[3] || router_ip[4] || router_ip[5] || router_ip[6])
+    if (router_ip[0] || router_ip[1] || router_ip[2] || router_ip[3] || router_ip[4] || router_ip[5] )
         atlas_set_default_gateway(router_ip);
 
     if (lease_seconds == 0)
@@ -243,7 +243,7 @@ void landlord6_start(const uint8_t our_mac[6])
 
     uint32_t id;
 
-    lockbox_listen(LANDLORD6_CLIENT_PORT, 17, &id);
+    lockbox6_listen(LANDLORD6_CLIENT_PORT, 17, &id);
 
     send_discover(our_mac);
 }

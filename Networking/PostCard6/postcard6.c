@@ -2,7 +2,7 @@
 #include "../Compass6/ip6_directory.h"
 #include "../Rolodex6/rolodex6.h"
 #include "../Bailiff/bailiff.h"
-#include "../LockBox/lockbox.h"
+#include "../LockBox6/lockbox6.h"
 #include "../Postbox/postbox.h"
 #include "../Menu/menu.h"
 #include "../../Lib/kprintf.h"
@@ -76,7 +76,7 @@ void postcard6_handle(const uint8_t *payload, uint16_t length, const uint8_t src
     }
 
     uint32_t slot = lockbox_find_listener(dst_port, 17);
-    if (slot == LOCKBOX_CAPACITY)
+    if (slot == LOCKBOX6_CAPACITY)
     {
         kprintf("[Postcard6] nobody's listening on port %d, discarding\n", dst_port);
         return;

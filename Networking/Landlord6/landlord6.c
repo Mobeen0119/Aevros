@@ -2,304 +2,236 @@
 #include "../SwitchBoard6/switchboard6.h"
 #include "../Menu/menu.h"
 #include "../LockBox6/lockbox6.h"
-#include "../Rolodex6/rolodex6.h"
-#include "../Atlas/atlas.h"
-#include "../Lottery/lottery.h"
 #include "../../kernel/Process/task.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
 
-#define DHCP_FIXED_LEN 240
-#define DHCP_MAX_PACKET 320
 #define PIT_HZ 100
-#define DHCP_RETRY_TICKS (5 * PIT_HZ)
-#define DHCP_RENEW_FRACTION_NUM 1
-#define DHCP_RENEW_FRACTION_DEN 2
-static uint8_t dns_server_ip[4];
 
-static const uint8_t zero_ip[6] = {0, 0, 0,0,0, 0};
-static const uint8_t broadcast_ip[4] = {255, 255, 255, 255};
+#define DHCPV6_MSG_INFORMATION_REQUEST 11
+#define DHCPV6_MSG_REPLY 7
 
-static landlord6_state_t state = LANDLORD6_INIT;
-static uint32_t xid;
-static uint32_t last_action_tick;
+#define OPT_CLIENTID 1
+#define OPT_SERVERID 2
+#define OPT_ORO 6
+#define OPT_ELAPSED_TIME 8
+#define OPT_DNS_SERVERS 23
+#define OPT_DOMAIN_LIST 24
+#define OPT_INFO_REFRESH_TIME 32
 
-static uint8_t offered_ip[6];
-static uint8_t server_ip[6];
+#define DUID_LL_LEN 10 // 2 (type) + 2 (hw type) + 6 (MAC) 
 
-static uint8_t subnet_mask[4] = {255, 255, 255, 0}; //Not used in Ipv6 ...TODO
-static uint8_t router_ip[6];
-static uint32_t lease_seconds;
-static uint32_t lease_start_tick;
+#define LANDLORD6_MAX_PACKET 256
+#define LANDLORD6_DEFAULT_REFRESH_SEC 86400u // RFC 8415 21.23 default 
+
+#define IRT_TICKS (1 * PIT_HZ)
+#define MRT_TICKS (120 * PIT_HZ)
+
+static const uint8_t dhcpv6_all_servers[16] =
+    {0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2};
+
+static landlord6_state_t state = LANDLORD6_IDLE;
+
+static uint8_t duid[DUID_LL_LEN];
+static uint32_t xid; 
+static uint32_t first_send_tick;
+static uint32_t next_retry_tick;
+static uint32_t retry_interval_ticks;
+
+static uint8_t dns_servers[LANDLORD6_MAX_DNS_SERVERS][16];
+static uint32_t dns_server_count;
+static uint32_t refresh_at_tick;
+
+static void build_duid(const uint8_t our_mac[6])
+{
+    duid[0] = 0x00;
+    duid[1] = 0x03; 
+    duid[2] = 0x00;
+    duid[3] = 0x01; //Ethernet
+    memcpy(duid + 4, our_mac, 6);
+}
 
 static uint32_t new_xid(const uint8_t our_mac[6])
 {
-    uint8_t mac_hi[4] = {our_mac[0], our_mac[1], our_mac[2], our_mac[3]};
-
-    uint8_t mac_lo[4] = {our_mac[4], our_mac[5], 0, 0};
-
-    return lottery_draw_isn(mac_hi, our_mac[4], mac_lo, LANDLORD6_CLIENT_PORT);
+    uint32_t mix = get_ticks() ^ 0x9E3779B9u;
+    mix = mix * 2654435761u;
+    mix ^= ((uint32_t)our_mac[2] << 24) | ((uint32_t)our_mac[3] << 16) |
+           ((uint32_t)our_mac[4] << 8) | our_mac[5];
+    mix = mix * 2246822519u + 3266489917u;
+    return mix & 0x00FFFFFFu;
 }
 
-static void build_header(uint8_t *packet, const uint8_t our_mac[6], const uint8_t claddr[4])
+static uint16_t append_option(uint8_t *packet, uint16_t i, uint16_t code,const uint8_t *data, uint16_t len)
 {
+    packet[i++] = (uint8_t)(code >> 8);
+    packet[i++] = (uint8_t)(code & 0xFF);
+    packet[i++] = (uint8_t)(len >> 8);
+    packet[i++] = (uint8_t)(len & 0xFF);
 
-    memset(packet, 0, DHCP_FIXED_LEN);
-
-    packet[0] = 1;
-    packet[1] = 1;
-    packet[2] = 6;
-    packet[3] = 0;
-    packet[4] = (uint8_t)(xid >> 24);
-    packet[5] = (uint8_t)(xid >> 16);
-    packet[6] = (uint8_t)(xid >> 8);
-    packet[7] = (uint8_t)xid;
-
-    packet[10] = 0x80;
-
-    memcpy(packet + 12, claddr, 4);
-    memcpy(packet + 28, our_mac, 6);
-
-    packet[236] = 99;
-    packet[237] = 130;
-
-    packet[238] = 83;
-
-    packet[239] = 99;
-}
-
-static uint16_t append_discover_options(uint8_t *packet)
-{
-    uint16_t i = DHCP_FIXED_LEN;
-
-    packet[i++] = 53;
-    packet[i++] = 1;
-    packet[i++] = 1;
-    packet[i++] = 55;
-
-    packet[i++] = 3;
-    packet[i++] = 1;
-    packet[i++] = 3;
-
-    packet[i++] = 6;
-    packet[i++] = 255;
-
-    return i;
-}
-
-static uint16_t append_request_options(uint8_t *packet)
-{
-    uint16_t i = DHCP_FIXED_LEN;
-
-    packet[i++] = 53;
-    packet[i++] = 1;
-    packet[i++] = 3;
-    packet[i++] = 50;
-    packet[i++] = 4;
-
-    memcpy(packet + i, offered_ip, 4);
-    i += 4;
-
-    packet[i++] = 54;
-
-    memcpy(packet + i, server_ip, 4);
-    i += 4;
-
-    packet[i++] = 255;
-
-    return i;
-}
-
-static void send_discover(const uint8_t our_mac[6])
-{
-
-    uint8_t packet[DHCP_MAX_PACKET];
-
-    xid = new_xid(our_mac);
-
-    build_header(packet, our_mac, zero_ip);
-
-    uint16_t len = append_discover_options(packet);
-
-    switchboard_send_udp(LANDLORD6_CLIENT_PORT, broadcast_ip, LANDLORD6_SERVER_PORT, our_mac, zero_ip, packet, len);
-
-    state = LANDLORD6_DISCOVERING;
-
-    last_action_tick = get_ticks();
-
-    kprintf("[Landlord6] send DHCP DISCOVER (xid %u)\n", xid);
-}
-
-static void send_request(const uint8_t our_mac[6])
-{
-    uint8_t packet[DHCP_MAX_PACKET];
-    build_header(packet, our_mac, zero_ip);
-
-    uint16_t len = append_request_options(packet);
-    switchboard_send_udp(LANDLORD6_CLIENT_PORT, broadcast_ip, LANDLORD6_SERVER_PORT, our_mac, zero_ip, packet, len);
-
-    state = LANDLORD6_REQUESTING;
-    last_action_tick = get_ticks();
-
-    kprintf("[Landlord6] sent DHCPREQUEST for %d.%d.%d.%d\n", offered_ip[0], offered_ip[1], offered_ip[2], offered_ip[3]);
-}
-
-static uint8_t parse_options(const uint8_t *packet, uint16_t len)
-{
-
-    if (len < DHCP_FIXED_LEN + 4)
-        return 0;
-
-    memcpy(offered_ip, packet + 16, 4);
-
-    uint8_t msg_type = 0;
-
-    uint16_t i = DHCP_FIXED_LEN;
-
-    while (i < len && packet[i] != 255)
+    if (len > 0)
     {
+        memcpy(packet + i, data, len);
+        i = (uint16_t)(i + len);
+    }
+    return i;
+}
 
-        uint8_t opt = packet[i++];
+static void send_information_request(const uint8_t our_mac[6], const uint8_t our_ip[16])
+{
+    uint8_t packet[LANDLORD6_MAX_PACKET];
+    uint16_t i = 0;
 
-        if (i >= len)
-            break;
+    packet[i++] = DHCPV6_MSG_INFORMATION_REQUEST;
+    packet[i++] = (uint8_t)(xid >> 16);
+    packet[i++] = (uint8_t)(xid >> 8);
+    packet[i++] = (uint8_t)xid;
 
-        uint8_t opt_len = packet[i++];
+    i = append_option(packet, i, OPT_CLIENTID, duid, DUID_LL_LEN);
 
-        if (i + opt_len > len)
-            break;
+    uint8_t oro[4] = {0x00, OPT_DNS_SERVERS, 0x00, OPT_DOMAIN_LIST};
+    i = append_option(packet, i, OPT_ORO, oro, sizeof(oro));
 
-        switch (opt)
+    uint32_t now = get_ticks();
+    uint32_t elapsed_cs = (first_send_tick == 0) ? 0
+                                                  : ((now - first_send_tick) * 100) / PIT_HZ;
+    if (elapsed_cs > 0xFFFF)
+        elapsed_cs = 0xFFFF;
+    uint8_t elapsed[2] = {(uint8_t)(elapsed_cs >> 8), (uint8_t)(elapsed_cs & 0xFF)};
+   
+    i = append_option(packet, i, OPT_ELAPSED_TIME, elapsed, sizeof(elapsed));
+
+    switchboard6_send_udp(LANDLORD6_CLIENT_PORT, dhcpv6_all_servers, LANDLORD6_SERVER_PORT,
+                           our_mac, our_ip, packet, i);
+
+    kprintf("[Landlord6] sent INFORMATION-REQUEST (xid %u)\n", xid);
+}
+
+static void parse_reply(const uint8_t *packet, uint16_t len, const uint8_t our_mac[6])
+{
+    if (len < 4)
+        return;
+
+    uint32_t reply_xid = ((uint32_t)packet[1] << 16) | ((uint32_t)packet[2] << 8) | packet[3];
+    if (packet[0] != DHCPV6_MSG_REPLY || reply_xid != xid)
+        return; 
+
+    dns_server_count = 0;
+    uint32_t refresh_sec = LANDLORD6_DEFAULT_REFRESH_SEC;
+    int saw_our_client_id = 0;
+
+    uint16_t i = 4;
+    while (i + 4 <= len)
+    {
+        uint16_t code = (uint16_t)((packet[i] << 8) | packet[i + 1]);
+        uint16_t opt_len = (uint16_t)((packet[i + 2] << 8) | packet[i + 3]);
+        uint16_t data_off = (uint16_t)(i + 4);
+
+        if (data_off + opt_len > len)
+            break; 
+
+        switch (code)
         {
-
-        case 53:
-            if (opt_len >= 1)
-                msg_type = packet[i];
+        case OPT_CLIENTID:
+            if (opt_len == DUID_LL_LEN && memcmp(packet + data_off, duid, DUID_LL_LEN) == 0)
+                saw_our_client_id = 1;
             break;
 
-        case 1:
-            if (opt_len >= 4)
-                memcpy(subnet_mask, packet + i, 4);
+        case OPT_DNS_SERVERS:
+        {
+            uint16_t n = opt_len / 16;
+            for (uint16_t k = 0; k < n && dns_server_count < LANDLORD6_MAX_DNS_SERVERS; k++)
+            {
+                memcpy(dns_servers[dns_server_count], packet + data_off + (uint16_t)(k * 16), 16);
+                dns_server_count++;
+            }
+            break;
+        }
+
+        case OPT_INFO_REFRESH_TIME:
+            if (opt_len == 4)
+                refresh_sec = ((uint32_t)packet[data_off] << 24) | ((uint32_t)packet[data_off + 1] << 16) |
+                              ((uint32_t)packet[data_off + 2] << 8) | packet[data_off + 3];
             break;
 
-        case 3:
-            if (opt_len >= 4)
-                memcpy(router_ip, packet + i, 4);
-            break;
-
-        case 6:
-            if (opt_len >= 4)
-                memcpy(dns_server_ip, packet + i, 4);
-            break;
-        case 54:
-            if (opt_len >= 4)
-                memcpy(server_ip, packet + i, 4);
-            break;
-        case 51:
-            if (opt_len >= 4)
-                lease_seconds = (uint32_t)((packet[i] << 24) | (packet[i + 1] << 16) | (packet[i + 2] << 8) | packet[i + 3]);
-            break;
         default:
             break;
         }
-        i = (uint16_t)(i + opt_len);
+
+        i = (uint16_t)(data_off + opt_len);
     }
-    return msg_type;
-}
 
-static void apply_lease(void)
-{
+   
+    if (!saw_our_client_id)
+    {
+        kprintf("[Landlord6] got a REPLY that doesn't carry our client id, ignoring\n");
+        return;
+    }
 
-    uint8_t network[6];
-
-    for (int i = 0; i < 6; i++)
-        network[i] = (uint8_t)(offered_ip[i] & subnet_mask[i]);
-
-    static const uint8_t on_link[6] = {0, 0, 0, 0,0,0};
-
-    rolodex_set_ip(offered_ip);
-
-    atlas_add_route(network, subnet_mask, on_link);
-
-    if (router_ip[0] || router_ip[1] || router_ip[2] || router_ip[3] || router_ip[4] || router_ip[5] )
-        atlas_set_default_gateway(router_ip);
-
-    if (lease_seconds == 0)
-        lease_seconds = 3600;
-
-    lease_start_tick = get_ticks();
+    (void)our_mac;
 
     state = LANDLORD6_BOUND;
+    refresh_at_tick = get_ticks() + refresh_sec * PIT_HZ;
 
-    kprintf("[Landlord6] bound: %d.%d.%d.%d/%d.%d.%d.%d via %d.%d.%d.%d, lease %u sec\n",
-            offered_ip[0], offered_ip[1], offered_ip[2], offered_ip[3],
-            subnet_mask[0], subnet_mask[1], subnet_mask[2], subnet_mask[3],
-            router_ip[0], router_ip[1], router_ip[2], router_ip[3], lease_seconds);
+    kprintf("[Landlord6] bound: %u DNS server(s), refresh in %u sec\n", dns_server_count, refresh_sec);
 }
 
-void landlord6_start(const uint8_t our_mac[6])
+void landlord6_start(const uint8_t our_mac[6], const uint8_t our_ip[16])
 {
     menu_open_port(LANDLORD6_CLIENT_PORT, 17);
 
     uint32_t id;
-
     lockbox6_listen(LANDLORD6_CLIENT_PORT, 17, &id);
 
-    send_discover(our_mac);
+    build_duid(our_mac);
+    xid = new_xid(our_mac);
+    first_send_tick = get_ticks();
+    retry_interval_ticks = IRT_TICKS;
+
+    send_information_request(our_mac, our_ip);
+
+    state = LANDLORD6_INFO_REQUESTING;
+    next_retry_tick = get_ticks() + retry_interval_ticks;
 }
 
-void landlord6_tick(const uint8_t our_mac[6])
+void landlord6_tick(const uint8_t our_mac[6], const uint8_t our_ip[16])
 {
-    uint8_t src_ip[6];
-
+    uint8_t src_ip[16];
     uint16_t src_port;
+    uint8_t packet[LANDLORD6_MAX_PACKET];
 
-    uint8_t packet[DHCP_MAX_PACKET];
+    uint16_t got = switchboard6_recv_udp(LANDLORD6_CLIENT_PORT, src_ip, &src_port, packet, sizeof(packet));
 
-    uint16_t got = switchboard_recv_udp(LANDLORD6_CLIENT_PORT, src_ip, &src_port, packet, sizeof(packet));
-
-    if (got > 0)
+    if (got > 0 && state == LANDLORD6_INFO_REQUESTING)
     {
-        uint8_t msg_type = parse_options(packet, got);
-
-        if (state == LANDLORD6_DISCOVERING && msg_type == 2)
-        {
-            kprintf("[Landlord6] got DHCPOFFER: %d.%d.%d.%d from %d.%d.%d.%d\n",
-                    offered_ip[0], offered_ip[1], offered_ip[2], offered_ip[3],
-                    server_ip[0], server_ip[1], server_ip[2], server_ip[3]);
-            send_request(our_mac);
+        parse_reply(packet, got, our_mac);
+        if (state == LANDLORD6_BOUND)
             return;
-        }
-        if (state == LANDLORD6_REQUESTING && msg_type == 5)
-        {
-            apply_lease();
-            return;
-        }
-        if (state == LANDLORD6_REQUESTING && msg_type == 6)
-        {
-            kprintf("[Landlord6] server said no (DHCPNAK), starting over\n");
-            send_discover(our_mac);
-            return;
-        }
     }
 
     uint32_t now = get_ticks();
 
-    if ((state == LANDLORD6_DISCOVERING || state == LANDLORD6_REQUESTING) && now - last_action_tick >= DHCP_RETRY_TICKS)
+    if (state == LANDLORD6_INFO_REQUESTING && now >= next_retry_tick)
     {
-        kprintf("[Landlord6] no reply, retrying DHCPDISCOVER\n");
-        send_discover(our_mac);
+        retry_interval_ticks = (retry_interval_ticks * 2 > MRT_TICKS) ? MRT_TICKS : retry_interval_ticks * 2;
 
+        xid = new_xid(our_mac);
+        send_information_request(our_mac, our_ip);
+
+        next_retry_tick = now + retry_interval_ticks;
         return;
     }
-    if (state == LANDLORD6_BOUND)
+
+    if (state == LANDLORD6_BOUND && now >= refresh_at_tick)
     {
-        uint32_t renew_at = lease_start_tick + (lease_seconds * PIT_HZ * DHCP_RENEW_FRACTION_NUM) / DHCP_RENEW_FRACTION_DEN;
-        if (now >= renew_at)
-        {
-            kprintf("[Landlord6] lease is getting old, renewing\n");
-            send_discover(our_mac);
-        }
+        kprintf("[Landlord6] refresh timer elapsed, asking again\n");
+
+        retry_interval_ticks = IRT_TICKS;
+        first_send_tick = now;
+        xid = new_xid(our_mac);
+        send_information_request(our_mac, our_ip);
+
+        state = LANDLORD6_INFO_REQUESTING;
+        next_retry_tick = now + retry_interval_ticks;
     }
 }
 
@@ -308,7 +240,10 @@ landlord6_state_t landlord6_get_state(void)
     return state;
 }
 
-void landlord6_get_dns_server(uint8_t out_ip[6])
+uint32_t landlord6_get_dns_servers(uint8_t out_ips[][16])
 {
-    memcpy(out_ip, dns_server_ip, 6);
+    for (uint32_t i = 0; i < dns_server_count; i++)
+        memcpy(out_ips[i], dns_servers[i], 16);
+
+    return dns_server_count;
 }

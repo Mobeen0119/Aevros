@@ -25,7 +25,7 @@ static rolodex6_entry_t *find_entry(const uint8_t ip[16])
     return 0;
 }
 
-void rolodex_set_ip(const uint8_t ip[16])
+void rolodex6_set_ip(const uint8_t ip[16])
 {
     memcpy(our_ip, ip, 16);
     have_our_ip = 1;
@@ -36,7 +36,7 @@ void rolodex6_get_ip(uint8_t out_ip[16])
     memcpy(out_ip, our_ip, 16);
 }
 
-int rolodex_have_ip(void)
+int rolodex6_have_ip(void)
 {
     return have_our_ip;
 }

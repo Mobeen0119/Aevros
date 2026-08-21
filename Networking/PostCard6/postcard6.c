@@ -3,7 +3,7 @@
 #include "../Rolodex6/rolodex6.h"
 #include "../Bailiff/bailiff.h"
 #include "../LockBox6/lockbox6.h"
-#include "../Postbox/postbox.h"
+#include "../Postbox6/postbox6.h"
 #include "../Menu/menu.h"
 #include "../../Lib/kprintf.h"
 #include "../../Lib/string.h"
@@ -75,7 +75,7 @@ void postcard6_handle(const uint8_t *payload, uint16_t length, const uint8_t src
         return;
     }
 
-    uint32_t slot = lockbox_find_listener(dst_port, 17);
+    uint32_t slot = lockbox6_find_listener(dst_port, 17);
     if (slot == LOCKBOX6_CAPACITY)
     {
         kprintf("[Postcard6] nobody's listening on port %d, discarding\n", dst_port);
@@ -83,9 +83,7 @@ void postcard6_handle(const uint8_t *payload, uint16_t length, const uint8_t src
     }
     uint16_t udp_payload_len = (uint16_t)((payload[4] << 8) | payload[5]);
 
-    static uint8_t zero_ip4[4] = {0, 0, 0, 0};
-
-    postbox_deposit(slot, zero_ip4, src_port, payload + UDP6_HEADER_LEN, udp_payload_len);
+    postbox6_deposit(slot, src_ip, src_port, payload + UDP6_HEADER_LEN, udp_payload_len);
 }
 
 int postcard6_dispatch(const uint8_t dest_ip[16], uint16_t dest_port, uint16_t src_port, const uint8_t our_mac[6],
@@ -95,7 +93,18 @@ int postcard6_dispatch(const uint8_t dest_ip[16], uint16_t dest_port, uint16_t s
         return 0;
 
     uint8_t dest_mac[6];
-    if (!rolodex6_lookup(dest_ip, dest_mac))
+
+    if (dest_ip[0] == 0xFF)
+    {
+        dest_mac[0] = 0x33;
+        dest_mac[1] = 0x33;
+        dest_mac[2] = dest_ip[12];
+        
+        dest_mac[3] = dest_ip[13];
+        dest_mac[4] = dest_ip[14];
+        dest_mac[5] = dest_ip[15];
+    }
+    else if (!rolodex6_lookup(dest_ip, dest_mac))
     {
         kprintf("[Postcard6] don't know this neighbor's MAC yet and there's no Foyer6 to wait for Neighbor Discovery - dropping\n");
         return 0;

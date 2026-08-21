@@ -9,6 +9,8 @@
 
 #define ICMP6_ECHO_REQUEST 128
 #define ICMP6_ECHO_REPLY 129
+#define ICMP6_ROUTER_SOLICITATION 133
+#define ICMP6_ROUTER_ADVERTISEMENT 134
 #define ICMP6_NEIGHBOR_SOLICITATION 135
 #define ICMP6_NEIGHBOR_ADVERTISEMENT 136
 
@@ -29,6 +31,14 @@ int echo6_dispatch_reply(const uint8_t our_mac[6], const uint8_t our_ip[16], uin
 const uint8_t *echo6_last_frame(void);
 
 int echo6_dispatch_neighbor_solicitation(const uint8_t target_ip[16], const uint8_t our_mac[6], const uint8_t our_ip[16], uint32_t *out_pass_id);
+
+int echo6_dispatch_router_solicitation(const uint8_t our_mac[6], const uint8_t our_ip[16], uint32_t *out_pass_id);
+
+int echo6_have_router_advertisement(void);
+
+void echo6_get_prefix(uint8_t out_prefix[16], uint8_t *out_prefix_len);
+
+void echo6_get_router(uint8_t out_router_ip[16]);
 
 uint16_t echo6_last_len(void);
 

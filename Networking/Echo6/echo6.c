@@ -21,6 +21,11 @@ typedef struct
 static pending_ping6_t queue[ECHO6_MAX_PENDING];
 static uint16_t head, tail, pending_count;
 
+static int have_ra;
+static uint8_t ra_prefix[16];
+static uint8_t ra_prefix_len;
+static uint8_t ra_router_ip[16];
+
 static uint8_t last_reply_frame[6 + 6 + 2 + 40 + ICMP6_MIN_HEADER + ECHO6_MAX_PAYLOAD];
 static uint16_t last_reply_len;
 
@@ -114,7 +119,8 @@ static icmp6_verdict_t echo6_check(const uint8_t *payload, uint16_t len, const u
 
     uint8_t type = payload[0];
 
-    if (type != ICMP6_ECHO_REQUEST && type != ICMP6_NEIGHBOR_SOLICITATION && type != ICMP6_NEIGHBOR_ADVERTISEMENT)
+    if (type != ICMP6_ECHO_REQUEST && type != ICMP6_NEIGHBOR_SOLICITATION &&
+        type != ICMP6_NEIGHBOR_ADVERTISEMENT && type != ICMP6_ROUTER_ADVERTISEMENT)
         return ICMP6_REJECT_UNHANDLED_TYPE;
 
     if (type == ICMP6_ECHO_REQUEST && (len - ICMP6_MIN_HEADER) > ECHO6_MAX_PAYLOAD)
@@ -204,6 +210,191 @@ void echo6_handle(const uint8_t *payload, uint16_t len, const uint8_t src_ip[16]
 
         return;
     }
+    if (type == ICMP6_ROUTER_ADVERTISEMENT)
+    {
+        if (len < 16)
+            return;
+
+        uint16_t router_lifetime = (uint16_t)((payload[6] << 8) | payload[7]);
+
+        uint16_t i = 16;
+        while (i + 2 <= len)
+        {
+            uint8_t opt_type = payload[i];
+            uint8_t opt_len_units = payload[i + 1];
+
+            if (opt_len_units == 0)
+                break; //malformed
+
+            uint16_t opt_len_bytes = (uint16_t)(opt_len_units * 8);
+            if (i + opt_len_bytes > len)
+                break;
+
+            if (opt_type == 3 && opt_len_bytes == 32)
+            {
+                uint8_t prefix_len_bits = payload[i + 2];
+                uint8_t flags = payload[i + 3];
+                int on_link = (flags & 0x80) != 0;
+                int autonomous = (flags & 0x40) != 0;
+
+                if (on_link && autonomous && prefix_len_bits <= 128)
+                {
+                    memcpy(ra_prefix, payload + i + 16, 16);
+                    ra_prefix_len = prefix_len_bits;
+                    memcpy(ra_router_ip, src_ip, 16);
+                    have_ra = (router_lifetime > 0);
+
+                    kprintf("[Echo6] got a Router Advertisement with an on-link/autonomous /%d prefix\n", prefix_len_bits);
+                }
+            }
+
+            i = (uint16_t)(i + opt_len_bytes);
+        }
+        return;
+    }
+}
+
+int echo6_have_router_advertisement(void)
+{
+    return have_ra;
+}
+
+void echo6_get_prefix(uint8_t out_prefix[16], uint8_t *out_prefix_len)
+{
+    memcpy(out_prefix, ra_prefix, 16);
+    *out_prefix_len = ra_prefix_len;
+}
+
+void echo6_get_router(uint8_t out_router_ip[16])
+{
+    memcpy(out_router_ip, ra_router_ip, 16);
+}
+
+int echo6_dispatch_router_solicitation(const uint8_t our_mac[6], const uint8_t our_ip[16], uint32_t *out_pass_id)
+{
+    static const uint8_t all_routers[16] = {0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2};
+    static const uint8_t unspecified[16] = {0};
+
+    int include_slla = memcmp(our_ip, unspecified, 16) != 0;
+    uint16_t msg_len = (uint16_t)(ICMP6_MIN_HEADER + (include_slla ? 8 : 0));
+
+    static uint8_t frame[6 + 6 + 2 + 40 + ICMP6_MIN_HEADER + 8];
+
+    // Destination MAC for ff02::2 per RFC 2464: 33:33:00:00:00:02 
+    frame[0] = 0x33;
+    frame[1] = 0x33;
+    frame[2] = 0x00;
+    frame[3] = 0x00;
+    frame[4] = 0x00;
+    frame[5] = 0x02;
+    memcpy(frame + 6, our_mac, 6);
+    frame[12] = 0x86;
+    frame[13] = 0xDD;
+
+    uint8_t *ip = frame + 14;
+    ip[0] = 0x60;
+    ip[1] = 0;
+    ip[2] = 0;
+    ip[3] = 0;
+    ip[4] = msg_len >> 8;
+    ip[5] = msg_len & 0xFF;
+    ip[6] = 58;
+    ip[7] = 255; 
+    memcpy(ip + 8, our_ip, 16);
+    memcpy(ip + 24, all_routers, 16);
+
+    uint8_t *icmp = ip + 40;
+    icmp[0] = ICMP6_ROUTER_SOLICITATION;
+    icmp[1] = 0;
+    icmp[2] = 0;
+    icmp[3] = 0;
+    icmp[4] = 0;
+    icmp[5] = 0;
+    icmp[6] = 0;
+    icmp[7] = 0;
+
+    if (include_slla)
+    {
+        icmp[8] = 1; // Source Link-Layer Address option 
+        icmp[9] = 1; 
+        memcpy(icmp + 10, our_mac, 6);
+    }
+
+    uint16_t csum = icmp6_checksum(our_ip, all_routers, icmp, msg_len);
+    icmp[2] = csum >> 8;
+    icmp[3] = csum & 0xFF;
+
+    uint16_t total_len = (uint16_t)(14 + 40 + msg_len);
+
+    if (bailiff_request_pass(frame, total_len, out_pass_id))
+        return bailiff_present_pass(*out_pass_id, frame, total_len);
+
+    return 0;
+}
+
+int echo6_dispatch_neighbor_solicitation(const uint8_t target_ip[16], const uint8_t our_mac[6],
+                                          const uint8_t our_ip[16], uint32_t *out_pass_id)
+{
+    static const uint8_t unspecified[16] = {0};
+
+    int include_slla = memcmp(our_ip, unspecified, 16) != 0;
+    uint16_t msg_len = (uint16_t)(24 + (include_slla ? 8 : 0)); // 24 = type/code/cksum/reserved/target 
+
+    static uint8_t frame[6 + 6 + 2 + 40 + 24 + 8];
+
+    uint8_t dest_ip[16] = {0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0xff,
+                            target_ip[13], target_ip[14], target_ip[15]};
+
+    frame[0] = 0x33;
+    frame[1] = 0x33;
+    frame[2] = 0xff;
+    frame[3] = target_ip[13];
+    frame[4] = target_ip[14];
+    frame[5] = target_ip[15];
+    memcpy(frame + 6, our_mac, 6);
+    frame[12] = 0x86;
+    frame[13] = 0xDD;
+
+    uint8_t *ip = frame + 14;
+    ip[0] = 0x60;
+    ip[1] = 0;
+    ip[2] = 0;
+    ip[3] = 0;
+    ip[4] = msg_len >> 8;
+    ip[5] = msg_len & 0xFF;
+    ip[6] = 58;
+    ip[7] = 255;
+    memcpy(ip + 8, our_ip, 16);
+    memcpy(ip + 24, dest_ip, 16);
+
+    uint8_t *icmp = ip + 40;
+    icmp[0] = ICMP6_NEIGHBOR_SOLICITATION;
+    icmp[1] = 0;
+    icmp[2] = 0;
+    icmp[3] = 0;
+    icmp[4] = 0; // reserved 
+    icmp[5] = 0;
+    icmp[6] = 0;
+    icmp[7] = 0;
+    memcpy(icmp + 8, target_ip, 16);
+
+    if (include_slla)
+    {
+        icmp[24] = 1; // Source Link-Layer Address option 
+        icmp[25] = 1;
+        memcpy(icmp + 26, our_mac, 6);
+    }
+
+    uint16_t csum = icmp6_checksum(our_ip, dest_ip, icmp, msg_len);
+    icmp[2] = csum >> 8;
+    icmp[3] = csum & 0xFF;
+
+    uint16_t total_len = (uint16_t)(14 + 40 + msg_len);
+
+    if (bailiff_request_pass(frame, total_len, out_pass_id))
+        return bailiff_present_pass(*out_pass_id, frame, total_len);
+
+    return 0;
 }
 
 int echo6_dispatch_reply(const uint8_t our_mac[6], const uint8_t our_ip[16], uint32_t *out_pass_id)

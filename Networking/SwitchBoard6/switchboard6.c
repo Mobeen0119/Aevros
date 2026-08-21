@@ -1,10 +1,10 @@
-
 #include "switchboard6.h"
 #include "../LockBox6/lockbox6.h"
 #include "../Conversation6/rapport6.h"
 #include "../Conversation6/conversation6.h"
 #include "../Inbox6/inbox6.h"
 #include "../PostCard6/postcard6.h"
+#include "../Postbox6/postbox6.h"
 #include "../Bailiff/bailiff.h"
 #include "../../kernel/Process/task.h"
 #include "../../Lib/kprintf.h"
@@ -155,4 +155,15 @@ uint16_t switchboard6_recv(uint32_t conn_id, uint8_t *out, uint16_t max_len)
 int switchboard6_send_udp(uint16_t local_port, const uint8_t dest_ip[16], uint16_t dest_port,const uint8_t our_mac[6], const uint8_t our_ip[16],const uint8_t *data, uint16_t len)
 {
     return postcard6_dispatch(dest_ip, dest_port, local_port, our_mac, our_ip, data, len);
+}
+
+uint16_t switchboard6_recv_udp(uint16_t port, uint8_t src_ip_out[16], uint16_t *src_port_out,
+                                uint8_t *data_out, uint16_t max_len)
+{
+    uint32_t slot = lockbox6_find_listener(port, 17);
+
+    if (slot == LOCKBOX6_CAPACITY)
+        return 0;
+
+    return postbox6_read(slot, src_ip_out, src_port_out, data_out, max_len);
 }

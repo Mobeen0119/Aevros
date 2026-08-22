@@ -11,7 +11,7 @@
 #include "../Rolodex6/rolodex6.h"
 #include "../Foyer6/foyer6.h"
 #include "../FrontDoor/frontdoor.h"
-#include "../Roldex/rolodex.h"
+#include "../Rolodex/rolodex.h"
 
 #define CONCIERGE_TICK_DIVISOR 10
 

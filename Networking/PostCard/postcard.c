@@ -9,7 +9,7 @@
 #include "../Foyer/foyer.h"
 #include "../Atlas/atlas.h"
 #include "../Sentry/sentry.h"
-#include "../Roldex/rolodex.h"
+#include "../Rolodex/rolodex.h"
 
 #define UDP_HEADER_LEN 8
 

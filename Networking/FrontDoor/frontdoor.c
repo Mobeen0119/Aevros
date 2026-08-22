@@ -3,7 +3,7 @@
 #include "../Conversation/rapport.h"
 #include "../LockBox/lockbox.h"
 #include "../FrontDesk/frontdesk.h"
-#include "../Roldex/rolodex.h"
+#include "../Rolodex/rolodex.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
 

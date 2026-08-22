@@ -4,7 +4,7 @@
 #include "rapport.h"
 #include "../Inbox/inbox.h"
 #include "../Lottery/lottery.h"
-#include "../Roldex/rolodex.h"
+#include "../Rolodex/rolodex.h"
 #include "../Bailiff/bailiff.h"
 #include "../Menu/menu.h"
 #include "../WayStation/waystation.h"

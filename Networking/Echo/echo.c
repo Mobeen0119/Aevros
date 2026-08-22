@@ -2,7 +2,7 @@
 #include "../Compass/ip_directory.h"
 #include "../../Lib/kprintf.h"
 #include "../../Lib/string.h"
-#include "../Roldex/rolodex.h"
+#include "../Rolodex/rolodex.h"
 #include "../Bailiff/bailiff.h"
 
 static uint32_t accepted, rejected;

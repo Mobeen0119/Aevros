@@ -6,7 +6,7 @@
 #include "../LockBox/lockbox.h"
 #include "../LockBox6/lockbox6.h"
 #include "../FrontDesk/frontdesk.h"
-#include "../Roldex/rolodex.h"
+#include "../Rolodex/rolodex.h"
 #include "../Rolodex6/rolodex6.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"

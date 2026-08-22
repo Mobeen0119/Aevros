@@ -3,7 +3,7 @@
 #include "../mailroom/directory.h"
 #include "../../Lib/kprintf.h"
 #include "../Curfew/curfew.h"
-#include "../Roldex/rolodex.h"
+#include "../Rolodex/rolodex.h"
 #include "../IDS/ids.h"
 #include "../GuestList/guestlist.h"
 

@@ -2,7 +2,7 @@
 #include "../SwitchBoard/switchboard.h"
 #include "../Menu/menu.h"
 #include "../LockBox/lockbox.h"
-#include "../Roldex/rolodex.h"
+#include "../Rolodex/rolodex.h"
 #include "../Atlas/atlas.h"
 #include "../Lottery/lottery.h"
 #include "../../kernel/Process/task.h"

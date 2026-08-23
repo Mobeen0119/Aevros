@@ -26,6 +26,28 @@ static uint8_t ra_prefix[16];
 static uint8_t ra_prefix_len;
 static uint8_t ra_router_ip[16];
 
+static uint8_t dad_watch_ip[16];
+static int dad_watching;
+static int dad_conflict;
+
+void echo6_dad_watch(const uint8_t target_ip[16])
+{
+    memcpy(dad_watch_ip, target_ip, 16);
+    dad_watching = 1;
+    dad_conflict = 0;
+}
+
+int echo6_dad_conflict(void)
+{
+    return dad_conflict;
+}
+
+void echo6_dad_clear(void)
+{
+    dad_watching = 0;
+    dad_conflict = 0;
+}
+
 static uint8_t last_reply_frame[6 + 6 + 2 + 40 + ICMP6_MIN_HEADER + ECHO6_MAX_PAYLOAD];
 static uint16_t last_reply_len;
 
@@ -51,8 +73,7 @@ static uint16_t icmp6_checksum(const uint8_t *src_ip, const uint8_t *dst_ip, con
     return (uint16_t)(0xFFFF - sum);
 }
 
-static void send_neighbor_advertisement(const uint8_t solicitor_ip[16], const uint8_t solicitor_mac[6],
-                                        const uint8_t our_ip[16], const uint8_t our_mac[6])
+static void send_neighbor_advertisement(const uint8_t solicitor_ip[16], const uint8_t solicitor_mac[6],const uint8_t our_ip[16], const uint8_t our_mac[6])
 {
     static uint8_t frame[6 + 6 + 2 + 40 + ICMP6_MIN_HEADER + 4 + 16 + 8];
 
@@ -205,6 +226,12 @@ void echo6_handle(const uint8_t *payload, uint16_t len, const uint8_t src_ip[16]
     }
     if (type == ICMP6_NEIGHBOR_ADVERTISEMENT)
     {
+        if (dad_watching && len >= 24 && memcmp(payload + 8, dad_watch_ip, 16) == 0)
+        {
+            dad_conflict = 1;
+            kprintf("[Echo6] DAD conflict: another node already has the address being checked\n");
+        }
+
         if (len >= 24 + 8 && payload[24] == 2 && payload[25] == 1)
             rolodex6_learn(src_ip, payload + 26);
 
@@ -224,7 +251,7 @@ void echo6_handle(const uint8_t *payload, uint16_t len, const uint8_t src_ip[16]
             uint8_t opt_len_units = payload[i + 1];
 
             if (opt_len_units == 0)
-                break; //malformed
+                break; // a zero-length option would spin forever 
 
             uint16_t opt_len_bytes = (uint16_t)(opt_len_units * 8);
             if (i + opt_len_bytes > len)
@@ -280,7 +307,6 @@ int echo6_dispatch_router_solicitation(const uint8_t our_mac[6], const uint8_t o
 
     static uint8_t frame[6 + 6 + 2 + 40 + ICMP6_MIN_HEADER + 8];
 
-    // Destination MAC for ff02::2 per RFC 2464: 33:33:00:00:00:02 
     frame[0] = 0x33;
     frame[1] = 0x33;
     frame[2] = 0x00;
@@ -316,7 +342,7 @@ int echo6_dispatch_router_solicitation(const uint8_t our_mac[6], const uint8_t o
     if (include_slla)
     {
         icmp[8] = 1; // Source Link-Layer Address option 
-        icmp[9] = 1; 
+        icmp[9] = 1; // length in 8-byte units 
         memcpy(icmp + 10, our_mac, 6);
     }
 
@@ -332,13 +358,12 @@ int echo6_dispatch_router_solicitation(const uint8_t our_mac[6], const uint8_t o
     return 0;
 }
 
-int echo6_dispatch_neighbor_solicitation(const uint8_t target_ip[16], const uint8_t our_mac[6],
-                                          const uint8_t our_ip[16], uint32_t *out_pass_id)
+int echo6_dispatch_neighbor_solicitation(const uint8_t target_ip[16], const uint8_t our_mac[6],const uint8_t our_ip[16], uint32_t *out_pass_id)
 {
     static const uint8_t unspecified[16] = {0};
 
     int include_slla = memcmp(our_ip, unspecified, 16) != 0;
-    uint16_t msg_len = (uint16_t)(24 + (include_slla ? 8 : 0)); // 24 = type/code/cksum/reserved/target 
+    uint16_t msg_len = (uint16_t)(24 + (include_slla ? 8 : 0));   // 24 = type/code/cksum/reserved/target 
 
     static uint8_t frame[6 + 6 + 2 + 40 + 24 + 8];
 

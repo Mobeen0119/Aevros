@@ -32,6 +32,12 @@ const uint8_t *echo6_last_frame(void);
 
 int echo6_dispatch_neighbor_solicitation(const uint8_t target_ip[16], const uint8_t our_mac[6], const uint8_t our_ip[16], uint32_t *out_pass_id);
 
+void echo6_dad_watch(const uint8_t target_ip[16]);
+
+int echo6_dad_conflict(void);
+
+void echo6_dad_clear(void);
+
 int echo6_dispatch_router_solicitation(const uint8_t our_mac[6], const uint8_t our_ip[16], uint32_t *out_pass_id);
 
 int echo6_have_router_advertisement(void);

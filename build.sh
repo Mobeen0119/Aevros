@@ -3,7 +3,7 @@ set -euo pipefail
 shopt -s nullglob
 
 BUILD_DIR="build_tmp"
-BOOT_SRC="./boot/boot.s"
+BOOT_SRC="./boot/boot.asm"
 
 echo "Cleaning workspace..."
 rm -f boot.o kernel.elf aevrosos.iso

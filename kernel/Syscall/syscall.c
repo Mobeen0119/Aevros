@@ -62,49 +62,51 @@ void syscall_handler(register_t *regs)
         res = sys_exec((const char *)a1);
         break;
 
-    case SYS_SOCKET:
-        res = (uint32_t)frontdoor_socket((int)a1);
-        break;
 
-    case SYS_BIND:
-        res = (uint32_t)frontdoor_bind((int)a1, (uint16_t)a2);
-        break;
+                   //--------Uncomment when networking complete--------
+    // case SYS_SOCKET:
+    //     res = (uint32_t)frontdoor_socket((int)a1);
+    //     break;
 
-    case SYS_CONNECT:
-        res = (uint32_t)frontdoor_connect((int)a1, (const sock_addr_t *)a2);
-        break;
+    // case SYS_BIND:
+    //     res = (uint32_t)frontdoor_bind((int)a1, (uint16_t)a2);
+    //     break;
 
-    case SYS_ACCEPT:
-        res = (uint32_t)frontdoor_accept((int)a1);
-        break;
+    // case SYS_CONNECT:
+    //     res = (uint32_t)frontdoor_connect((int)a1, (const sock_addr_t *)a2);
+    //     break;
 
-    case SYS_SEND:
-        res = (uint32_t)frontdoor_send((int)a1, (const uint8_t *)a2, (uint16_t)a3);
-        break;
+    // case SYS_ACCEPT:
+    //     res = (uint32_t)frontdoor_accept((int)a1);
+    //     break;
 
-    case SYS_RECV:
-        res = (uint32_t)frontdoor_recv((int)a1, (uint8_t *)a2, (uint16_t)a3);
-        break;
+    // case SYS_SEND:
+    //     res = (uint32_t)frontdoor_send((int)a1, (const uint8_t *)a2, (uint16_t)a3);
+    //     break;
 
-    case SYS_SENDTO:
-        res = (uint32_t)frontdoor_sendto((int)a1, (const sendto_args_t *)a2);
-        break;
+    // case SYS_RECV:
+    //     res = (uint32_t)frontdoor_recv((int)a1, (uint8_t *)a2, (uint16_t)a3);
+    //     break;
 
-    case SYS_RECVFROM:
-        res = (uint32_t)frontdoor_recvfrom((int)a1, (recvfrom_args_t *)a2);
-        break;
+    // case SYS_SENDTO:
+    //     res = (uint32_t)frontdoor_sendto((int)a1, (const sendto_args_t *)a2);
+    //     break;
 
-    case SYS_SOCKCLOSE:
-        res = (uint32_t)frontdoor_close((int)a1);
-        break;
+    // case SYS_RECVFROM:
+    //     res = (uint32_t)frontdoor_recvfrom((int)a1, (recvfrom_args_t *)a2);
+    //     break;
 
-    case SYS_CONNECT6:
-        res = (uint32_t)frontdoor_connect6((int)a1, (const sock_addr6_t *)a2);
-        break;
+    // case SYS_SOCKCLOSE:
+    //     res = (uint32_t)frontdoor_close((int)a1);
+    //     break;
 
-    case SYS_SENDTO6:
-        res = (uint32_t)frontdoor_sendto6((int)a1, (const sendto6_args_t *)a2);
-        break;
+    // case SYS_CONNECT6:
+    //     res = (uint32_t)frontdoor_connect6((int)a1, (const sock_addr6_t *)a2);
+    //     break;
+
+    // case SYS_SENDTO6:
+    //     res = (uint32_t)frontdoor_sendto6((int)a1, (const sendto6_args_t *)a2);
+    //     break;
 
     default:
         res = (uint32_t)-1;

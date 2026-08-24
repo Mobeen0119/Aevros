@@ -34,7 +34,7 @@ void isr_handler(struct registers *r)
         return;
     }
 
-    if(frontdesk_dispatch_irq(r->int_no)) return;
+    // if(frontdesk_dispatch_irq(r->int_no)) return;   ----Issue in compilation until networking complete
 
     if (r->int_no < 32)
     {

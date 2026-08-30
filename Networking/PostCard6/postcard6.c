@@ -5,6 +5,8 @@
 #include "../LockBox6/lockbox6.h"
 #include "../Postbox6/postbox6.h"
 #include "../Menu/menu.h"
+#include "../Echo6/echo6.h"
+#include "../FrontDesk/frontdesk.h"
 #include "../../Lib/kprintf.h"
 #include "../../Lib/string.h"
 
@@ -79,6 +81,11 @@ void postcard6_handle(const uint8_t *payload, uint16_t length, const uint8_t src
     if (slot == LOCKBOX6_CAPACITY)
     {
         kprintf("[Postcard6] nobody's listening on port %d, discarding\n", dst_port);
+
+        uint8_t our_mac[6];
+        memcpy(our_mac, frontdesk_get_state()->mac, 6);
+        uint32_t pass_id;
+        echo6_dispatch_dest_unreachable(4 /* Port Unreachable */, our_mac, dst_ip, src_ip, 17, payload, length, &pass_id);
         return;
     }
     uint16_t udp_payload_len = (uint16_t)((payload[4] << 8) | payload[5]);
@@ -99,7 +106,6 @@ int postcard6_dispatch(const uint8_t dest_ip[16], uint16_t dest_port, uint16_t s
         dest_mac[0] = 0x33;
         dest_mac[1] = 0x33;
         dest_mac[2] = dest_ip[12];
-        
         dest_mac[3] = dest_ip[13];
         dest_mac[4] = dest_ip[14];
         dest_mac[5] = dest_ip[15];

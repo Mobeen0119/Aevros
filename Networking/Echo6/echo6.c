@@ -73,7 +73,8 @@ static uint16_t icmp6_checksum(const uint8_t *src_ip, const uint8_t *dst_ip, con
     return (uint16_t)(0xFFFF - sum);
 }
 
-static void send_neighbor_advertisement(const uint8_t solicitor_ip[16], const uint8_t solicitor_mac[6],const uint8_t our_ip[16], const uint8_t our_mac[6])
+static void send_neighbor_advertisement(const uint8_t solicitor_ip[16], const uint8_t solicitor_mac[6],
+                                        const uint8_t our_ip[16], const uint8_t our_mac[6])
 {
     static uint8_t frame[6 + 6 + 2 + 40 + ICMP6_MIN_HEADER + 4 + 16 + 8];
 
@@ -251,7 +252,7 @@ void echo6_handle(const uint8_t *payload, uint16_t len, const uint8_t src_ip[16]
             uint8_t opt_len_units = payload[i + 1];
 
             if (opt_len_units == 0)
-                break; // a zero-length option would spin forever 
+                break; //malformed - a zero-length option would spin forever 
 
             uint16_t opt_len_bytes = (uint16_t)(opt_len_units * 8);
             if (i + opt_len_bytes > len)
@@ -325,7 +326,7 @@ int echo6_dispatch_router_solicitation(const uint8_t our_mac[6], const uint8_t o
     ip[4] = msg_len >> 8;
     ip[5] = msg_len & 0xFF;
     ip[6] = 58;
-    ip[7] = 255; 
+    ip[7] = 255; // RFC 4861: NDP hop limit MUST be 255
     memcpy(ip + 8, our_ip, 16);
     memcpy(ip + 24, all_routers, 16);
 
@@ -341,8 +342,8 @@ int echo6_dispatch_router_solicitation(const uint8_t our_mac[6], const uint8_t o
 
     if (include_slla)
     {
-        icmp[8] = 1; // Source Link-Layer Address option 
-        icmp[9] = 1; // length in 8-byte units 
+        icmp[8] = 1; /* Source Link-Layer Address option */
+        icmp[9] = 1; /* length in 8-byte units */
         memcpy(icmp + 10, our_mac, 6);
     }
 
@@ -358,18 +359,20 @@ int echo6_dispatch_router_solicitation(const uint8_t our_mac[6], const uint8_t o
     return 0;
 }
 
-int echo6_dispatch_neighbor_solicitation(const uint8_t target_ip[16], const uint8_t our_mac[6],const uint8_t our_ip[16], uint32_t *out_pass_id)
+int echo6_dispatch_neighbor_solicitation(const uint8_t target_ip[16], const uint8_t our_mac[6],
+                                          const uint8_t our_ip[16], uint32_t *out_pass_id)
 {
     static const uint8_t unspecified[16] = {0};
 
     int include_slla = memcmp(our_ip, unspecified, 16) != 0;
-    uint16_t msg_len = (uint16_t)(24 + (include_slla ? 8 : 0));   // 24 = type/code/cksum/reserved/target 
+    uint16_t msg_len = (uint16_t)(24 + (include_slla ? 8 : 0)); // 24 = type/code/cksum/reserved/target 
 
     static uint8_t frame[6 + 6 + 2 + 40 + 24 + 8];
 
     uint8_t dest_ip[16] = {0xff, 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0xff,
                             target_ip[13], target_ip[14], target_ip[15]};
 
+    // Dest MAC per RFC 2464: 33:33: + last 4 bytes of the dest IPv6 addr. 
     frame[0] = 0x33;
     frame[1] = 0x33;
     frame[2] = 0xff;
@@ -509,6 +512,76 @@ uint32_t echo6_accepted_count(void)
 uint32_t echo6_rejected_count(void)
 {
     return rejected;
+}
+
+#define DEST_UNREACHABLE_EMBED_CAP 200 /* well under the 1280-byte min IPv6 MTU; this kernel's own packets are tiny */
+
+int echo6_dispatch_dest_unreachable(uint8_t code, const uint8_t our_mac[6], const uint8_t our_ip[16],
+                                     const uint8_t sender_ip[16], uint8_t original_next_header,
+                                     const uint8_t *original_payload, uint16_t original_payload_len,
+                                     uint32_t *out_pass_id)
+{
+    uint8_t dest_mac[6];
+    if (!rolodex6_lookup(sender_ip, dest_mac))
+        return 0; 
+
+    uint16_t embed_len = (original_payload_len < DEST_UNREACHABLE_EMBED_CAP) ? original_payload_len : DEST_UNREACHABLE_EMBED_CAP;
+    uint16_t msg_len = (uint16_t)(8 + 40 + embed_len); 
+
+    static uint8_t frame[6 + 6 + 2 + 40 + 8 + 40 + DEST_UNREACHABLE_EMBED_CAP];
+
+    memcpy(frame, dest_mac, 6);
+    memcpy(frame + 6, our_mac, 6);
+    frame[12] = 0x86;
+    frame[13] = 0xDD;
+
+    uint8_t *ip = frame + 14;
+    ip[0] = 0x60;
+    ip[1] = 0;
+    ip[2] = 0;
+    ip[3] = 0;
+    ip[4] = msg_len >> 8;
+    ip[5] = msg_len & 0xFF;
+    ip[6] = 58;
+    ip[7] = 64;
+    memcpy(ip + 8, our_ip, 16);
+    memcpy(ip + 24, sender_ip, 16);
+
+    uint8_t *icmp = ip + 40;
+    icmp[0] = 1;     //dest unreachable
+    icmp[1] = code;
+    icmp[2] = 0;
+    icmp[3] = 0;
+    icmp[4] = 0; //unused
+    icmp[5] = 0;
+    icmp[6] = 0;
+    icmp[7] = 0;
+
+    uint8_t *orig_ip = icmp + 8;
+    orig_ip[0] = 0x60;
+    orig_ip[1] = 0;
+    orig_ip[2] = 0;
+    orig_ip[3] = 0;
+    orig_ip[4] = original_payload_len >> 8;
+    orig_ip[5] = original_payload_len & 0xFF;
+    orig_ip[6] = original_next_header;
+    orig_ip[7] = 64;
+    memcpy(orig_ip + 8, sender_ip, 16);
+    memcpy(orig_ip + 24, our_ip, 16);
+
+    if (embed_len > 0)
+        memcpy(orig_ip + 40, original_payload, embed_len);
+
+    uint16_t csum = icmp6_checksum(our_ip, sender_ip, icmp, msg_len);
+    icmp[2] = csum >> 8;
+    icmp[3] = csum & 0xFF;
+
+    uint16_t total_len = (uint16_t)(14 + 40 + msg_len);
+
+    if (bailiff_request_pass(frame, total_len, out_pass_id))
+        return bailiff_present_pass(*out_pass_id, frame, total_len);
+
+    return 0;
 }
 
 const char *icmp6_verdict_string(icmp6_verdict_t v)

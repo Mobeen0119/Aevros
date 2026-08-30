@@ -8,6 +8,7 @@
 #include "../Menu/menu.h"
 #include "../Scheduler6/scheduler6.h"
 #include "../WayStation6/waystation6.h"
+#include "../SynCookie6/syncookie6.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
 #include "../FrontDesk/frontdesk.h"
@@ -19,6 +20,7 @@
 
 #define FLAG_FIN 0x1
 #define FLAG_SYN 0x2
+
 #define FLAG_RST 0x4
 #define FLAG_PSH 0x8
 #define FLAG_ACK 0x10
@@ -98,8 +100,72 @@ static uint32_t draw_isn6(const uint8_t local_ip[16], uint16_t local_port, const
     return mix;
 }
 
-static tcp_verdict_t conversation6_check(const uint8_t *payload, uint16_t length,
-                                         const uint8_t src_ip[16], const uint8_t dst_ip[16])
+
+static void send_cookie_syn_ack6(const uint8_t peer_ip[16], uint16_t peer_port,const uint8_t our_ip[16], uint16_t our_port,
+                                  uint32_t cookie_isn, uint32_t peer_isn, const uint8_t our_mac[6])
+{
+    uint8_t dest_mac[6];
+    if (!rolodex6_lookup(peer_ip, dest_mac))
+        return; /* Compass6 already learned this peer's MAC from the SYN itself, but bail cleanly if it somehow hasn't */
+
+    static uint8_t frame[6 + 6 + 2 + 40 + TCP6_MIN_HEADER];
+
+    memcpy(frame, dest_mac, 6);
+    memcpy(frame + 6, our_mac, 6);
+    frame[12] = 0x86;
+    frame[13] = 0xDD;
+
+    uint8_t *ip = frame + 14;
+    ip[0] = 0x60;
+    ip[1] = 0;
+    ip[2] = 0;
+    ip[3] = 0;
+    ip[4] = TCP6_MIN_HEADER >> 8;
+    ip[5] = TCP6_MIN_HEADER & 0xFF;
+    ip[6] = 6;
+    ip[7] = 64;
+    memcpy(ip + 8, our_ip, 16);
+    memcpy(ip + 24, peer_ip, 16);
+
+    uint8_t *tcp = ip + 40;
+    tcp[0] = our_port >> 8;
+    tcp[1] = our_port & 0xFF;
+    tcp[2] = peer_port >> 8;
+    tcp[3] = peer_port & 0xFF;
+
+    tcp[4] = (uint8_t)(cookie_isn >> 24);
+    tcp[5] = (uint8_t)(cookie_isn >> 16);
+    tcp[6] = (uint8_t)(cookie_isn >> 8);
+    tcp[7] = (uint8_t)cookie_isn;
+
+    uint32_t ack = peer_isn + 1;
+    tcp[8] = (uint8_t)(ack >> 24);
+    tcp[9] = (uint8_t)(ack >> 16);
+    tcp[10] = (uint8_t)(ack >> 8);
+    tcp[11] = (uint8_t)ack;
+
+    tcp[12] = 5 << 4;
+    tcp[13] = FLAG_SYN | FLAG_ACK;
+
+
+    tcp[14] = (LOCKBOX6_MAX_BUFFERED >> 8) & 0xFF;
+    tcp[15] = LOCKBOX6_MAX_BUFFERED & 0xFF;
+    tcp[16] = 0;
+    tcp[17] = 0;
+    tcp[18] = 0;
+    tcp[19] = 0;
+
+    uint16_t tcp_csum = compute_tcp6_checksum(tcp, TCP6_MIN_HEADER, our_ip, peer_ip);
+    tcp[16] = tcp_csum >> 8;
+    tcp[17] = tcp_csum & 0xFF;
+
+    uint16_t total_len = (uint16_t)(14 + 40 + TCP6_MIN_HEADER);
+    uint32_t pass_id;
+    if (bailiff_request_pass(frame, total_len, &pass_id))
+        bailiff_present_pass(pass_id, frame, total_len);
+}
+
+static tcp_verdict_t conversation6_check(const uint8_t *payload, uint16_t length,const uint8_t src_ip[16], const uint8_t dst_ip[16])
 {
     if (length < TCP6_MIN_HEADER)
         return TCP_REJECT_TOO_SHORT;
@@ -182,6 +248,16 @@ void conversation6_handle(const uint8_t *payload, uint16_t length, const uint8_t
         uint8_t our_mac[6];
         memcpy(our_mac, frontdesk_get_state()->mac, 6);
 
+        if (syncookie6_should_activate())
+        {
+            uint32_t cookie_isn = syncookie6_generate(src_ip, src_port, dst_ip, dst_port);
+
+            send_cookie_syn_ack6(src_ip, src_port, dst_ip, dst_port, cookie_isn, seq, our_mac);
+
+            kprintf("[Conversation6] under load, sent cookie syn-ack without a slot\n");
+            return;
+        }
+
         uint32_t conn_id;
         lockbox6_result_t r = lockbox6_claim(dst_port, src_ip, src_port, 6, &conn_id);
         if (r != LOCKBOX6_OK)
@@ -207,8 +283,38 @@ void conversation6_handle(const uint8_t *payload, uint16_t length, const uint8_t
 
     if (conn_id == LOCKBOX6_CAPACITY)
     {
-        kprintf("[Conversation6] non-SYN segment with no known connection, discarding\n");
-        return;
+        if ((flags & FLAG_ACK) && !(flags & FLAG_SYN))
+        {
+            uint32_t ack_num = (uint32_t)((payload[8] << 24) | (payload[9] << 16) | (payload[10] << 8) | payload[11]);
+
+            if (syncookie6_validate(src_ip, src_port, dst_ip, dst_port, ack_num))
+            {
+                lockbox6_result_t r = lockbox6_claim(dst_port, src_ip, src_port, 6, &conn_id);
+                if (r == LOCKBOX6_OK)
+                {
+                    uint32_t peer_isn = seq - 1;
+                    uint32_t cookie_isn = ack_num - 1;
+                    rapport6_on_syn(conn_id, peer_isn, cookie_isn);
+                    rapport6_on_ack(conn_id, ack_num);
+                    kprintf("[Conversation6] slot %d: cookie handshake completed, slot allocated now that it's proven real\n", conn_id);
+                }
+                else
+                {
+                    kprintf("[Conversation6] cookie validated but couldn't claim a slot: %s\n", lockbox6_result_string(r));
+                    return;
+                }
+            }
+            else
+            {
+                kprintf("[Conversation6] non-SYN segment with no known connection, discarding\n");
+                return;
+            }
+        }
+        else
+        {
+            kprintf("[Conversation6] non-SYN segment with no known connection, discarding\n");
+            return;
+        }
     }
 
     uint16_t peer_window = (uint16_t)((payload[14] << 8) | payload[15]);
@@ -362,8 +468,7 @@ int conversation6_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], c
     return 1;
 }
 
-int conversation6_dispatch_data(uint32_t conn_id, const uint8_t *data, uint16_t len,
-                                const uint8_t our_mac[6], const uint8_t our_ip[16], uint32_t *out_pass_id)
+int conversation6_dispatch_data(uint32_t conn_id, const uint8_t *data, uint16_t len,const uint8_t our_mac[6], const uint8_t our_ip[16], uint32_t *out_pass_id)
 {
     if (len == 0 || len > TCP6_MAX_PAYLOAD)
         return 0;

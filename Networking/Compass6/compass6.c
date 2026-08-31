@@ -4,6 +4,7 @@
 #include "../Rolodex6/rolodex6.h"
 #include "../GuestList6/guestlist6.h"
 #include "../Curfew6/curfew6.h"
+#include "../IDS6/ids6.h"
 #include "../../Lib/kprintf.h"
 
 #define MIN_IP6_HEADER 40
@@ -55,6 +56,7 @@ void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
    if (guestlist6_check(src_ip) == GUESTLIST6_DENIED)
     {
         kprintf("[Compass6] source is on the Guestlist6 deny list, refusing outright\n");
+        ids6_notify(IDS6_EVENT_GUESTLIST_DENY, src_ip, 0);
         rejected++;
         return;
     }
@@ -64,6 +66,7 @@ void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
     if (!guestlist_allow && !curfew6_check(src_ip))
     {
         kprintf("[Compass6] source tripped Curfew6's rate limit, refusing\n");
+        ids6_notify(IDS6_EVENT_CURFEW_REJECT, src_ip, 0);
         rejected++;
         return;
     }

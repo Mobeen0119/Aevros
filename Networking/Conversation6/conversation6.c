@@ -9,6 +9,7 @@
 #include "../Scheduler6/scheduler6.h"
 #include "../WayStation6/waystation6.h"
 #include "../SynCookie6/syncookie6.h"
+#include "../Sentry6/sentry6.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
 #include "../FrontDesk/frontdesk.h"
@@ -20,7 +21,6 @@
 
 #define FLAG_FIN 0x1
 #define FLAG_SYN 0x2
-
 #define FLAG_RST 0x4
 #define FLAG_PSH 0x8
 #define FLAG_ACK 0x10
@@ -101,7 +101,8 @@ static uint32_t draw_isn6(const uint8_t local_ip[16], uint16_t local_port, const
 }
 
 
-static void send_cookie_syn_ack6(const uint8_t peer_ip[16], uint16_t peer_port,const uint8_t our_ip[16], uint16_t our_port,
+static void send_cookie_syn_ack6(const uint8_t peer_ip[16], uint16_t peer_port,
+                                  const uint8_t our_ip[16], uint16_t our_port,
                                   uint32_t cookie_isn, uint32_t peer_isn, const uint8_t our_mac[6])
 {
     uint8_t dest_mac[6];
@@ -147,7 +148,6 @@ static void send_cookie_syn_ack6(const uint8_t peer_ip[16], uint16_t peer_port,c
     tcp[12] = 5 << 4;
     tcp[13] = FLAG_SYN | FLAG_ACK;
 
-
     tcp[14] = (LOCKBOX6_MAX_BUFFERED >> 8) & 0xFF;
     tcp[15] = LOCKBOX6_MAX_BUFFERED & 0xFF;
     tcp[16] = 0;
@@ -165,7 +165,8 @@ static void send_cookie_syn_ack6(const uint8_t peer_ip[16], uint16_t peer_port,c
         bailiff_present_pass(pass_id, frame, total_len);
 }
 
-static tcp_verdict_t conversation6_check(const uint8_t *payload, uint16_t length,const uint8_t src_ip[16], const uint8_t dst_ip[16])
+static tcp_verdict_t conversation6_check(const uint8_t *payload, uint16_t length,
+                                         const uint8_t src_ip[16], const uint8_t dst_ip[16])
 {
     if (length < TCP6_MIN_HEADER)
         return TCP_REJECT_TOO_SHORT;
@@ -247,6 +248,9 @@ void conversation6_handle(const uint8_t *payload, uint16_t length, const uint8_t
     {
         uint8_t our_mac[6];
         memcpy(our_mac, frontdesk_get_state()->mac, 6);
+
+        // banned mid-handshake if this looks like a port scan, same as v4
+        sentry6_observe(src_ip, dst_port);
 
         if (syncookie6_should_activate())
         {
@@ -468,7 +472,8 @@ int conversation6_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], c
     return 1;
 }
 
-int conversation6_dispatch_data(uint32_t conn_id, const uint8_t *data, uint16_t len,const uint8_t our_mac[6], const uint8_t our_ip[16], uint32_t *out_pass_id)
+int conversation6_dispatch_data(uint32_t conn_id, const uint8_t *data, uint16_t len,
+                                const uint8_t our_mac[6], const uint8_t our_ip[16], uint32_t *out_pass_id)
 {
     if (len == 0 || len > TCP6_MAX_PAYLOAD)
         return 0;

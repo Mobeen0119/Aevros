@@ -16,6 +16,10 @@ void rolodex6_learn(const uint8_t ip[16], const uint8_t mac[6]);
 
 int rolodex6_lookup(const uint8_t ip[16], uint8_t out_mac[6]);
 
+int rolodex6_disputed(const uint8_t ip[16]);
+
+uint32_t rolodex6_contradiction_count(void);
+
 void rolodex6_tick(void);
 
 uint32_t rolodex6_entry_count(void);

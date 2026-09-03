@@ -5,15 +5,36 @@
 #include "../GuestList6/guestlist6.h"
 #include "../Curfew6/curfew6.h"
 #include "../IDS6/ids6.h"
+#include "../Fragment6/fragment6.h"
 #include "../../Lib/kprintf.h"
 
 #define MIN_IP6_HEADER 40
+#define NEXT_HEADER_HOP_BY_HOP 0
+#define NEXT_HEADER_ROUTING 43
 #define NEXT_HEADER_FRAGMENT 44
+#define NEXT_HEADER_ESP 50
+#define NEXT_HEADER_AH 51
+#define NEXT_HEADER_DEST_OPTS 60
+#define MAX_EXT_HEADERS 8 // cap the chain length so nobody can walk us into a busy-loop 
 
 extern ip6_directory_entry_t __ip6_directory_start[];
 extern ip6_directory_entry_t __ip6_directory_end[];
 
 static uint32_t accepted, rejected;
+
+static void dispatch(uint8_t next_header, const uint8_t *payload, uint16_t len,
+                      const uint8_t src_ip[16], const uint8_t dst_ip[16])
+{
+    for (ip6_directory_entry_t *e = __ip6_directory_start; e < __ip6_directory_end; e++)
+    {
+        if (e->next_header == next_header)
+        {
+            e->handler(payload, len, src_ip, dst_ip);
+            return;
+        }
+    }
+    kprintf("[Compass6] no handler registered for next_header %d\n", next_header);
+}
 
 static ip6_verdict_t compass6_check(const uint8_t *payload, uint16_t length)
 {
@@ -27,10 +48,6 @@ static ip6_verdict_t compass6_check(const uint8_t *payload, uint16_t length)
     uint16_t payload_len = (uint16_t)((payload[4] << 8) | payload[5]);
     if ((uint32_t)MIN_IP6_HEADER + payload_len > length)
         return IP6_REJECT_LENGTH_MISMATCH;
-
-    uint8_t next_header = payload[6];
-    if (next_header == NEXT_HEADER_FRAGMENT)
-        return IP6_REJECT_FRAGMENTED;
 
     return IP6_ACCEPT;
 }
@@ -71,20 +88,82 @@ void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
         return;
     }
 
+    if (rolodex6_disputed(src_ip))
+    {
+        kprintf("[Compass6] source is currently disputed in Rolodex6, refusing to trust its IP traffic\n");
+        ids6_notify(IDS6_EVENT_ROLODEX_DISPUTED, src_ip, 0);
+        rejected++;
+        return;
+    }
+
     rolodex6_learn(src_ip, src_mac);
 
     kprintf("[Compass6] accepted, next_header %d, payload %u bytes\n", next_header, payload_len);
 
-    for (ip6_directory_entry_t *e = __ip6_directory_start; e < __ip6_directory_end; e++)
+    const uint8_t *cursor = payload + MIN_IP6_HEADER;
+    uint16_t remaining = payload_len;
+    int seen_headers = 0;
+    int first_header = 1;
+
+    while (next_header == NEXT_HEADER_HOP_BY_HOP || next_header == NEXT_HEADER_ROUTING || next_header == NEXT_HEADER_DEST_OPTS)
     {
-        if (e->next_header == next_header)
+        if (next_header == NEXT_HEADER_HOP_BY_HOP && !first_header)
         {
-            e->handler(payload + MIN_IP6_HEADER, payload_len, src_ip, dst_ip);
+            kprintf("[Compass6] Hop-by-Hop Options header out of position, rejecting\n");
+            rejected++;
             return;
         }
+        if (++seen_headers > MAX_EXT_HEADERS)
+        {
+            kprintf("[Compass6] too many chained extension headers, rejecting\n");
+            rejected++;
+            return;
+        }
+        if (remaining < 2)
+        {
+            kprintf("[Compass6] extension header truncated, rejecting\n");
+            rejected++;
+            return;
+        }
+
+        uint8_t following = cursor[0];
+        uint16_t hdr_len = (uint16_t)((cursor[1] + 1) * 8);
+
+        if (hdr_len > remaining)
+        {
+            kprintf("[Compass6] extension header claims more bytes than the packet has, rejecting\n");
+            rejected++;
+            return;
+        }
+
+        cursor += hdr_len;
+        remaining = (uint16_t)(remaining - hdr_len);
+        next_header = following;
+        first_header = 0;
     }
 
-    kprintf("[Compass6] no handler registered for next_header %d\n", next_header);
+    if (next_header == NEXT_HEADER_AH || next_header == NEXT_HEADER_ESP)
+    {
+        kprintf("[Compass6] packet uses IPsec (AH/ESP), which isn't supported here - rejecting\n");
+        rejected++;
+        return;
+    }
+
+    if (next_header == NEXT_HEADER_FRAGMENT)
+    {
+        uint8_t reassembled_next_header;
+        uint16_t reassembled_len;
+        static uint8_t reassembled_buf[FRAGMENT6_MAX_TOTAL_BYTES];
+
+        if (!fragment6_receive(src_ip, dst_ip, cursor, remaining, &reassembled_next_header, &reassembled_len, reassembled_buf))
+            return; // still waiting on the rest, or the fragment was rejected ... either way, nothing to dispatch yet
+
+        kprintf("[Compass6] fragment reassembly complete, dispatching %u bytes\n", reassembled_len);
+        dispatch(reassembled_next_header, reassembled_buf, reassembled_len, src_ip, dst_ip);
+        return;
+    }
+
+    dispatch(next_header, cursor, remaining, src_ip, dst_ip);
 }
 
 uint32_t compass6_accepted_count(void)

@@ -3,18 +3,16 @@
 #include "../Conversation6/conversation6.h"
 #include "../PostCard6/postcard6.h"
 #include "../Echo6/echo6.h"
-
 #include "../Curfew6/curfew6.h"
 #include "../Rolodex6/rolodex6.h"
-
 #include "../GuestList6/guestlist6.h"
 #include "../Menu/menu.h"
 #include "../Bailiff/bailiff.h"
 #include "../LockBox6/lockbox6.h"
-
 #include "../Atlas6/atlas6.h"
 #include "../Scheduler6/scheduler6.h"
 #include "../Sentry6/sentry6.h"
+#include "../Fragment6/fragment6.h"
 #include "../../Lib/kprintf.h"
 
 ledger6_snapshot_t ledger6_snapshot(void)
@@ -35,6 +33,7 @@ ledger6_snapshot_t ledger6_snapshot(void)
 
     s.curfew_denied = curfew6_denied_count();
     s.rolodex_entries = rolodex6_entry_count();
+    s.rolodex_contradiction = rolodex6_contradiction_count();
 
     s.guestlist_entries = guestlist6_count();
     s.menu_entries = menu_count();
@@ -49,6 +48,10 @@ ledger6_snapshot_t ledger6_snapshot(void)
     s.scheduler_gaveup = scheduler6_giveup_count();
 
     s.sentry_flagged = sentry6_flagged_count();
+
+    s.fragment_completed = fragment6_completed_count();
+    s.fragment_overlap = fragment6_overlap_count();
+    s.fragment_timeout = fragment6_timeout_count();
 
     return s;
 }
@@ -81,6 +84,7 @@ void ledger6_print(void)
     kprintf("\n---------------- Security Office ----------------\n");
     kprintf("  Curfew6 Blocks .................. %u\n", s.curfew_denied);
     kprintf("  Rolodex6 Entries ................ %u\n", s.rolodex_entries);
+    kprintf("  Rolodex6 Contradictions ......... %u\n", s.rolodex_contradiction);
     kprintf("  GuestList6 Rules ................ %u\n", s.guestlist_entries);
     kprintf("  Sentry6 Port-Scan Bans ........... %u\n", s.sentry_flagged);
     kprintf("  Menu Open Ports (shared v4+v6) ... %u\n", s.menu_entries);
@@ -96,6 +100,11 @@ void ledger6_print(void)
     kprintf("\n---------------- Reliability ---------------------\n");
     kprintf("  Scheduler6 Retransmits ........... %u\n", s.scheduler_retransmit);
     kprintf("  Scheduler6 Gave-Up Connections .... %u\n", s.scheduler_gaveup);
+
+    kprintf("\n---------------- Fragmentation --------------------\n");
+    kprintf("  Reassemblies Completed ........... %u\n", s.fragment_completed);
+    kprintf("  Overlap Attacks Rejected ......... %u\n", s.fragment_overlap);
+    kprintf("  Reassemblies Timed Out ............ %u\n", s.fragment_timeout);
 
     kprintf("=============================================================\n");
 }

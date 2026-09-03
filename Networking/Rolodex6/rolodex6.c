@@ -9,12 +9,14 @@ typedef struct
     uint8_t mac[6];
     uint32_t last_seen;
     int in_use;
+    int disputed;
 
 } rolodex6_entry_t;
 
 static rolodex6_entry_t book[ROLODEX6_CAPACITY];
 static uint8_t our_ip[16];
 static int have_our_ip;
+static uint32_t contradictions;
 
 static rolodex6_entry_t *find_entry(const uint8_t ip[16])
 {
@@ -46,15 +48,28 @@ void rolodex6_learn(const uint8_t ip[16], const uint8_t mac[6])
 
     rolodex6_entry_t *e = find_entry(ip);
 
-    if (!e)
+    if (e)
     {
-        for (int i = 0; i < ROLODEX6_CAPACITY; i++)
+        if (memcmp(e->mac, mac, 6) != 0)
         {
-            if (!book[i].in_use)
-            {
-                e = &book[i];
-                break;
-            }
+            // same IP just claimed by a different MAC - flag it, don't just overwrite silently
+            kprintf("[Rolodex6] CONTRADICTION: an address was claimed by a different MAC than before\n");
+            contradictions++;
+            e->disputed = 1;
+        }
+        else
+        {
+            e->last_seen = get_ticks();
+        }
+        return;
+    }
+
+    for (int i = 0; i < ROLODEX6_CAPACITY; i++)
+    {
+        if (!book[i].in_use)
+        {
+            e = &book[i];
+            break;
         }
     }
     if (!e)
@@ -67,6 +82,7 @@ void rolodex6_learn(const uint8_t ip[16], const uint8_t mac[6])
     e->last_seen = get_ticks();
 
     e->in_use = 1;
+    e->disputed = 0;
 }
 
 int rolodex6_lookup(const uint8_t ip[16], uint8_t our_mac[6])
@@ -81,6 +97,21 @@ int rolodex6_lookup(const uint8_t ip[16], uint8_t our_mac[6])
     return 1;
 }
 
+int rolodex6_disputed(const uint8_t ip[16])
+{
+    rolodex6_entry_t *e = find_entry(ip);
+
+    if (!e)
+        return 0;
+
+    return e->disputed;
+}
+
+uint32_t rolodex6_contradiction_count(void)
+{
+    return contradictions;
+}
+
 void rolodex6_tick(void)
 {
     uint32_t now = get_ticks();
@@ -91,6 +122,7 @@ void rolodex6_tick(void)
         {
             kprintf("[Rolodex6] forgetting a neighbor, hasn't been heard from in a while\n");
             book[i].in_use = 0;
+            book[i].disputed = 0;
         }
     }
 }

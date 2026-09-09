@@ -85,7 +85,7 @@ void frontdesk_init(void)
 
     outb(io_base + REG_CMD, CMD_RESET);
 
-    uint32_t reset_deadline = get_ticks() + 200; // ~2s at the 100Hz this kernel runs PIT at
+        uint32_t reset_deadline = get_ticks() + 200; // ~2s at the 100Hz this kernel runs PIT at
     while ((inb(io_base + REG_CMD) & CMD_RESET) != 0)
     {
         if (get_ticks() > reset_deadline)
@@ -101,10 +101,13 @@ void frontdesk_init(void)
     {
         state.mac[i] = inb(io_base + REG_MAC0 + i);
     }
+    kprintf("[FrontDesk] checkpoint 3a: MAC read\n");
 
     rx_buffer = (uint8_t *)kmalloc(RX_BUFFER_SIZE);
+    kprintf("[FrontDesk] checkpoint 3b: rx_buffer allocated at %x\n", (uint32_t)(uintptr_t)rx_buffer);
 
     memset(rx_buffer, 0, RX_BUFFER_SIZE);
+    kprintf("[FrontDesk] checkpoint 3c: rx_buffer zeroed\n");
 
     rx_read_offset = 0;
     outl(io_base + REG_RBSTART, (uint32_t)(uintptr_t)rx_buffer);
@@ -114,6 +117,7 @@ void frontdesk_init(void)
     outl(io_base + REG_RCR, 0x0E | (1 << 7));
 
     outb(io_base + REG_CMD, CMD_RX_ENABLE | CMD_TX_ENABLE);
+    kprintf("[FrontDesk] checkpoint 3d: RX/TX enabled, about to set state.present\n");
 
     tx_next_desc = 0;
     state.present = 1;
@@ -184,6 +188,11 @@ int frontdesk_send(const void *data, uint16_t length)
 
 void frontdesk_irq_handler(void)
 {
+    static uint32_t call_count = 0;
+    call_count++;
+    if (call_count % 500 == 1)
+        kprintf("[FrontDesk] IRQ handler called %u times so far (a fast-rising count means the interrupt is re-firing without being resolved)\n", call_count);
+
     if (!state.present)
         return;
 

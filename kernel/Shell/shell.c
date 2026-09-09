@@ -18,6 +18,11 @@
 #include "../Process/Quarantine/Quarantine.h"
 #include "../Process/Blast/blast.h"
 #include "../Process/TIMELINE/timeline.h"
+#include "../../Networking/Ledger/ledger.h"
+#include "../../Networking/Ledger6/ledger6.h"
+#include "../../Networking/FrontDesk/frontdesk.h"
+#include "../../Networking/Rolodex6/rolodex6.h"
+#include "../../Networking/Concierge6/concierge6.h"
 #include "../Memory/KallocTracker/kalloc_tracker.h"
 #include "../Process/FDLeak/fdleak.h"
 #include "../Memory/buddy.h"
@@ -111,6 +116,42 @@ void shell_execute(char *input)
     {
         identity_command();
     }
+
+    else if (strcmp(argv[0], "netstat") == 0)
+    {
+        set_color(VGA_CYAN, VGA_BLACK);
+        kprintf("\n NETWORK STATUS\n");
+        kprintf(" --------------\n");
+        reset_color();
+
+        const frontdesk_state_t *nic = frontdesk_get_state();
+        kprintf(" NIC present: %s\n", nic->present ? "yes" : "no (networking offline)");
+
+        if (nic->present)
+        {
+            uint8_t ip6[16];
+            rolodex6_get_ip(ip6);
+            kprintf(" Current IPv6 address: ");
+            for (int i = 0; i < 16; i += 2)
+            {
+                kprintf("%02x%02x", ip6[i], ip6[i + 1]);
+                if (i < 14)
+                    kprintf(":");
+            }
+            kprintf("\n");
+
+            concierge6_state_t s6 = concierge6_get_state();
+            const char *s6_name = (s6 == CONCIERGE6_DAD_LINK_LOCAL) ? "checking link-local address (DAD)"
+                                   : (s6 == CONCIERGE6_SOLICITING_ROUTER) ? "waiting for a Router Advertisement"
+                                   : (s6 == CONCIERGE6_DAD_GLOBAL)        ? "checking global address (DAD)"
+                                                                          : "ready";
+            kprintf(" IPv6 bring-up state: %s\n", s6_name);
+        }
+
+        ledger_print();
+        ledger6_print();
+    }
+
 
     else if (strcmp(argv[0], "health") == 0)
     {
@@ -541,6 +582,7 @@ void shell_execute(char *input)
         help_line("clear", "clear the screen");
         help_line("identity", "system dashboard");
         help_line("health", "system health report");
+        help_line("netstat", "network status: addresses, SLAAC state, full counters");
         help_line("help", "show this list");
         kprint("\n");
 

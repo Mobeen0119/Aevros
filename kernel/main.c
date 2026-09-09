@@ -123,7 +123,7 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
     pit_init(100);
     asm volatile("sti");
 
-    // frontdesk_bringup(); // brings up the NIC, IPv4 + IPv6 addressing, DHCP - was never called from anywhere before this
+    frontdesk_bringup(); // brings up the NIC, IPv4 + IPv6 addressing, DHCP - was never called from anywhere before this
 
     set_color(VGA_MAGENTA, VGA_BLACK);
     kprintf("                    Welcome to AevrosOS\n");

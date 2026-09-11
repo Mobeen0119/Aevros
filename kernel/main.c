@@ -28,6 +28,7 @@
 #include "../Lib/kprintf.h"
 #include "pic.h"
 #include "../Networking/FrontDesk/frontdesk.h"
+#include "../GUI/Algo/Framebuffer/framebuffer.h"
 #include "io.h"
 #include "Syscall/syscall.h"
 #include "Process/exectest_blob.h"
@@ -67,6 +68,27 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
     pmm_init(free_start, pmm_size);
 
     paging_init();
+
+    // if (framebuffer_init(mb_magic, mb_info_addr))
+    // {
+    //     fb_rect_filled(900, 700, 60, 60, 255, 0, 0);
+
+    //     fb_clear(10, 10, 14);
+    //     fb_rect_filled(900, 700, 60, 60, 0, 255, 0);
+
+    //     fb_rect_filled(40, 40, 200, 120, 20, 20, 26);
+    //     fb_rect(40, 40, 200, 120, 212, 175, 55);
+    //     fb_circle_filled(500, 300, 60, 20, 20, 26);
+    //     fb_circle(500, 300, 60, 212, 175, 55);
+
+    //     fb_rect_filled(900, 700, 60, 60, 0, 0, 255);
+    // }
+    // else
+    // {
+    //     volatile char *v = (volatile char *)0xB8000;
+    //     v[0] = 'F';
+    //     v[1] = 0x4F; 
+    // }
 
     uint32_t desired_end = 0x2800000; 
     uint32_t detected_end = 0;

@@ -9,8 +9,22 @@ _start:
 align 4
 multiboot_header:
     dd 0x1BADB002
-    dd 0x00
+
+     dd 0x00
     dd -(0x1BADB002 + 0x00)
+    
+    ; Enable When GUI renders
+  ;  dd 0x00000004          ; bit 2: request a graphics mode
+   ; dd -(0x1BADB002 + 0x00000004)
+    ;dd 0                   ; header_addr - unused (bit 16 not set), but GRUB
+    ;dd 0                   ; load_addr     always reads this as a fixed-size
+    ;dd 0                   ; load_end_addr struct, so these 5 fields have to
+    ;dd 0                   ; bss_end_addr  physically exist even though their
+    ;dd 0                   ; entry_addr    values are ignored
+    ;dd 0                   ; mode_type: 0 = linear graphics (not text)
+    ;dd 1024                ; preferred width
+    ;dd 768                 ; preferred height
+    ;dd 32                  ; preferred bits per pixel
 
 _start_real:
     cli

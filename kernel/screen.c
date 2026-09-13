@@ -1,5 +1,6 @@
 #include "../Include/screen.h"
 #include "../Include/terminal.h"
+#include "../Drivers/Serial/serial.h"
 #define ROW 25
 #define COL 80
 
@@ -25,6 +26,7 @@ void kclear_screen()
 
 void kput_char(char c)
 {
+    serial_write_char(c); // mirrors every kprintf character out COM1, independent of whatever the display is doing
 
     if (c == '\n')
     {

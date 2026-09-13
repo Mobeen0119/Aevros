@@ -4,36 +4,28 @@
 
 typedef struct
 {
-    uint32_t flags;
-    uint32_t mem_lower, mem_upper;
-    uint32_t boot_device;
-    uint32_t cmdline;
-    uint32_t mods_count, mods_addr;
-    uint32_t syms[3];
+    uint32_t type;
+    uint32_t size;
+} __attribute__((packed)) mb2_tag_header_t;
 
-    uint32_t mmap_length, mmap_addr;
-    uint32_t drives_length, drives_addr;
-    uint32_t config_table;
-    uint32_t boot_loader_name;
-
-    uint32_t apm_table;
-    uint32_t vbe_control_info, vbe_mode_info;
-    uint16_t vbe_mode, vbe_interface_seg, vbe_interface_off, vbe_interface_len;
+typedef struct
+{
+    uint32_t type; // = 8
+    uint32_t size;
     uint64_t framebuffer_addr;
-    
     uint32_t framebuffer_pitch;
-
-    uint32_t framebuffer_width, framebuffer_height;
+    uint32_t framebuffer_width;
+    uint32_t framebuffer_height;
     uint8_t framebuffer_bpp;
     uint8_t framebuffer_type;
-
+    uint8_t reserved;
     uint8_t red_field_position, red_mask_size;
     uint8_t green_field_position, green_mask_size;
     uint8_t blue_field_position, blue_mask_size;
+} __attribute__((packed)) mb2_tag_framebuffer_t;
 
-} __attribute__((packed)) multiboot_info_t;
-
-#define MB_FLAG_FRAMEBUFFER (1 << 12)
+#define MB2_TAG_END 0
+#define MB2_TAG_FRAMEBUFFER 8
 #define FB_TYPE_RGB 1
 
 static uint8_t *fb_base;
@@ -45,53 +37,84 @@ int framebuffer_init(uint32_t mb_magic, uint32_t mb_info_addr)
 {
     if (mb_magic != MULTIBOOT_BOOTLOADER_MAGIC)
     {
-        kprintf("[Framebuffer] not booted by a multiboot-compliant loader, no graphics\n");
+        kprintf("[Framebuffer] not booted by a multiboot2-compliant loader (magic=%x), no graphics\n", mb_magic);
         return 0;
     }
 
-    const multiboot_info_t *mbi = (const multiboot_info_t *)(uintptr_t)mb_info_addr;
+    uint32_t total_size = *(const uint32_t *)(uintptr_t)mb_info_addr;
+    kprintf("[Framebuffer] mb2 info total_size=%u\n", total_size);
 
-    if (!(mbi->flags & MB_FLAG_FRAMEBUFFER))
+    uint8_t *ptr = (uint8_t *)(uintptr_t)(mb_info_addr + 8); // skip total_size(4) + reserved(4)
+    uint8_t *end = (uint8_t *)(uintptr_t)(mb_info_addr + total_size);
+
+    const mb2_tag_framebuffer_t *fb_tag = 0;
+
+    while (ptr < end)
     {
-        kprintf("[Framebuffer] bootloader didn't hand back framebuffer info - GRUB may need updating, or the requested mode wasn't available\n");
-        return 0;
+        const mb2_tag_header_t *tag = (const mb2_tag_header_t *)ptr;
+
+        if (tag->type == MB2_TAG_END)
+            break;
+
+        if (tag->type == MB2_TAG_FRAMEBUFFER)
+            fb_tag = (const mb2_tag_framebuffer_t *)ptr;
+
+        uint32_t advance = (tag->size + 7) & ~7u; 
+        if (advance == 0)
+            break; // malformed tag - bail rather than loop forever
+        ptr += advance;
     }
 
-    if (mbi->framebuffer_type != FB_TYPE_RGB)
+    if (!fb_tag)
     {
-        kprintf("[Framebuffer] got a non-RGB framebuffer (type %d) - not handling indexed/EGA modes, no graphics\n", mbi->framebuffer_type);
+        kprintf("[Framebuffer] no framebuffer tag in multiboot2 info - GRUB may not have granted the requested mode\n");
         return 0;
     }
 
-    if (mbi->framebuffer_bpp != 32 && mbi->framebuffer_bpp != 24)
+    kprintf("[Framebuffer] type=%d bpp=%d addr=%x pitch=%d %ux%u\n",
+            fb_tag->framebuffer_type, fb_tag->framebuffer_bpp, (uint32_t)fb_tag->framebuffer_addr,
+            fb_tag->framebuffer_pitch, fb_tag->framebuffer_width, fb_tag->framebuffer_height);
+
+    if (fb_tag->framebuffer_type != FB_TYPE_RGB)
     {
-        kprintf("[Framebuffer] unsupported bit depth %d bpp - only 24/32 are handled, no graphics\n", mbi->framebuffer_bpp);
+        kprintf("[Framebuffer] got a non-RGB framebuffer (type %d) - not handling indexed/EGA modes, no graphics\n", fb_tag->framebuffer_type);
         return 0;
     }
 
-    fb_base = (uint8_t *)(uintptr_t)mbi->framebuffer_addr; // 32-bit kernel, high dword of the addr is always 0 
-    fb_pitch = mbi->framebuffer_pitch;
-    fb_width = mbi->framebuffer_width;
-    fb_height = mbi->framebuffer_height;
-    fb_bpp = mbi->framebuffer_bpp;
+    if (fb_tag->framebuffer_bpp != 32 && fb_tag->framebuffer_bpp != 24)
+    {
+        kprintf("[Framebuffer] unsupported bit depth %d bpp - only 24/32 are handled, no graphics\n", fb_tag->framebuffer_bpp);
+        return 0;
+    }
 
-    red_pos = mbi->red_field_position;
-    red_size = mbi->red_mask_size;
-   
-    green_pos = mbi->green_field_position;
-    green_size = mbi->green_mask_size;
-    blue_pos = mbi->blue_field_position;
-    blue_size = mbi->blue_mask_size;
+    uint32_t fb_addr = (uint32_t)fb_tag->framebuffer_addr;
 
-    available = 1;
+    fb_pitch = fb_tag->framebuffer_pitch;
+    fb_width = fb_tag->framebuffer_width;
+    fb_height = fb_tag->framebuffer_height;
+    fb_bpp = fb_tag->framebuffer_bpp;
 
+    red_pos = fb_tag->red_field_position;
+    red_size = fb_tag->red_mask_size;
+    green_pos = fb_tag->green_field_position;
+    green_size = fb_tag->green_mask_size;
+    blue_pos = fb_tag->blue_field_position;
+    blue_size = fb_tag->blue_mask_size;
+
+    kprintf("[Framebuffer] color fields: red(pos=%d,size=%d) green(pos=%d,size=%d) blue(pos=%d,size=%d)\n",
+            red_pos, red_size, green_pos, green_size, blue_pos, blue_size);
+
+    
     uint32_t fb_size = fb_pitch * fb_height;
-    uint32_t start_page = (uint32_t)(uintptr_t)fb_base & ~0xFFF;
-    uint32_t end_page = ((uint32_t)(uintptr_t)fb_base + fb_size + 0xFFF) & ~0xFFF;
+    uint32_t start_page = fb_addr & ~0xFFF;
+    uint32_t end_page = (fb_addr + fb_size + 0xFFF) & ~0xFFF;
     for (uint32_t addr = start_page; addr < end_page; addr += 0x1000)
         map_page(addr, addr, PAGE_PRESENT | PAGE_WRITE);
 
-    kprintf("[Framebuffer] %ux%u @ %u bpp, pitch=%u, addr=%x\n", fb_width, fb_height, fb_bpp, fb_pitch, (uint32_t)(uintptr_t)fb_base);
+    fb_base = (uint8_t *)(uintptr_t)fb_addr;
+    available = 1;
+
+    kprintf("[Framebuffer] ready: %ux%u @ %u bpp, pitch=%u, addr=%x\n", fb_width, fb_height, fb_bpp, fb_pitch, fb_addr);
     return 1;
 }
 
@@ -109,6 +132,7 @@ uint32_t framebuffer_height(void)
 {
     return fb_height;
 }
+
 
 static inline uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b)
 {
@@ -129,7 +153,6 @@ void fb_put_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b)
     p[0] = (uint8_t)(color & 0xFF);
     p[1] = (uint8_t)((color >> 8) & 0xFF);
     p[2] = (uint8_t)((color >> 16) & 0xFF);
-
     if (fb_bpp == 32)
         p[3] = (uint8_t)((color >> 24) & 0xFF);
 }
@@ -141,6 +164,7 @@ void fb_clear(uint8_t r, uint8_t g, uint8_t b)
             fb_put_pixel((int)x, (int)y, r, g, b);
 }
 
+// Bresenham, integer-only, all eight octants via the error-term/sign approach
 void fb_line(int x0, int y0, int x1, int y1, uint8_t r, uint8_t g, uint8_t b)
 {
     int dx = x1 - x0;
@@ -149,7 +173,6 @@ void fb_line(int x0, int y0, int x1, int y1, uint8_t r, uint8_t g, uint8_t b)
     int abs_dy = dy < 0 ? -dy : dy;
     int sx = dx < 0 ? -1 : 1;
     int sy = dy < 0 ? -1 : 1;
-
     int err = (abs_dx > abs_dy ? abs_dx : -abs_dy) / 2;
 
     int x = x0, y = y0;
@@ -187,6 +210,7 @@ void fb_rect_filled(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b)
         fb_line(x, y + row, x + w - 1, y + row, r, g, b);
 }
 
+// Midpoint circle algorithm, eight-way symmetry
 void fb_circle(int cx, int cy, int radius, uint8_t r, uint8_t g, uint8_t b)
 {
     int x = radius;
@@ -225,4 +249,14 @@ void fb_circle_filled(int cx, int cy, int radius, uint8_t r, uint8_t g, uint8_t 
         span--;
         fb_line(cx - span, cy + dy, cx + span, cy + dy, r, g, b);
     }
+}
+
+void fb_debug_raw_fill(uint8_t value)
+{
+    if (!available)
+        return;
+
+    uint32_t total_bytes = fb_pitch * fb_height;
+    for (uint32_t i = 0; i < total_bytes; i++)
+        fb_base[i] = value;
 }

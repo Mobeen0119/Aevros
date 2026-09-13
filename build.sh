@@ -66,7 +66,10 @@ set timeout=0
 set default=0
 
 menuentry "AevrosOS" {
-    multiboot /boot/kernel.elf
+    insmod vbe
+    insmod video
+    set gfxpayload=1024x768x32
+    multiboot2 /boot/kernel.elf
     boot
 }
 EOF

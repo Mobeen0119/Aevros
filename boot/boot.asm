@@ -6,25 +6,26 @@ global _start
 _start:
     jmp _start_real
 
-align 4
+align 8
 multiboot_header:
-    dd 0x1BADB002
+    dd 0xE85250D6                                        ; multiboot2 magic
+    dd 0                                                  ; architecture: 0 = i386 protected mode
+    dd multiboot_header_end - multiboot_header            ; header length
+    dd -(0xE85250D6 + 0 + (multiboot_header_end - multiboot_header))  ; checksum
 
-     dd 0x00
-    dd -(0x1BADB002 + 0x00)
-    
-    ; Enable When GUI renders
-  ;  dd 0x00000004          ; bit 2: request a graphics mode
-   ; dd -(0x1BADB002 + 0x00000004)
-    ;dd 0                   ; header_addr - unused (bit 16 not set), but GRUB
-    ;dd 0                   ; load_addr     always reads this as a fixed-size
-    ;dd 0                   ; load_end_addr struct, so these 5 fields have to
-    ;dd 0                   ; bss_end_addr  physically exist even though their
-    ;dd 0                   ; entry_addr    values are ignored
-    ;dd 0                   ; mode_type: 0 = linear graphics (not text)
-    ;dd 1024                ; preferred width
-    ;dd 768                 ; preferred height
-    ;dd 32                  ; preferred bits per pixel
+    align 8
+    dw 5                    ; tag type 5: framebuffer
+    dw 0                    ; flags
+    dd 20                   ; tag size: 8 header bytes + width/height/depth (4 each)
+    dd 1024                 ; width
+    dd 768                  ; height
+    dd 32                   ; preferred bits per pixel
+
+    align 8
+    dw 0                    ; tag type 0: end of tags
+    dw 0
+    dd 8
+multiboot_header_end:
 
 _start_real:
     cli

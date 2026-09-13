@@ -29,6 +29,7 @@
 #include "pic.h"
 #include "../Networking/FrontDesk/frontdesk.h"
 #include "../GUI/Algo/Framebuffer/framebuffer.h"
+#include "../Drivers/Serial/serial.h"
 #include "io.h"
 #include "Syscall/syscall.h"
 #include "Process/exectest_blob.h"
@@ -48,8 +49,17 @@ typedef struct multiboot_info
 
 void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
 {
+    serial_init();
+    serial_write_char('B');
+    serial_write_char('\n');
+
+    volatile char *entry_marker = (volatile char *)0xB8000;
+    entry_marker[0] = 'K';
+    entry_marker[1] = 0x4F; 
+    entry_marker[3] = 0x4F;
+
     volatile char *v = (volatile char *)0xB8000;
-    for (int i = 0; i < 80 * 25 * 2; i += 2)
+    for (int i = 4; i < 80 * 25 * 2; i += 2)
     {
         v[i] = ' ';
 
@@ -69,26 +79,36 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
 
     paging_init();
 
-    // if (framebuffer_init(mb_magic, mb_info_addr))
-    // {
-    //     fb_rect_filled(900, 700, 60, 60, 255, 0, 0);
+    kprintf("[Boot] about to call framebuffer_init, mb_magic=%x mb_info_addr=%x\n", mb_magic, mb_info_addr);
 
-    //     fb_clear(10, 10, 14);
-    //     fb_rect_filled(900, 700, 60, 60, 0, 255, 0);
+    if (framebuffer_init(mb_magic, mb_info_addr))
+    {
+        kprintf("[Boot] framebuffer_init returned success, width=%u height=%u\n", framebuffer_width(), framebuffer_height());
 
-    //     fb_rect_filled(40, 40, 200, 120, 20, 20, 26);
-    //     fb_rect(40, 40, 200, 120, 212, 175, 55);
-    //     fb_circle_filled(500, 300, 60, 20, 20, 26);
-    //     fb_circle(500, 300, 60, 212, 175, 55);
+        fb_debug_raw_fill(0xFF);
+        kprintf("[Boot] raw fill done, holding here 3 seconds so it's visible before the demo overwrites it\n");
+        for (volatile uint32_t i = 0; i < 150000000; i++)
+            ;
 
-    //     fb_rect_filled(900, 700, 60, 60, 0, 0, 255);
-    // }
-    // else
-    // {
-    //     volatile char *v = (volatile char *)0xB8000;
-    //     v[0] = 'F';
-    //     v[1] = 0x4F; 
-    // }
+        fb_rect_filled(0, 0, 150, 150, 255, 0, 0);
+
+        fb_clear(10, 10, 14);
+        fb_rect_filled(0, 0, 150, 150, 0, 255, 0);
+
+        fb_rect_filled(300, 50, 200, 120, 20, 20, 26);
+        fb_rect(300, 50, 200, 120, 212, 175, 55);
+        fb_circle_filled(250, 300, 50, 20, 20, 26);
+        fb_circle(250, 300, 50, 212, 175, 55);
+
+        fb_rect_filled(0, 0, 150, 150, 0, 0, 255);
+        kprintf("[Boot] demo drawing complete\n");
+    }
+    else
+    {
+        kprintf("[Boot] framebuffer_init returned failure\n");
+        volatile char *v = (volatile char *)0xB8000;
+        v[0] = 'F';
+        v[1] = 0x4F; 
 
     uint32_t desired_end = 0x2800000; 
     uint32_t detected_end = 0;
@@ -145,8 +165,7 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
     pit_init(100);
     asm volatile("sti");
 
-    frontdesk_bringup(); // brings up the NIC, IPv4 + IPv6 addressing, DHCP - was never called from anywhere before this
-
+    frontdesk_bringup(); 
     set_color(VGA_MAGENTA, VGA_BLACK);
     kprintf("                    Welcome to AevrosOS\n");
     reset_color();

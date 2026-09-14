@@ -19,7 +19,7 @@ typedef struct
     uint32_t framebuffer_height;
     uint8_t framebuffer_bpp;
     uint8_t framebuffer_type;
-    uint8_t reserved;
+    uint8_t reserved[2]; //off by one shifted every color field follows
     uint8_t red_field_position, red_mask_size;
     uint8_t green_field_position, green_mask_size;
     uint8_t blue_field_position, blue_mask_size;
@@ -105,6 +105,7 @@ int framebuffer_init(uint32_t mb_magic, uint32_t mb_info_addr)
     kprintf("[Framebuffer] color fields: red(pos=%d,size=%d) green(pos=%d,size=%d) blue(pos=%d,size=%d)\n",
             red_pos, red_size, green_pos, green_size, blue_pos, blue_size);
 
+
     uint32_t fb_size = fb_pitch * fb_height;
     uint32_t start_page = fb_addr & ~0xFFF;
     uint32_t end_page = (fb_addr + fb_size + 0xFFF) & ~0xFFF;
@@ -133,7 +134,6 @@ uint32_t framebuffer_height(void)
     return fb_height;
 }
 
-/
 static inline uint32_t pack_color(uint8_t r, uint8_t g, uint8_t b)
 {
     uint32_t rr = (r >> (8 - red_size)) << red_pos;
@@ -210,7 +210,6 @@ void fb_rect_filled(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b)
         fb_line(x, y + row, x + w - 1, y + row, r, g, b);
 }
 
-// Midpoint circle algorithm, eight-way symmetry
 void fb_circle(int cx, int cy, int radius, uint8_t r, uint8_t g, uint8_t b)
 {
     int x = radius;
@@ -242,7 +241,7 @@ void fb_circle_filled(int cx, int cy, int radius, uint8_t r, uint8_t g, uint8_t 
 {
     for (int dy = -radius; dy <= radius; dy++)
     {
-        int dx = radius * radius - dy * dy; // dx^2 <= radius^2 - dy^2
+        int dx = radius * radius - dy * dy; // dx^2 <= radius^2 - dy^2  span width
         int span = 0;
         while (span * span <= dx)
             span++;

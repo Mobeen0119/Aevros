@@ -12,14 +12,21 @@ typedef struct {
     bool    middle_button;
 } mouse_event_t;
 
+typedef struct {
+    uint64_t last_irq_tick;
+    uint64_t packets_decoded;
+    uint32_t queue_len;
+} mouse_status_t;
+
 void ps2_mouse_init(void);
-
 void ps2_mouse_irq_handler(void);
-
 
 bool ps2_mouse_poll_event(mouse_event_t *out);
 
-
 bool ps2_mouse_selftest(void);
+
+void ps2_mouse_status(mouse_status_t *out);
+
+const char *ps2_mouse_dependency_note(void);
 
 #endif

@@ -1,0 +1,302 @@
+
+
+#include "cursor.h"
+
+extern void fb_put_pixel(int32_t x, int32_t y, uint32_t color);
+extern uint32_t fb_get_pixel(int32_t x, int32_t y);
+
+extern uint32_t fb_width(void);
+
+extern uint32_t fb_height(void);
+
+extern uint64_t get_ticks(void);
+
+#define CURSOR_SPAN 9
+#define CURSOR_CENTER 4
+
+#define CURSOR_GAP 1
+
+#define COLOR_HOTSPOT 0xFFFFFF
+#define COLOR_IDLE 0x3A3A3A
+
+#define COLOR_MOVING 0x00FFFF
+#define COLOR_ACTIVE 0xFF3B30
+
+#define CURSOR_HISTORY_LEN 16
+
+static uint32_t saved_pixels[CURSOR_SPAN][CURSOR_SPAN];
+static cursor_state_t state = {0, 0, false};
+static cursor_visual_state_t visual_state = CURSOR_IDLE;
+
+static uint64_t last_update_tick = 0;
+
+static uint64_t moves_applied = 0;
+
+static cursor_history_entry_t history[CURSOR_HISTORY_LEN];
+static uint32_t history_head = 0;
+static uint32_t history_count = 0;
+
+static int32_t clamp_i32(int32_t v, int32_t lo, int32_t hi)
+{
+    if (v < lo)
+        return lo;
+    if (v > hi)
+        return hi;
+    return v;
+}
+
+static cursor_visual_state_t classify_visual_state(mouse_event_t ev)
+{
+    if (ev.left_button || ev.right_button || ev.middle_button)
+        return CURSOR_ACTIVE;
+
+    if (ev.dx != 0 || ev.dy != 0)
+        return CURSOR_MOVING;
+
+    return CURSOR_IDLE;
+}
+
+// ring-buffer push no hardware touched....selftest can call it directly
+
+static void push_history(int32_t x, int32_t y, cursor_visual_state_t vstate, uint64_t tick)
+{
+    history[history_head] = (cursor_history_entry_t){x, y, vstate, tick};
+
+    history_head = (history_head + 1) % CURSOR_HISTORY_LEN;
+
+    if (history_count < CURSOR_HISTORY_LEN)
+        history_count++;
+}
+
+uint32_t cursor_get_history(cursor_history_entry_t *out, uint32_t max_entries)
+{
+    uint32_t n = history_count < max_entries ? history_count : max_entries;
+
+    uint32_t oldest = (history_head + CURSOR_HISTORY_LEN - history_count) % CURSOR_HISTORY_LEN;
+    for (uint32_t i = 0; i < n; i++)
+    {
+
+        out[i] = history[(oldest + i) % CURSOR_HISTORY_LEN];
+    }
+    return n;
+}
+
+static uint32_t color_for(int32_t row, int32_t col)
+{
+    if (row == CURSOR_CENTER && col == CURSOR_CENTER)
+        return COLOR_HOTSPOT;
+
+    switch (visual_state)
+    {
+    case CURSOR_ACTIVE:
+        return COLOR_ACTIVE;
+    case CURSOR_MOVING:
+        return COLOR_MOVING;
+
+    default:
+        return COLOR_IDLE;
+    }
+}
+
+static void save_background(int32_t x, int32_t y)
+{
+    int32_t origin_x = x - CURSOR_CENTER;
+    int32_t origin_y = y - CURSOR_CENTER;
+
+    for (int32_t row = 0; row < CURSOR_SPAN; row++)
+    {
+        for (int32_t col = 0; col < CURSOR_SPAN; col++)
+        {
+
+            int32_t sx = origin_x + col;
+            int32_t sy = origin_y + row;
+
+            if (sx < 0 || sy < 0 || sx >= (int32_t)fb_width() || sy >= (int32_t)fb_height())
+                continue;
+            saved_pixels[row][col] = fb_get_pixel(sx, sy);
+        }
+    }
+}
+
+static void restore_background(int32_t x, int32_t y)
+{
+    int32_t origin_x = x - CURSOR_CENTER;
+    int32_t origin_y = y - CURSOR_CENTER;
+
+    for (int32_t row = 0; row < CURSOR_SPAN; row++)
+    {
+
+        for (int32_t col = 0; col < CURSOR_SPAN; col++)
+        {
+            int32_t sx = origin_x + col;
+
+            int32_t sy = origin_y + row;
+            if (sx < 0 || sy < 0 || sx >= (int32_t)fb_width() || sy >= (int32_t)fb_height())
+                continue;
+            fb_put_pixel(sx, sy, saved_pixels[row][col]);
+        }
+    }
+}
+
+static void draw_cursor(int32_t x, int32_t y)
+{
+    int32_t origin_x = x - CURSOR_CENTER;
+
+    int32_t origin_y = y - CURSOR_CENTER;
+    for (int32_t row = 0; row < CURSOR_SPAN; row++)
+    {
+        for (int32_t col = 0; col < CURSOR_SPAN; col++)
+        {
+            bool on_axis = (row == CURSOR_CENTER) || (col == CURSOR_CENTER);
+
+            if (!on_axis)
+                continue;
+
+            bool is_hotspot = (row == CURSOR_CENTER && col == CURSOR_CENTER);
+
+            int32_t dist = (row == CURSOR_CENTER) ? (col > CURSOR_CENTER ? col - CURSOR_CENTER : CURSOR_CENTER - col)
+                                                  : (row > CURSOR_CENTER ? row - CURSOR_CENTER : CURSOR_CENTER - row);
+            if (!is_hotspot && dist <= CURSOR_GAP)
+                continue;
+
+            int32_t sx = origin_x + col;
+
+            int32_t sy = origin_y + row;
+            if (sx < 0 || sy < 0 || sx >= (int32_t)fb_width() || sy >= (int32_t)fb_height())
+                continue;
+
+            fb_put_pixel(sx, sy, color_for(row, col));
+        }
+    }
+}
+
+void cursor_init(int32_t start_x, int32_t start_y)
+{
+    state.x = clamp_i32(start_x, 0, (int32_t)fb_width() - 1);
+
+    state.y = clamp_i32(start_y, 0, (int32_t)fb_height() - 1);
+    state.visible = true;
+
+    visual_state = CURSOR_IDLE;
+    last_update_tick = get_ticks();
+
+    moves_applied = 0;
+    history_head = 0;
+
+    history_count = 0;
+    push_history(state.x, state.y, visual_state, last_update_tick);
+    save_background(state.x, state.y);
+
+    draw_cursor(state.x, state.y);
+}
+
+void cursor_update(mouse_event_t ev)
+{
+    if (!state.visible)
+        return;
+
+    restore_background(state.x, state.y);
+
+    state.x = clamp_i32(state.x + ev.dx, 0, (int32_t)fb_width() - 1);
+
+    state.y = clamp_i32(state.y - ev.dy, 0, (int32_t)fb_height() - 1); // PS/2 Y is inverted vs screen rows
+    visual_state = classify_visual_state(ev);
+
+    last_update_tick = get_ticks();
+
+    push_history(state.x, state.y, visual_state, last_update_tick);
+
+    save_background(state.x, state.y);
+    draw_cursor(state.x, state.y);
+
+    moves_applied++;
+}
+
+void cursor_hide(void)
+{
+    if (!state.visible)
+        return;
+
+    restore_background(state.x, state.y);
+    state.visible = false;
+}
+
+void cursor_show(void)
+{
+    if (state.visible)
+        return;
+
+    save_background(state.x, state.y);
+
+    draw_cursor(state.x, state.y);
+
+    state.visible = true;
+}
+
+void cursor_status(cursor_status_t *out)
+{
+    out->last_update_tick = last_update_tick;
+    out->moves_applied = moves_applied;
+
+    out->x = state.x;
+    out->y = state.y;
+
+    out->visual_state = visual_state;
+}
+
+const char *cursor_dependency_note(void)
+{
+    return "Pointer input still flows without this, but nothing shows where it lands, what it's doing, or how it got there";
+}
+
+bool cursor_selftest(void)
+{
+    if (clamp_i32(-5, 0, 100) != 0)
+        return false;
+    if (clamp_i32(150, 0, 100) != 100)
+        return false;
+
+    mouse_event_t idle = {0, 0, false, false, false};
+
+    mouse_event_t moving = {3, -2, false, false, false};
+    mouse_event_t active = {0, 0, true, false, false};
+
+    if (classify_visual_state(idle) != CURSOR_IDLE)
+        return false;
+
+    if (classify_visual_state(moving) != CURSOR_MOVING)
+        return false;
+
+    if (classify_visual_state(active) != CURSOR_ACTIVE)
+        return false;
+
+    cursor_history_entry_t snapshot[CURSOR_HISTORY_LEN];
+    uint32_t snapshot_count = cursor_get_history(snapshot, CURSOR_HISTORY_LEN);
+
+    uint32_t saved_head = history_head;
+    uint32_t saved_count = history_count;
+
+    history_head = 0;
+    history_count = 0;
+    for (int i = 0; i < CURSOR_HISTORY_LEN + 3; i++)
+    {
+        push_history(i, i * 2, CURSOR_MOVING, (uint64_t)i);
+    }
+
+    cursor_history_entry_t out[CURSOR_HISTORY_LEN];
+
+    uint32_t n = cursor_get_history(out, CURSOR_HISTORY_LEN);
+    bool ok = (n == CURSOR_HISTORY_LEN) && (out[0].x == 3) && (out[CURSOR_HISTORY_LEN - 1].x == CURSOR_HISTORY_LEN + 2);
+
+    history_head = saved_head;
+    history_count = saved_count;
+
+    for (uint32_t i = 0; i < snapshot_count; i++)
+    {
+
+        uint32_t idx = (history_head + CURSOR_HISTORY_LEN - snapshot_count + i) % CURSOR_HISTORY_LEN;
+        history[idx] = snapshot[i];
+    }
+
+    return ok;
+}

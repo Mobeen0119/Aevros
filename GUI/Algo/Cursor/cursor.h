@@ -60,6 +60,6 @@ uint32_t cursor_get_history(cursor_history_entry_t *out, uint32_t max_entries);
 
 bool cursor_selftest(void);
 
-
+void cursor_notify_dirty(int32_t x0, int32_t y0, int32_t x1, int32_t y1);
 
 #endif

@@ -300,3 +300,24 @@ bool cursor_selftest(void)
 
     return ok;
 }
+
+void cursor_notify_dirty(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
+{
+    if (!state.visible)
+        return;
+
+    int32_t cx0 = state.x - CURSOR_CENTER;
+    int32_t cy0 = state.y - CURSOR_CENTER;
+
+    int32_t cx1 = cx0 + CURSOR_SPAN - 1;
+
+    int32_t cy1 = cy0 + CURSOR_SPAN - 1;
+    bool overlaps = !(x1 < cx0 || x0 > cx1 || y1 < cy0 || y0 > cy1);
+
+    if (!overlaps)
+        return;
+
+    save_background(state.x, state.y);
+    draw_cursor(state.x, state.y);
+    
+}

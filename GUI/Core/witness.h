@@ -2,6 +2,7 @@
 #define WITNESS_H
 
 #include <stdint.h>
+
 #include <stdbool.h>
 #include "registry.h"
 
@@ -23,9 +24,12 @@ typedef struct {
 } witness_log_entry_t;
 
 typedef struct {
-    char     name[REGISTRY_NAME_LEN];
+    char name[REGISTRY_NAME_LEN];
     intent_t intent;
-    bool     hit;
+
+    uint32_t wid;
+    bool hit;
+
 } witness_result_t;
 
 void witness_init(void);

@@ -2,7 +2,6 @@
 #include "../Interaction/Window/window.h"
 #include "../../Lib/string.h"
 
-
 extern uint64_t get_ticks(void);
 
 static witness_log_entry_t log_buf[WITNESS_LOG_LEN];
@@ -58,6 +57,8 @@ witness_result_t witness_resolve_click(int32_t x, int32_t y)
     intent_t intent = intent_for_state(state);
 
     strncpy(result.name, win.owner, REGISTRY_NAME_LEN);
+
+    result.wid = wid;
 
     result.intent = intent;
     result.hit = true;

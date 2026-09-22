@@ -32,6 +32,7 @@ bool window_focus(uint32_t wid);
 bool window_close(uint32_t wid);
 bool window_resize(uint32_t wid, uint32_t new_w, uint32_t new_h);
 
+bool window_move(uint32_t wid, uint32_t new_x, uint32_t new_y);
 bool window_minimize(uint32_t wid);
 
 

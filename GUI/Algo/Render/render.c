@@ -12,14 +12,24 @@ extern uint64_t get_ticks(void);
 #define COLOR_ORPHANED 0xB8483F
 #define COLOR_TITLE_TEXT 0xE6E5E2
 
+#define MAX_DAMAGE_RECTS WINDOW_MAX_WINDOWS
+static uint32_t bg_color = 0x000000;
+
+typedef struct
+{
+    int32_t x, y;
+
+    uint32_t w, h;
+} rect_t;
+
 typedef struct
 {
     uint32_t wid;
     entry_state_t last_state;
 
     int last_stacking_order;
+    uint32_t last_x, last_y, last_w, last_h;
     bool has_cache;
-
 } render_cache_t;
 
 static render_cache_t cache[WINDOW_MAX_WINDOWS];
@@ -27,6 +37,19 @@ static render_log_entry_t render_log[RENDER_LOG_LEN];
 static uint32_t log_head = 0;
 
 static uint32_t log_count = 0;
+
+static bool rects_intersect(rect_t a, rect_t b)
+{
+    return a.x < (int32_t)(b.x + b.w) && b.x < (int32_t)(a.x + a.w) &&
+           a.y < (int32_t)(b.y + b.h) && b.y < (int32_t)(a.y + a.h);
+}
+
+static void fill_rect(int32_t x, int32_t y, uint32_t w, uint32_t h, uint32_t color)
+{
+    for (uint32_t row = 0; row < h; row++)
+        for (uint32_t col = 0; col < w; col++)
+            fb_put_pixel(x + col, y + row, color);
+}
 
 static void push_render_log(uint32_t wid, redraw_reason_t reason, uint64_t tick)
 {
@@ -99,7 +122,7 @@ void window_render(uint32_t wid)
     font_draw_string(win.x + 4, win.y + 4, win.owner, COLOR_TITLE_TEXT);
 }
 
-static bool needs_redraw(render_cache_t *c, entry_state_t state, int stacking_order, redraw_reason_t *out_reason)
+static bool needs_redraw(render_cache_t *c, const window_t *w, entry_state_t state, redraw_reason_t *out_reason)
 {
     if (!c->has_cache)
     {
@@ -111,9 +134,16 @@ static bool needs_redraw(render_cache_t *c, entry_state_t state, int stacking_or
         *out_reason = REDRAW_STATE_CHANGED;
         return true;
     }
-    if (c->last_stacking_order != stacking_order)
+
+    if (c->last_stacking_order != w->stacking_order)
     {
         *out_reason = REDRAW_STACK_CHANGED;
+        return true;
+    }
+
+    if (c->last_x != w->x || c->last_y != w->y || c->last_w != w->w || c->last_h != w->h)
+    {
+        *out_reason = REDRAW_GEOMETRY_CHANGED;
         return true;
     }
     return false;
@@ -122,10 +152,59 @@ static bool needs_redraw(render_cache_t *c, entry_state_t state, int stacking_or
 void render_all_windows(void)
 {
     window_t all[WINDOW_MAX_WINDOWS];
+
     uint32_t n = window_list(all, WINDOW_MAX_WINDOWS);
 
-    bool drawn[WINDOW_MAX_WINDOWS] = {0};
+    rect_t damage[MAX_DAMAGE_RECTS];
 
+    uint32_t damage_count = 0;
+    redraw_reason_t reasons[WINDOW_MAX_WINDOWS];
+    bool must_redraw[WINDOW_MAX_WINDOWS] = {0};
+
+    for (uint32_t i = 0; i < n; i++)
+    {
+        entry_state_t state = registry_query(all[i].owner);
+
+        render_cache_t *c = find_cache(all[i].wid);
+
+        bool is_new = !c;
+        if (is_new)
+            c = find_free_cache_slot();
+
+        if (!c)
+            continue;
+
+        redraw_reason_t reason;
+        bool changed = needs_redraw(c, &all[i], state, &reason);
+
+        if (!is_new && reason == REDRAW_GEOMETRY_CHANGED && damage_count < MAX_DAMAGE_RECTS)
+        {
+
+            damage[damage_count++] = (rect_t){c->last_x, c->last_y, c->last_w, c->last_h};
+        }
+
+        if (changed)
+        {
+            must_redraw[i] = true;
+            reasons[i] = reason;
+        }
+    }
+
+    for (uint32_t d = 0; d < damage_count; d++)
+        fill_rect(damage[d].x, damage[d].y, damage[d].w, damage[d].h, bg_color);
+
+    for (uint32_t i = 0; i < n; i++)
+    {
+        rect_t r = {all[i].x, all[i].y, all[i].w, all[i].h};
+        for (uint32_t d = 0; d < damage_count; d++)
+            if (rects_intersect(r, damage[d]))
+            {
+                must_redraw[i] = true;
+                break;
+            }
+    }
+
+    bool drawn[WINDOW_MAX_WINDOWS] = {0};
     for (uint32_t done = 0; done < n; done++)
     {
         int best = -1;
@@ -139,29 +218,31 @@ void render_all_windows(void)
         drawn[best] = true;
 
         window_t *w = &all[best];
-        entry_state_t state = registry_query(w->owner);
 
         render_cache_t *c = find_cache(w->wid);
-
         bool is_new = !c;
         if (is_new)
             c = find_free_cache_slot();
+
         if (!c)
-            continue; // cache full
+            continue;
 
-        redraw_reason_t reason;
-
-        if (needs_redraw(c, state, w->stacking_order, &reason))
+        if (must_redraw[best])
         {
-
             window_render(w->wid);
-            push_render_log(w->wid, reason, get_ticks());
+            push_render_log(w->wid, is_new ? REDRAW_NEW : reasons[best], get_ticks());
         }
+
+        entry_state_t state = registry_query(w->owner);
 
         c->wid = w->wid;
         c->last_state = state;
-
         c->last_stacking_order = w->stacking_order;
+        c->last_x = w->x;
+        c->last_y = w->y;
+
+        c->last_w = w->w;
+        c->last_h = w->h;
         c->has_cache = true;
     }
 }

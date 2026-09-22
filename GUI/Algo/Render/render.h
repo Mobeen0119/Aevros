@@ -4,17 +4,28 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef enum {
-    REDRAW_NEW,            
-    REDRAW_STATE_CHANGED,  
-    REDRAW_STACK_CHANGED   
+typedef enum
+{
+    REDRAW_NEW,
+    REDRAW_STATE_CHANGED,
+    REDRAW_STACK_CHANGED
 } redraw_reason_t;
 
-typedef struct {
-    uint32_t        wid;
+typedef struct
+{
+    uint32_t wid;
     redraw_reason_t reason;
-    uint64_t        tick;
+
+    uint64_t tick;
 } render_log_entry_t;
+
+typedef enum
+{
+    REDRAW_NEW,
+    REDRAW_STATE_CHANGED,
+    REDRAW_STACK_CHANGED,
+    REDRAW_GEOMETRY_CHANGED
+} redraw_reason_t;
 
 #define RENDER_LOG_LEN 16
 

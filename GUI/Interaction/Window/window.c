@@ -108,6 +108,17 @@ bool window_minimize(uint32_t wid)
     return true;
 }
 
+bool window_move(uint32_t wid, uint32_t new_x, uint32_t new_y)
+{
+    window_t *win = find(wid);
+    if (!win)
+        return false;
+
+    win->x = new_x;
+    win->y = new_y;
+    return true;
+}
+
 bool window_at_point(int32_t x, int32_t y, uint32_t *out_wid)
 {
     window_t *top = NULL;

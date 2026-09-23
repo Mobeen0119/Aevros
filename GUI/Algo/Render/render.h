@@ -8,7 +8,12 @@ typedef enum
 {
     REDRAW_NEW,
     REDRAW_STATE_CHANGED,
-    REDRAW_STACK_CHANGED
+
+    REDRAW_STACK_CHANGED,
+    REDRAW_GEOMETRY_CHANGED,
+    
+    REDRAW_EXPOSED
+
 } redraw_reason_t;
 
 typedef struct

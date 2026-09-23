@@ -2,6 +2,7 @@
 #include "../../Interaction/Window/window.h"
 #include "../../Interaction/Registry/registry.h"
 #include "../Font/font.h"
+#include <stddef.h>
 
 extern void fb_put_pixel(int32_t x, int32_t y, uint32_t color);
 extern uint64_t get_ticks(void);
@@ -168,20 +169,19 @@ void render_all_windows(void)
         render_cache_t *c = find_cache(all[i].wid);
 
         bool is_new = !c;
+
         if (is_new)
             c = find_free_cache_slot();
 
         if (!c)
-            continue;
+            continue; // cache full
+
 
         redraw_reason_t reason;
         bool changed = needs_redraw(c, &all[i], state, &reason);
 
-        if (!is_new && reason == REDRAW_GEOMETRY_CHANGED && damage_count < MAX_DAMAGE_RECTS)
-        {
-
+        if (reason == REDRAW_GEOMETRY_CHANGED && damage_count < MAX_DAMAGE_RECTS)
             damage[damage_count++] = (rect_t){c->last_x, c->last_y, c->last_w, c->last_h};
-        }
 
         if (changed)
         {
@@ -195,13 +195,20 @@ void render_all_windows(void)
 
     for (uint32_t i = 0; i < n; i++)
     {
+        if (must_redraw[i])
+            continue;
+
         rect_t r = {all[i].x, all[i].y, all[i].w, all[i].h};
+
         for (uint32_t d = 0; d < damage_count; d++)
+        {
             if (rects_intersect(r, damage[d]))
             {
                 must_redraw[i] = true;
+                reasons[i] = REDRAW_EXPOSED;
                 break;
             }
+        }
     }
 
     bool drawn[WINDOW_MAX_WINDOWS] = {0};
@@ -218,9 +225,11 @@ void render_all_windows(void)
         drawn[best] = true;
 
         window_t *w = &all[best];
+        entry_state_t state = registry_query(w->owner);
 
         render_cache_t *c = find_cache(w->wid);
         bool is_new = !c;
+
         if (is_new)
             c = find_free_cache_slot();
 
@@ -230,13 +239,12 @@ void render_all_windows(void)
         if (must_redraw[best])
         {
             window_render(w->wid);
-            push_render_log(w->wid, is_new ? REDRAW_NEW : reasons[best], get_ticks());
+            push_render_log(w->wid, reasons[best], get_ticks());
         }
-
-        entry_state_t state = registry_query(w->owner);
 
         c->wid = w->wid;
         c->last_state = state;
+
         c->last_stacking_order = w->stacking_order;
         c->last_x = w->x;
         c->last_y = w->y;
@@ -274,10 +282,11 @@ bool render_selftest(void)
         return false;
 
     render_cache_t c = {0};
+    window_t w = {.x = 10, .y = 10, .w = 100, .h = 100, .stacking_order = 5};
 
     redraw_reason_t reason;
 
-    if (!needs_redraw(&c, ENTRY_RUNNING_VERIFIED, 5, &reason))
+    if (!needs_redraw(&c, &w, ENTRY_RUNNING_VERIFIED, &reason))
         return false;
 
     if (reason != REDRAW_NEW)
@@ -287,21 +296,37 @@ bool render_selftest(void)
 
     c.last_state = ENTRY_RUNNING_VERIFIED;
 
-    c.last_stacking_order = 5;
+    c.last_stacking_order = w.stacking_order;
+    c.last_x = w.x;
+   
+    c.last_y = w.y;
+    c.last_w = w.w;
+    c.last_h = w.h;
 
-    if (needs_redraw(&c, ENTRY_RUNNING_VERIFIED, 5, &reason))
+    if (needs_redraw(&c, &w, ENTRY_RUNNING_VERIFIED, &reason))
         return false; // nothing changed
 
-    if (!needs_redraw(&c, ENTRY_RUNNING_UNVERIFIED, 5, &reason))
+    if (!needs_redraw(&c, &w, ENTRY_RUNNING_UNVERIFIED, &reason))
         return false;
     if (reason != REDRAW_STATE_CHANGED)
         return false;
 
     c.last_state = ENTRY_RUNNING_UNVERIFIED;
 
-    if (!needs_redraw(&c, ENTRY_RUNNING_UNVERIFIED, 9, &reason))
+    w.stacking_order = 9;
+    if (!needs_redraw(&c, &w, ENTRY_RUNNING_UNVERIFIED, &reason))
         return false;
     if (reason != REDRAW_STACK_CHANGED)
+        return false;
+
+    c.last_stacking_order = w.stacking_order;
+
+    w.x = 300;
+
+    w.h = 250;
+    if (!needs_redraw(&c, &w, ENTRY_RUNNING_UNVERIFIED, &reason))
+        return false;
+    if (reason != REDRAW_GEOMETRY_CHANGED)
         return false;
 
     return true;

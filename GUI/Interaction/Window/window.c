@@ -116,6 +116,8 @@ bool window_move(uint32_t wid, uint32_t new_x, uint32_t new_y)
 
     win->x = new_x;
     win->y = new_y;
+    
+
     return true;
 }
 
@@ -128,7 +130,7 @@ bool window_at_point(int32_t x, int32_t y, uint32_t *out_wid)
 
         window_t *w = &windows[i];
 
-        if (!w->in_use || w->stacking_order != WINDOW_MINIMIZED)
+        if (!w->in_use || w->stacking_order == WINDOW_MINIMIZED)
             continue;
         bool inside = x >= (int32_t)w->x && x < (int32_t)(w->x + w->w) &&
                       y >= (int32_t)w->y && y < (int32_t)(w->y + w->h);
@@ -144,6 +146,17 @@ bool window_at_point(int32_t x, int32_t y, uint32_t *out_wid)
     *out_wid = top->wid;
 
     return true;
+}
+
+uint32_t window_list(window_t *out, uint32_t max_entries)
+{
+    uint32_t count = 0;
+    for (int i = 0; i < WINDOW_MAX_WINDOWS && count < max_entries; i++)
+    {
+        if (windows[i].in_use)
+            out[count++] = windows[i];
+    }
+    return count;
 }
 
 bool window_status(uint32_t wid, window_status_t *out)
@@ -223,6 +236,16 @@ bool window_selftest(void)
         ok = false;
     if (st.w != 200 || st.h != 200)
         ok = false;
+
+    if (!window_move(2, 300, 400))
+        ok = false;
+    if (!window_status(2, &st))
+        ok = false;
+    if (st.x != 300 || st.y != 400)
+        ok = false;
+
+    if (window_move(999, 0, 0))
+        ok = false; // moving a wid that doesn't exist must fail
 
     if (!window_close(2))
         ok = false;

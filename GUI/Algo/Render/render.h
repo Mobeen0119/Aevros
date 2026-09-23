@@ -24,13 +24,6 @@ typedef struct
     uint64_t tick;
 } render_log_entry_t;
 
-typedef enum
-{
-    REDRAW_NEW,
-    REDRAW_STATE_CHANGED,
-    REDRAW_STACK_CHANGED,
-    REDRAW_GEOMETRY_CHANGED
-} redraw_reason_t;
 
 #define RENDER_LOG_LEN 16
 

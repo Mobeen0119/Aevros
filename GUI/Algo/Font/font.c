@@ -1,5 +1,7 @@
 #include "font.h"
 #include "../../../Lib/string.h"
+#include "../../Framebuffer/framebuffer.h"
+
 
 extern void fb_put_pixel(int32_t x, int32_t y, uint32_t color);
 

@@ -17,5 +17,7 @@ void bridge_pump(void);
 void bridge_status(bridge_status_t *out);
 
 const char *bridge_dependency_note(void);
+bool bridge_selftest(void);
+
 
 #endif

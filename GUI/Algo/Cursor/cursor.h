@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "mouse.h"
+#include "../../../Drivers/Mouse/mouse.h"
 
 typedef enum {
     CURSOR_IDLE,

@@ -4,7 +4,8 @@
 #include <stdint.h>
 
 #include <stdbool.h>
-#include "registry.h"
+#include "../Interaction/Registry/registry.h"
+
 
 #define WITNESS_LOG_LEN 16
 

@@ -6,7 +6,6 @@ static window_t windows[WINDOW_MAX_WINDOWS];
 static uint32_t windows_count = 0;
 static int next_stack_rank = 0;
 
-#define WINDOW_MINIMIZED -1
 
 void window_init_system(void)
 {

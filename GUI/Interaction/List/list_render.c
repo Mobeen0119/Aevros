@@ -27,7 +27,9 @@ void list_render_all(void)
         int32_t row_y = origin_y + (int32_t)(i * row_height);
         uint32_t color = render_color_for_state(entries[i].state);
 
-        font_draw_string(origin_x + LIST_RENDER_TEXT_PAD_X, row_y + LIST_RENDER_TEXT_PAD_Y, entries[i].name, color);
+        font_draw_string(origin_x + LIST_RENDER_TEXT_PAD_X,
+                         row_y + LIST_RENDER_TEXT_PAD_Y,
+                         entries[i].name, color);
     }
 }
 

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "../../Interaction/Registry/registry.h"
 
 typedef enum
 {
@@ -11,7 +12,7 @@ typedef enum
 
     REDRAW_STACK_CHANGED,
     REDRAW_GEOMETRY_CHANGED,
-    
+
     REDRAW_EXPOSED
 
 } redraw_reason_t;
@@ -24,10 +25,11 @@ typedef struct
     uint64_t tick;
 } render_log_entry_t;
 
-
 #define RENDER_LOG_LEN 16
 
 void window_render(uint32_t wid);
+
+uint32_t render_color_for_state(entry_state_t state);
 
 void render_all_windows(void);
 

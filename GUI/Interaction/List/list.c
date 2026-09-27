@@ -18,6 +18,18 @@ void list_init(int32_t origin_x, int32_t origin_y, uint32_t row_width, uint32_t 
     list_row_height = row_height;
 }
 
+bool list_get_layout(int32_t *origin_x, int32_t *origin_y, uint32_t *row_width, uint32_t *row_height)
+{
+    if (list_row_height == 0)
+        return false; // list_init() never called
+
+    *origin_x = list_origin_x;
+    *origin_y = list_origin_y;
+    *row_width = list_row_width;
+    *row_height = list_row_height;
+    return true;
+}
+
 uint32_t list_get_entries(list_entry_t *out, uint32_t max_entries)
 {
     registry_entry_t reg[LIST_MAX_ENTRIES];
@@ -119,6 +131,13 @@ bool list_selftest(void)
         return false;
 
     list_init(0, 100, 120, 50);
+
+    int32_t got_x, got_y;
+    uint32_t got_w, got_h;
+    if (!list_get_layout(&got_x, &got_y, &got_w, &got_h))
+        return false;
+    if (got_x != 0 || got_y != 100 || got_w != 120 || got_h != 50)
+        return false;
 
     char name[REGISTRY_NAME_LEN];
     if (!list_at_point(10, 100, name) || strcmp(name, "terminal") != 0)

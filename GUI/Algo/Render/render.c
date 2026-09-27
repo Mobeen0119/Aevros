@@ -13,16 +13,6 @@ extern uint64_t get_ticks(void);
 #define COLOR_ORPHANED 0xB8483F
 #define COLOR_TITLE_TEXT 0xE6E5E2
 
-#define MAX_DAMAGE_RECTS WINDOW_MAX_WINDOWS
-static uint32_t bg_color = 0x000000;
-
-typedef struct
-{
-    int32_t x, y;
-
-    uint32_t w, h;
-} rect_t;
-
 typedef struct
 {
     uint32_t wid;
@@ -31,26 +21,24 @@ typedef struct
     int last_stacking_order;
     uint32_t last_x, last_y, last_w, last_h;
     bool has_cache;
+
 } render_cache_t;
+
+typedef struct
+{
+    int32_t x, y;
+    uint32_t w, h;
+} rect_t;
+
+#define MAX_DAMAGE_RECTS WINDOW_MAX_WINDOWS
+
+static uint32_t bg_color = 0x000000; // background fill color for damaged regions
 
 static render_cache_t cache[WINDOW_MAX_WINDOWS];
 static render_log_entry_t render_log[RENDER_LOG_LEN];
 static uint32_t log_head = 0;
 
 static uint32_t log_count = 0;
-
-static bool rects_intersect(rect_t a, rect_t b)
-{
-    return a.x < (int32_t)(b.x + b.w) && b.x < (int32_t)(a.x + a.w) &&
-           a.y < (int32_t)(b.y + b.h) && b.y < (int32_t)(a.y + a.h);
-}
-
-static void fill_rect(int32_t x, int32_t y, uint32_t w, uint32_t h, uint32_t color)
-{
-    for (uint32_t row = 0; row < h; row++)
-        for (uint32_t col = 0; col < w; col++)
-            fb_put_pixel(x + col, y + row, color);
-}
 
 static void push_render_log(uint32_t wid, redraw_reason_t reason, uint64_t tick)
 {
@@ -82,7 +70,7 @@ static render_cache_t *find_free_cache_slot(void)
     return NULL;
 }
 
-static uint32_t border_color_for(entry_state_t state)
+uint32_t render_color_for_state(entry_state_t state)
 {
     switch (state)
     {
@@ -119,7 +107,7 @@ void window_render(uint32_t wid)
 
     entry_state_t state = registry_query(win.owner);
 
-    draw_rect_outline(win.x, win.y, win.w, win.h, border_color_for(state));
+    draw_rect_outline(win.x, win.y, win.w, win.h, render_color_for_state(state));
     font_draw_string(win.x + 4, win.y + 4, win.owner, COLOR_TITLE_TEXT);
 }
 
@@ -150,6 +138,19 @@ static bool needs_redraw(render_cache_t *c, const window_t *w, entry_state_t sta
     return false;
 }
 
+static bool rects_intersect(rect_t a, rect_t b)
+{
+    return a.x < (int32_t)(b.x + b.w) && b.x < (int32_t)(a.x + a.w) &&
+           a.y < (int32_t)(b.y + b.h) && b.y < (int32_t)(a.y + a.h);
+}
+
+static void fill_rect(int32_t x, int32_t y, uint32_t w, uint32_t h, uint32_t color)
+{
+    for (uint32_t row = 0; row < h; row++)
+        for (uint32_t col = 0; col < w; col++)
+            fb_put_pixel(x + col, y + row, color);
+}
+
 void render_all_windows(void)
 {
     window_t all[WINDOW_MAX_WINDOWS];
@@ -175,7 +176,6 @@ void render_all_windows(void)
 
         if (!c)
             continue; // cache full
-
 
         redraw_reason_t reason;
         bool changed = needs_redraw(c, &all[i], state, &reason);
@@ -228,6 +228,7 @@ void render_all_windows(void)
         entry_state_t state = registry_query(w->owner);
 
         render_cache_t *c = find_cache(w->wid);
+
         bool is_new = !c;
 
         if (is_new)
@@ -274,11 +275,11 @@ const char *render_dependency_note(void)
 
 bool render_selftest(void)
 {
-    if (border_color_for(ENTRY_RUNNING_VERIFIED) != COLOR_VERIFIED)
+    if (render_color_for_state(ENTRY_RUNNING_VERIFIED) != COLOR_VERIFIED)
         return false;
-    if (border_color_for(ENTRY_RUNNING_UNVERIFIED) != COLOR_UNVERIFIED)
+    if (render_color_for_state(ENTRY_RUNNING_UNVERIFIED) != COLOR_UNVERIFIED)
         return false;
-    if (border_color_for(ENTRY_NOT_RUNNING) != COLOR_ORPHANED)
+    if (render_color_for_state(ENTRY_NOT_RUNNING) != COLOR_ORPHANED)
         return false;
 
     render_cache_t c = {0};
@@ -298,7 +299,7 @@ bool render_selftest(void)
 
     c.last_stacking_order = w.stacking_order;
     c.last_x = w.x;
-   
+
     c.last_y = w.y;
     c.last_w = w.w;
     c.last_h = w.h;

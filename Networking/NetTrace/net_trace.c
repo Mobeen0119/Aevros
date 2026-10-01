@@ -2,6 +2,7 @@
 #include "net_trace.h"
 
 static nettrace_event_t events[NETTRACE_MAX_EVENTS];
+static uint8_t claimed[NETTRACE_MAX_EVENTS];
 static uint32_t event_count = 0;
 
 static uint8_t is_reverse_match(const netwatch_event_t *a, const netwatch_event_t *b)
@@ -50,36 +51,38 @@ void nettrace_rebuild(const netwatch_snapshot_t *snapshot)
 
         events[i].event_id = source->id;
         events[i].previous_id = i > 0 ? snapshot->events[i - 1].id : 0;
-
         events[i].related_id = 0;
-        events[i].protocol = source->protocol;
-        events[i].direction = source->direction;
 
+        events[i].protocol = source->protocol;
+
+        events[i].direction = source->direction;
         events[i].length = source->length;
+
         events[i].src_ip = source->src_ip;
 
         events[i].dst_ip = source->dst_ip;
         events[i].src_port = source->src_port;
 
         events[i].dst_port = source->dst_port;
-        events[i].relation = i > 0 ? NETTRACE_RELATION_PREVIOUS : NETTRACE_RELATION_NONE;
+        events[i].relation = NETTRACE_RELATION_NONE;
         events[i].valid = 1;
 
-        for (uint32_t j = i; j > 0; j--)
+        for (uint32_t k = 0; k < i; k++)
         {
-            uint32_t previous = j - 1;
+            if (claimed[k] || events[k].relation == NETTRACE_RELATION_RESPONSE)
+                continue;
 
-            if (is_reverse_match(source, &snapshot->events[previous]))
+            if (is_reverse_match(source, &snapshot->events[k]))
             {
-                events[i].related_id = snapshot->events[previous].id;
+                events[i].related_id = snapshot->events[k].id;
 
                 events[i].relation = NETTRACE_RELATION_RESPONSE;
+                claimed[k] = 1;
                 break;
             }
         }
     }
 }
-
 const nettrace_event_t *nettrace_get_event(uint32_t index)
 {
     if (index >= event_count)
@@ -163,6 +166,7 @@ void nettrace_clear(void)
 
         events[i].relation = NETTRACE_RELATION_NONE;
         events[i].valid = 0;
+        claimed[i] = 0;
     }
 
     event_count = 0;

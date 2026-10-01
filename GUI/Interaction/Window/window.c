@@ -6,7 +6,6 @@ static window_t windows[WINDOW_MAX_WINDOWS];
 static uint32_t windows_count = 0;
 static int next_stack_rank = 0;
 
-
 void window_init_system(void)
 {
     for (int i = 0; i < WINDOW_MAX_WINDOWS; i++)
@@ -73,6 +72,18 @@ bool window_focus(uint32_t wid)
     return true;
 }
 
+int window_restore(uint32_t id)
+{
+    window_t *w = window_find(id);
+
+    if (!w || w->stacking_order != WINDOW_MINIMIZED)
+        return 0;
+
+    w->stacking_order = 0;
+    window_focus(id);
+    return 1;
+}
+
 bool window_close(uint32_t wid)
 {
     window_t *win = find(wid);
@@ -115,7 +126,6 @@ bool window_move(uint32_t wid, uint32_t new_x, uint32_t new_y)
 
     win->x = new_x;
     win->y = new_y;
-    
 
     return true;
 }

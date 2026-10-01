@@ -33,6 +33,18 @@ void list_render_all(void)
     }
 }
 
+panel_rect_t list_panel_rect(void)
+{
+    panel_rect_t r;
+    r.x = LIST_PANEL_X;
+
+    r.y = LIST_PANEL_Y;
+
+    r.w = LIST_PANEL_W;
+    r.h = LIST_ROW_H * LIST_MAX_VISIBLE;
+    return r;
+}
+
 const char *list_render_dependency_note(void)
 {
     return "List keeps computing entries and layout fine if this stops "

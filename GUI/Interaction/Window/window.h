@@ -8,19 +8,21 @@
 #define WINDOW_MAX_WINDOWS 32
 #define WINDOW_MINIMIZED -1
 
-typedef struct {
+typedef struct
+{
     uint32_t x, y, w, h;
-    int      stacking_order;
+    int stacking_order;
     uint32_t wid;
-    char     owner[REGISTRY_NAME_LEN]; 
-    bool     in_use;
+    char owner[REGISTRY_NAME_LEN];
+    bool in_use;
 } window_t;
 
-typedef struct {
+typedef struct
+{
     uint32_t x, y, w, h;
-    int      stacking_order;
+    int stacking_order;
 
-    char     owner[REGISTRY_NAME_LEN];
+    char owner[REGISTRY_NAME_LEN];
 
 } window_status_t;
 
@@ -35,7 +37,6 @@ bool window_resize(uint32_t wid, uint32_t new_w, uint32_t new_h);
 bool window_move(uint32_t wid, uint32_t new_x, uint32_t new_y);
 
 bool window_minimize(uint32_t wid);
-
 
 bool window_at_point(int32_t x, int32_t y, uint32_t *out_wid);
 

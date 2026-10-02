@@ -116,6 +116,20 @@ uint32_t nettrace_get_event_count(void)
     return event_count;
 }
 
+void nettrace_rebuild(const netwatch_snapshot_t *snapshot)
+{
+    if (!snapshot)
+        return;
+
+    uint64_t now = 0;
+
+    for (uint32_t i = 0; i < snapshot->event_count && i < NETTRACE_MAX_EVENTS; i++)
+        if (snapshot->events[i].valid && snapshot->events[i].tick > now)
+            now = snapshot->events[i].tick;
+
+    nettrace_rebuild_at(snapshot, now);
+}
+
 void nettrace_get_snapshot(nettrace_snapshot_t *snapshot)
 {
     if (!snapshot)

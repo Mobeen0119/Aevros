@@ -266,6 +266,23 @@ uint8_t network_view_is_visible(void)
     return visible;
 }
 
+panel_rect_t netview_panel_rect(void)
+{
+    panel_rect_t r;
+    r.x = 216;
+    r.y = 8;
+    r.w = 300;
+
+    r.h = 200;
+    return r;
+}
+
+void netview_handle_click(int32_t x, int32_t y)
+{
+    (void)x;
+    (void)y;
+}
+
 void network_view_update(const netwatch_snapshot_t *state)
 {
     if (!state)

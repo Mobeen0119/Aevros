@@ -2,6 +2,7 @@
 #define NETWORK_VIEW_H
 
 #include <stdint.h>
+#include "../../Core/Panel/panel.h"
 
 #define NETWORK_VIEW_X 0
 #define NETWORK_VIEW_Y 0
@@ -79,7 +80,7 @@ void network_view_toggle(void);
 
 uint8_t network_view_is_visible(void);
 
-void network_view_update(const network_view_state_t *state);
+void network_view_update(const netwatch_snapshot_t *state);
 
 void network_view_draw(void);
 
@@ -95,4 +96,8 @@ void network_view_clear_selection(void);
 void network_view_draw_event_detail(void);
 
 void network_view_reset(void);
+
+panel_rect_t netview_panel_rect(void);
+void netview_handle_click(int32_t x, int32_t y);
+
 #endif

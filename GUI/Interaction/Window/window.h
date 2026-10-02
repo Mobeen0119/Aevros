@@ -38,6 +38,8 @@ bool window_move(uint32_t wid, uint32_t new_x, uint32_t new_y);
 
 bool window_minimize(uint32_t wid);
 
+uint8_t window_is_minimized(uint32_t id);
+
 bool window_at_point(int32_t x, int32_t y, uint32_t *out_wid);
 
 bool window_status(uint32_t wid, window_status_t *out);

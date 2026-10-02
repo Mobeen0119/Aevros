@@ -118,6 +118,12 @@ bool window_minimize(uint32_t wid)
     return true;
 }
 
+uint8_t window_is_minimized(uint32_t id)
+{
+    window_t *w = window_find(id);
+    return w && w->stacking_order == WINDOW_MINIMIZED;
+}
+
 bool window_move(uint32_t wid, uint32_t new_x, uint32_t new_y)
 {
     window_t *win = find(wid);

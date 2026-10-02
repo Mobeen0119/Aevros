@@ -41,6 +41,8 @@ typedef struct
     uint16_t dst_port;
 
     uint8_t valid;
+
+    uint64_t tick;
 } netwatch_event_t;
 
 typedef struct

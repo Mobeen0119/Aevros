@@ -6,25 +6,37 @@
 #include <stdbool.h>
 #include "../Interaction/Registry/registry.h"
 
-
 #define WITNESS_LOG_LEN 16
 
-typedef enum {
+typedef enum
+{
     INTENT_NONE,
     INTENT_LAUNCH,
-    INTENT_FOCUS
+    INTENT_FOCUS,
+    INTENT_RESTORE
 } intent_t;
 
-typedef struct {
+typedef enum
+{
+    SOURCE_DESKTOP,
+    SOURCE_LIST
+} witness_source_t;
+
+typedef struct
+{
     char name[REGISTRY_NAME_LEN];
     intent_t intent;
 
     entry_state_t state_seen;
     uint64_t tick;
 
+    witness_source_t source;
 } witness_log_entry_t;
 
-typedef struct {
+void witness_log_intent(const char *name, intent_t intent, entry_state_t state_seen, witness_source_t source);
+
+typedef struct
+{
     char name[REGISTRY_NAME_LEN];
     intent_t intent;
 

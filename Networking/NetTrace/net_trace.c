@@ -27,7 +27,7 @@ void nettrace_init(void)
     nettrace_clear();
 }
 
-void nettrace_rebuild(const netwatch_snapshot_t *snapshot)
+void nettrace_rebuild_at(const netwatch_snapshot_t *snapshot, uint64_t now)
 {
     if (!snapshot)
         return;
@@ -59,6 +59,9 @@ void nettrace_rebuild(const netwatch_snapshot_t *snapshot)
         events[i].length = source->length;
 
         events[i].src_ip = source->src_ip;
+        events[i].tick = source->tick;
+
+        events[i].status = NETTRACE_STATUS_NONE;
 
         events[i].dst_ip = source->dst_ip;
         events[i].src_port = source->src_port;
@@ -82,7 +85,21 @@ void nettrace_rebuild(const netwatch_snapshot_t *snapshot)
             }
         }
     }
+
+    for (uint32_t i = 0; i < event_count; i++)
+    {
+        if (events[i].direction != NETWATCH_TX)
+            continue;
+
+        if (claimed[i])
+            events[i].status = NETTRACE_STATUS_ANSWERED;
+        else if (now - events[i].tick > NETTRACE_TIMEOUT_TICKS)
+            events[i].status = NETTRACE_STATUS_TIMED_OUT;
+        else
+            events[i].status = NETTRACE_STATUS_PENDING;
+    }
 }
+
 const nettrace_event_t *nettrace_get_event(uint32_t index)
 {
     if (index >= event_count)

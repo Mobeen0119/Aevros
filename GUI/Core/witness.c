@@ -8,19 +8,27 @@ static witness_log_entry_t log_buf[WITNESS_LOG_LEN];
 static uint32_t log_head = 0;
 static uint32_t log_count = 0;
 
-static void push_log(const char *name, intent_t intent, entry_state_t state_seen, uint64_t tick)
+static void push_log(const char *name, intent_t intent, entry_state_t state_seen, witness_source_t source)
 {
     witness_log_entry_t *l = &log_buf[log_head];
-    strncpy(l->name, name, REGISTRY_NAME_LEN);
 
     l->intent = intent;
 
     l->state_seen = state_seen;
-    l->tick = tick;
+    l->tick = get_tick();
+    l->source = source;
 
     log_head = (log_head + 1) % WITNESS_LOG_LEN;
     if (log_count < WITNESS_LOG_LEN)
         log_count++;
+}
+
+void witness_log_intent(const char *name, intent_t intent, entry_state_t state_seen, witness_source_t source)
+{
+    if (!name)
+        return;
+
+    push_log(name, intent, state_seen, source);
 }
 
 static intent_t intent_for_state(entry_state_t state)
@@ -65,6 +73,29 @@ witness_result_t witness_resolve_click(int32_t x, int32_t y)
 
     push_log(win.owner, intent, state, get_ticks());
     return result;
+}
+
+static void resolve_list_row(int32_t row)
+{
+    uint32_t id = list_row_window_id(row);
+
+    if (!id)
+        return;
+
+    const char *name = list_row_name(row);
+    entry_state_t seen = list_row_state(row);
+
+    if (window_is_minimized(id))
+    {
+        window_restore(id);
+
+        witness_log_intent(name, INTENT_RESTORE, seen, SOURCE_LIST);
+    }
+    else
+    {
+        window_focus(id);
+        witness_log_intent(name, INTENT_FOCUS, seen, SOURCE_LIST);
+    }
 }
 
 uint32_t witness_get_log(witness_log_entry_t *out, uint32_t max_entries)

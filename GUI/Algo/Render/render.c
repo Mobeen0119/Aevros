@@ -1,11 +1,11 @@
 #include "render.h"
 #include "../../Interaction/Window/window.h"
 #include "../../Interaction/Registry/registry.h"
+#include "../../Framebuffer/framebuffer.h"
 #include "render_color.h"
 #include "../Font/font.h"
 #include <stddef.h>
 
-extern void fb_put_pixel(int32_t x, int32_t y, uint32_t color);
 extern uint64_t get_ticks(void);
 
 typedef struct

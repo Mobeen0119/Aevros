@@ -1,11 +1,5 @@
 #include "cursor.h"
-
-extern void fb_put_pixel(int32_t x, int32_t y, uint32_t color);
-extern uint32_t fb_get_pixel(int32_t x, int32_t y);
-
-extern uint32_t fb_width(void);
-
-extern uint32_t fb_height(void);
+#include "../../Framebuffer/framebuffer.h"
 
 extern uint64_t get_ticks(void);
 

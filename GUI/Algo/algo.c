@@ -19,7 +19,7 @@ void fb_line(int x0, int y0, int x1, int y1, uint8_t r, uint8_t g, uint8_t b)
     int x = x0, y = y0;
     for (;;)
     {
-        fb_put_pixel(x, y, r, g, b);
+        fb_put_pixel_rgb(x, y, r, g, b);
         if (x == x1 && y == y1)
             break;
 
@@ -60,14 +60,14 @@ void fb_circle(int cx, int cy, int radius, uint8_t r, uint8_t g, uint8_t b)
 
     while (x >= y)
     {
-        fb_put_pixel(cx + x, cy + y, r, g, b);
-        fb_put_pixel(cx + y, cy + x, r, g, b);
-        fb_put_pixel(cx - y, cy + x, r, g, b);
-        fb_put_pixel(cx - x, cy + y, r, g, b);
-        fb_put_pixel(cx - x, cy - y, r, g, b);
-        fb_put_pixel(cx - y, cy - x, r, g, b);
-        fb_put_pixel(cx + y, cy - x, r, g, b);
-        fb_put_pixel(cx + x, cy - y, r, g, b);
+        fb_put_pixel_rgb(cx + x, cy + y, r, g, b);
+        fb_put_pixel_rgb(cx + y, cy + x, r, g, b);
+        fb_put_pixel_rgb(cx - y, cy + x, r, g, b);
+        fb_put_pixel_rgb(cx - x, cy + y, r, g, b);
+        fb_put_pixel_rgb(cx - x, cy - y, r, g, b);
+        fb_put_pixel_rgb(cx - y, cy - x, r, g, b);
+        fb_put_pixel_rgb(cx + y, cy - x, r, g, b);
+        fb_put_pixel_rgb(cx + x, cy - y, r, g, b);
 
         y += 1;
         err += 1 + 2 * y;

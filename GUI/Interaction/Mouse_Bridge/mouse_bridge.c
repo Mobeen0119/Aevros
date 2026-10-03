@@ -218,13 +218,13 @@ bool bridge_selftest(void)
 
     window_status(1, &top);
 
-    int before = top.stacking_order;
+    int rank_before = top.stacking_order;
 
     handle_click(LIST_PANEL_X + 4, LIST_PANEL_Y + (LIST_MAX_VISIBLE - 1) * LIST_ROW_H);
 
     window_status(1, &top);
 
-    if (top.stacking_order != before)
+    if (top.stacking_order != rank_before)
         return false;
     return true;
 }

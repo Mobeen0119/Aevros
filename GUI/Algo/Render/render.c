@@ -1,17 +1,12 @@
 #include "render.h"
 #include "../../Interaction/Window/window.h"
 #include "../../Interaction/Registry/registry.h"
+#include "render_color.h"
 #include "../Font/font.h"
 #include <stddef.h>
 
 extern void fb_put_pixel(int32_t x, int32_t y, uint32_t color);
 extern uint64_t get_ticks(void);
-
-#define COLOR_VERIFIED 0x6FA3C2
-#define COLOR_UNVERIFIED 0x7C7E82
-
-#define COLOR_ORPHANED 0xB8483F
-#define COLOR_TITLE_TEXT 0xE6E5E2
 
 typedef struct
 {

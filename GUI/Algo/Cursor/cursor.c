@@ -317,5 +317,4 @@ void cursor_notify_dirty(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
 
     save_background(state.x, state.y);
     draw_cursor(state.x, state.y);
-    
 }

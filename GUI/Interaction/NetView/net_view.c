@@ -1,6 +1,8 @@
 #include "net_view.h"
 #include "../../Framebuffer/framebuffer.h"
 #include "../../Algo/algo.h"
+#include "../../Algo/Render/render_color.h"
+#include "../../../Networking/NetTrace/net_trace.h"
 #include "../../../Networking/NetWatch/net_watch.h"
 
 #define BG_R 8
@@ -392,6 +394,42 @@ void network_view_clear_selection(void)
 void network_view_draw_event_detail(void)
 {
     draw_event_detail();
+}
+
+static uint32_t status_color(nettrace_status_t s)
+{
+    switch (s)
+    {
+    case NETTRACE_STATUS_ANSWERED:
+        return COLOR_VERIFIED;
+
+    case NETTRACE_STATUS_PENDING:
+        return COLOR_UNVERIFIED;
+
+    case NETTRACE_STATUS_TIMED_OUT:
+        return COLOR_ORPHANED;
+
+    default:
+        return COLOR_TITLE_TEXT;
+    }
+}
+
+static const char *status_label(nettrace_status_t s)
+{
+    switch (s)
+    {
+    case NETTRACE_STATUS_ANSWERED:
+        return "ok";
+
+    case NETTRACE_STATUS_PENDING:
+        return "wait";
+
+    case NETTRACE_STATUS_TIMED_OUT:
+        return "LOST";
+
+    default:
+        return "";
+    }
 }
 
 void network_view_reset(void)

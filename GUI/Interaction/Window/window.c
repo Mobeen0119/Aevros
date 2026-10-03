@@ -74,7 +74,7 @@ bool window_focus(uint32_t wid)
 
 int window_restore(uint32_t id)
 {
-    window_t *w = window_find(id);
+    window_t *w = find(id);
 
     if (!w || w->stacking_order != WINDOW_MINIMIZED)
         return 0;
@@ -120,7 +120,7 @@ bool window_minimize(uint32_t wid)
 
 uint8_t window_is_minimized(uint32_t id)
 {
-    window_t *w = window_find(id);
+    window_t *w = (find(id));
     return w && w->stacking_order == WINDOW_MINIMIZED;
 }
 

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "../../Core/Panel/panel.h"
+#include "../../../Networking/NetWatch/net_watch.h"
 
 #define NETWORK_VIEW_X 0
 #define NETWORK_VIEW_Y 0

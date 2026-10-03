@@ -93,7 +93,7 @@ void nettrace_rebuild_at(const netwatch_snapshot_t *snapshot, uint64_t now)
 
         if (claimed[i])
             events[i].status = NETTRACE_STATUS_ANSWERED;
-        else if (now - events[i].tick > NETTRACE_TIMEOUT_TICKS)
+        else if (now > events[i].tick && now - events[i].tick > NETTRACE_TIMEOUT_TICKS)
             events[i].status = NETTRACE_STATUS_TIMED_OUT;
         else
             events[i].status = NETTRACE_STATUS_PENDING;
@@ -194,6 +194,9 @@ void nettrace_clear(void)
 
         events[i].src_port = 0;
         events[i].dst_port = 0;
+
+        events[i].tick = 0;
+        events[i].status = NETTRACE_STATUS_NONE;
 
         events[i].relation = NETTRACE_RELATION_NONE;
         events[i].valid = 0;

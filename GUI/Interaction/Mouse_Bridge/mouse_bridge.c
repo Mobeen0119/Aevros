@@ -176,5 +176,55 @@ bool bridge_selftest(void)
     if (clicks_resolved != before)
         return false;
 
+    list_init(LIST_PANEL_X, LIST_PANEL_Y, LIST_PANEL_W, LIST_ROW_H);
+
+    list_entry_t entries[LIST_MAX_ENTRIES];
+    uint32_t n = list_get_entries(entries, LIST_MAX_ENTRIES);
+
+    int32_t row = -1;
+    for (uint32_t i = 0; i < n; i++)
+        if (strcmp(entries[i].name, "terminal") == 0)
+            row = (int32_t)i;
+
+    if (row < 0)
+        return false; // minimized windows still appear in list
+
+    window_minimize(1);
+    if (!window_is_minimized(1))
+        return false;
+
+    handle_click(LIST_PANEL_X + 4, LIST_PANEL_Y + row * LIST_ROW_H + 2);
+
+    if (window_is_minimized(1))
+        return false;
+
+    window_status_t top, other;
+
+    window_status(1, &top);
+
+    window_status(2, &other);
+
+    if (top.stacking_order <= other.stacking_order)
+        return false;
+
+    witness_log_entry_t log[WITNESS_LOG_LEN];
+
+    uint32_t count = witness_get_log(log, WITNESS_LOG_LEN);
+    if (count == 0)
+        return false;
+
+    if (log[count - 1].intent != INTENT_RESTORE || log[count - 1].source != SOURCE_LIST || strcmp(log[count - 1].name, "terminal") != 0)
+        return false;
+
+    window_status(1, &top);
+
+    int before = top.stacking_order;
+
+    handle_click(LIST_PANEL_X + 4, LIST_PANEL_Y + (LIST_MAX_VISIBLE - 1) * LIST_ROW_H);
+
+    window_status(1, &top);
+
+    if (top.stacking_order != before)
+        return false;
     return true;
 }

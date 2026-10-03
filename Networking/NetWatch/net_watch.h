@@ -101,8 +101,6 @@ const netwatch_event_t *netwatch_get_event(uint32_t index);
 
 uint32_t netwatch_get_event_count(void);
 
-void netwatch_get_snapshot(netwatch_snapshot_t *snapshot);
-
 void netwatch_clear_events(void);
 
 #endif

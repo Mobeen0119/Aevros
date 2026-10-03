@@ -1,9 +1,12 @@
 #include "mouse_bridge.h"
 #include "../../../Drivers/Mouse/mouse.h"
+#include "../../../Lib/string.h"
 #include "../../Algo/Cursor/cursor.h"
 #include "../../Core/witness.h"
 #include "../Window/window.h"
 #include "../Registry/registry.h"
+#include "../List/list.h"
+#include "../List/list_render.h"
 
 extern uint64_t get_ticks(void);
 
@@ -15,14 +18,56 @@ static bool last_left_button_state = false;
 void bridge_init(int32_t start_x, int32_t start_y)
 {
     cursor_init(start_x, start_y);
+    list_init(LIST_PANEL_X, LIST_PANEL_Y, LIST_PANEL_W, LIST_ROW_H);
     events_forwarded = 0;
     clicks_resolved = 0;
     last_left_button_state = false;
     last_pump_tick = get_ticks();
 }
 
+static bool in_list_panel(int32_t x, int32_t y)
+{
+    panel_rect_t r = list_panel_rect();
+    return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+}
+
+static void handle_list_click(int32_t x, int32_t y)
+{
+    char name[REGISTRY_NAME_LEN];
+    if (!list_at_point(x, y, name))
+        return;
+
+    list_entry_t entries[LIST_MAX_ENTRIES];
+    uint32_t n = list_get_entries(entries, LIST_MAX_ENTRIES);
+
+    for (uint32_t i = 0; i < n; i++)
+    {
+        if (strcmp(entries[i].name, name) != 0 || !entries[i].has_window)
+            continue;
+
+        if (window_is_minimized(entries[i].wid))
+        {
+            window_restore(entries[i].wid);
+            witness_log_intent(name, INTENT_RESTORE, entries[i].state, SOURCE_LIST);
+        }
+        else
+        {
+            window_focus(entries[i].wid);
+            witness_log_intent(name, INTENT_FOCUS, entries[i].state, SOURCE_LIST);
+        }
+        return;
+    }
+}
+
 static void handle_click(int32_t x, int32_t y)
 {
+    // list panel always on top... it consumes click, even on blank space
+    if (in_list_panel(x, y))
+    {
+        handle_list_click(x, y);
+        return;
+    }
+
     witness_result_t result = witness_resolve_click(x, y);
     if (!result.hit)
         return;
@@ -33,7 +78,6 @@ static void handle_click(int32_t x, int32_t y)
     }
     else if (result.intent == INTENT_LAUNCH)
     {
-
         registry_mark_launched(result.name);
         window_focus(result.wid);
     }
@@ -81,9 +125,9 @@ bool bridge_selftest(void)
     witness_init();
 
     registry_register("terminal");
-   
+
     window_init(1, 10, 10, 50, 50, "terminal");
-   
+
     registry_register("files");
     window_init(2, 200, 10, 50, 50, "files");
 

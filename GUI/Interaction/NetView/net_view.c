@@ -490,9 +490,6 @@ void netview_tick(uint64_t now)
     {
         last_pending = pending;
         last_timed_out = timed_out;
-
-        panel_rect_t r = netview_panel_rect();
-        render_damage_region(r.x, r.y, r.w, r.h);
     }
 }
 

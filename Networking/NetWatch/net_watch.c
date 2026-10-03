@@ -149,20 +149,6 @@ const netwatch_event_t *netwatch_get_event(uint32_t index)
     return &events[index];
 }
 
-void netwatch_get_snapshot(netwatch_snapshot_t *snapshot)
-{
-    if (!snapshot)
-        return;
-
-    snapshot->event_count = event_count;
-
-    for (uint32_t i = 0; i < event_count; i++)
-        snapshot->events[i] = events[i];
-
-    for (uint32_t i = event_count; i < NETWATCH_MAX_EVENTS; i++)
-        snapshot->events[i].valid = 0;
-}
-
 uint32_t netwatch_get_event_count(void)
 {
     return event_count;

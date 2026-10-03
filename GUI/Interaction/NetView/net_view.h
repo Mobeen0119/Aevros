@@ -97,6 +97,8 @@ void network_view_draw_event_detail(void);
 
 void network_view_reset(void);
 
+void netview_tick(uint64_t now);
+
 panel_rect_t netview_panel_rect(void);
 void netview_handle_click(int32_t x, int32_t y);
 

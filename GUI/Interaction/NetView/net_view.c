@@ -53,6 +53,12 @@
 
 #define EVENT_ROW_HEIGHT 42
 
+#define NETVIEW_CHECK_TICKS 50
+
+static uint64_t last_check = 0;
+static uint32_t last_pending = 0;
+static uint32_t last_timed_out = 0;
+
 static uint8_t visible = 0;
 
 static int32_t selected_event = -1;
@@ -429,6 +435,64 @@ static const char *status_label(nettrace_status_t s)
 
     default:
         return "";
+    }
+}
+
+static void fill_snapshot(void)
+{
+    uint32_t n = netwatch_get_event_count();
+
+    if (n > NETWATCH_MAX_EVENTS)
+        n = NETWATCH_MAX_EVENTS;
+
+    for (uint32_t i = 0; i < n; i++)
+    {
+        const netwatch_event_t *e = netwatch_get_event(i);
+
+        if (!e)
+            break;
+        snapshot.events[i] = *e;
+    }
+
+    snapshot.event_count = n;
+}
+
+void netview_tick(uint64_t now)
+{
+    if (now - last_check < NETVIEW_CHECK_TICKS)
+        return;
+
+    last_check = now;
+
+    fill_snapshot();
+    nettrace_rebuild_at(&snapshot, now);
+
+    uint32_t pending = 0;
+
+    uint32_t timed_out = 0;
+    uint32_t count = nettrace_get_event_count();
+
+    for (uint32_t i = 0; i < count; i++)
+    {
+        const nettrace_event_t *e = nettrace_get_event(i);
+
+        if (!e)
+            continue;
+
+        if (e->status == NETTRACE_STATUS_PENDING)
+            pending++;
+        else if (e->status == NETTRACE_STATUS_TIMED_OUT)
+
+            timed_out++;
+    }
+
+    if (pending != last_pending || timed_out != last_timed_out)
+    {
+        last_pending = pending;
+        last_timed_out = timed_out;
+
+        panel_rect_t r = netview_panel_rect();
+        render_damage_region(r.x, r.y, r.w, r.h);
     }
 }
 

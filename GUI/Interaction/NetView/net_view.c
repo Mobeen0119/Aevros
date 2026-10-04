@@ -4,6 +4,7 @@
 #include "../../Algo/Render/render_color.h"
 #include "../../../Networking/NetTrace/net_trace.h"
 #include "../../../Networking/NetWatch/net_watch.h"
+#include "../../Algo/Font/font.h"
 
 #define BG_R 8
 #define BG_G 12
@@ -146,6 +147,11 @@ static void draw_event_row(uint32_t index, int y)
         fb_circle_filled(EVENTS_X + 26, y + 21, 5, RX_R, RX_G, RX_B);
     else
         fb_circle_filled(EVENTS_X + 26, y + 21, 5, TX_R, TX_G, TX_B);
+
+    const nettrace_event_t *t = nettrace_get_event(index);
+    if (t && t->status != NETTRACE_STATUS_NONE)
+        font_draw_string(EVENTS_X + EVENTS_W - 64, y + 10,
+                         status_label(t->status), status_color(t->status));
 }
 
 static void draw_events(void)
@@ -272,23 +278,6 @@ void network_view_toggle(void)
 uint8_t network_view_is_visible(void)
 {
     return visible;
-}
-
-panel_rect_t netview_panel_rect(void)
-{
-    panel_rect_t r;
-    r.x = 216;
-    r.y = 8;
-    r.w = 300;
-
-    r.h = 200;
-    return r;
-}
-
-void netview_handle_click(int32_t x, int32_t y)
-{
-    (void)x;
-    (void)y;
 }
 
 void network_view_update(const netwatch_snapshot_t *state)
@@ -445,6 +434,8 @@ static void fill_snapshot(void)
     if (n > NETWATCH_MAX_EVENTS)
         n = NETWATCH_MAX_EVENTS;
 
+    netwatch_get_snapshot(&snapshot);
+
     for (uint32_t i = 0; i < n; i++)
     {
         const netwatch_event_t *e = netwatch_get_event(i);
@@ -488,6 +479,9 @@ void netview_tick(uint64_t now)
 
     if (pending != last_pending || timed_out != last_timed_out)
     {
+        if (visible)
+            network_view_draw();
+
         last_pending = pending;
         last_timed_out = timed_out;
     }

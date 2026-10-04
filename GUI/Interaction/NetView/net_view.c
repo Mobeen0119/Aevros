@@ -67,8 +67,30 @@ static uint32_t last_timed_out = 0;
 
 static uint8_t visible = 0;
 
-static int32_t selected_event = -1;
+static uint32_t selected_id = 0;
+static uint8_t has_selection = 0;
+
 static netwatch_snapshot_t snapshot;
+
+static int32_t selected_index(void)
+{
+    if (!has_selection)
+        return -1;
+
+    for (uint32_t i = 0; i < snapshot.event_count && i < NETWATCH_MAX_EVENTS; i++)
+    {
+        if (snapshot.events[i].valid && snapshot.events[i].id == selected_id)
+            return (int32_t)i;
+    }
+
+    return -1;
+}
+
+static void drop_selection_if_gone(void)
+{
+    if (has_selection && selected_index() < 0)
+        has_selection = 0;
+}
 
 static void fill_background(void)
 {
@@ -136,7 +158,7 @@ static void draw_event_row(uint32_t index, int y)
 {
     netwatch_event_t *event = &snapshot.events[index];
 
-    uint8_t selected = ((int32_t)index == selected_event);
+    uint8_t selected = (has_selection && event->id == selected_id);
 
     if (selected)
     {
@@ -179,13 +201,12 @@ static void draw_events(void)
 
 static void draw_event_detail(void)
 {
-    if (selected_event < 0)
+    int32_t sel = selected_index();
+
+    if (sel < 0)
         return;
 
-    if ((uint32_t)selected_event >= snapshot.event_count)
-        return;
-
-    netwatch_event_t *event = &snapshot.events[selected_event];
+    netwatch_event_t *event = &snapshot.events[sel];
 
     int x = 24;
     int y = 350;
@@ -235,7 +256,7 @@ static void draw_protocol_activity(void)
 void network_view_init(void)
 {
     visible = 0;
-    selected_event = -1;
+    has_selection = 0;
 
     snapshot.stats.rx_packets = 0;
 
@@ -293,11 +314,7 @@ void network_view_update(const netwatch_snapshot_t *state)
     snapshot = *state;
     nettrace_rebuild_at(&snapshot, get_ticks());
 
-    if (selected_event >= 0 &&
-        (uint32_t)selected_event >= snapshot.event_count)
-    {
-        selected_event = -1;
-    }
+    drop_selection_if_gone();
 
     if (visible)
         network_view_draw();
@@ -341,7 +358,8 @@ void network_view_mouse(int32_t x, int32_t y, uint8_t buttons)
     if (!snapshot.events[index].valid)
         return;
 
-    selected_event = (int32_t)index;
+    selected_id = snapshot.events[index].id;
+    has_selection = 1;
 
     network_view_draw();
 }
@@ -359,7 +377,7 @@ void network_view_key(uint8_t key)
 
     if (key == 'r' || key == 'R')
     {
-        selected_event = -1;
+        has_selection = 0;
         network_view_draw();
         return;
     }
@@ -373,7 +391,8 @@ void network_view_select_event(uint32_t index)
     if (!snapshot.events[index].valid)
         return;
 
-    selected_event = (int32_t)index;
+    selected_id = snapshot.events[index].id;
+    has_selection = 1;
 
     if (visible)
         network_view_draw();
@@ -381,12 +400,12 @@ void network_view_select_event(uint32_t index)
 
 int32_t network_view_selected_event(void)
 {
-    return selected_event;
+    return selected_index();
 }
 
 void network_view_clear_selection(void)
 {
-    selected_event = -1;
+    has_selection = 0;
 
     if (visible)
         network_view_draw();
@@ -435,23 +454,7 @@ static const char *status_label(nettrace_status_t s)
 
 static void fill_snapshot(void)
 {
-    uint32_t n = netwatch_get_event_count();
-
-    if (n > NETWATCH_MAX_EVENTS)
-        n = NETWATCH_MAX_EVENTS;
-
     netwatch_get_snapshot(&snapshot);
-
-    for (uint32_t i = 0; i < n; i++)
-    {
-        const netwatch_event_t *e = netwatch_get_event(i);
-
-        if (!e)
-            break;
-        snapshot.events[i] = *e;
-    }
-
-    snapshot.event_count = n;
 }
 
 void netview_tick(uint64_t now)
@@ -462,6 +465,7 @@ void netview_tick(uint64_t now)
     last_check = now;
 
     fill_snapshot();
+    drop_selection_if_gone();
     nettrace_rebuild_at(&snapshot, now);
 
     uint32_t pending = 0;
@@ -497,7 +501,7 @@ void network_view_reset(void)
 {
     visible = 0;
 
-    selected_event = -1;
+    has_selection = 0;
 
     snapshot.event_count = 0;
 

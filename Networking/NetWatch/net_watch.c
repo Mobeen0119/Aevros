@@ -1,5 +1,7 @@
 #include "net_watch.h"
 
+extern uint64_t get_ticks(void);
+
 static netwatch_stats_t stats;
 static netwatch_event_t events[NETWATCH_MAX_EVENTS];
 static uint32_t event_count = 0;
@@ -28,6 +30,7 @@ static void record_event(netwatch_direction_t direction, netwatch_protocol_t pro
 
     events[event_count].dst_port = dst_port;
     events[event_count].valid = 1;
+    events[event_count].tick = get_ticks();
 
     event_count++;
 }

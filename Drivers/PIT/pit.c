@@ -7,6 +7,7 @@
 #include "../../kernel/Process/Quarantine/Quarantine.h"
 #include "../../Networking/FrontDesk/frontdesk.h"
 #include "../../Networking/Concierge/concierge.h"
+#include "../../Networking/NetWatch/net_observe.h"
 #define TIME_SLICE 60
 #define QUARANTINE_SCAN_INTERVAL 600
 
@@ -36,7 +37,9 @@ int timer_callback(register_t *regs)
 
     const frontdesk_state_t *nic = frontdesk_get_state();
     if (nic->present)
-        concierge_maybe_tick(nic->mac); // networking's periodic maintenance heartbeat - never wired in before this
+        concierge_maybe_tick(nic->mac); // networking's periodic maintenance heartbeat
+
+    netobserve_drain();
 
     return 0;
 }

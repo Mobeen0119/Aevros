@@ -16,6 +16,7 @@
 #include "../Audit/audit.h"
 #include "../Concierge6/concierge6.h"
 #include "../../kernel/Process/task.h"
+#include "../NetWatch/net_observe.h"
 
 #define RTL8139_VENDOR_ID 0x10EC
 #define RTL8139_DEVICE_ID 0x8139
@@ -85,7 +86,7 @@ void frontdesk_init(void)
 
     outb(io_base + REG_CMD, CMD_RESET);
 
-        uint32_t reset_deadline = get_ticks() + 200; // ~2s at the 100Hz this kernel runs PIT at
+    uint32_t reset_deadline = get_ticks() + 200; // ~2s at the 100Hz this kernel runs PIT at
     while ((inb(io_base + REG_CMD) & CMD_RESET) != 0)
     {
         if (get_ticks() > reset_deadline)
@@ -183,6 +184,7 @@ int frontdesk_send(const void *data, uint16_t length)
     tx_next_desc = (tx_next_desc + 1) % 4;
     tx_pending++;
     state.packets_send++;
+    netobserve_capture(NETWATCH_TX, data, length);
     return 1;
 }
 
@@ -201,7 +203,7 @@ void frontdesk_irq_handler(void)
 
     if (status & ISR_ROK)
     {
-        
+
         int guard = 0;
         while (!(inb(io_base + REG_CMD) & CMD_BUFE) && guard++ < 256)
         {
@@ -212,6 +214,9 @@ void frontdesk_irq_handler(void)
 
             if (packet_status & 0x01)
             {
+                // observed before the bouncer, so frames rejects still show up...RTL8139 length includes 4-byte CRC
+                netobserve_capture(NETWATCH_RX, frame, packet_length > 4 ? (uint32_t)packet_length - 4 : packet_length);
+
                 bounce_verdict_t verdict = bouncer_check(frame, packet_length, state.mac);
 
                 const uint8_t *dest = (packet_length >= 6) ? frame : 0;

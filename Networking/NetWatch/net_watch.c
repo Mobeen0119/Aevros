@@ -1,4 +1,5 @@
 #include "net_watch.h"
+#include "../../kernel/CPU/irq_guard.h"
 
 extern uint64_t get_ticks(void);
 
@@ -7,6 +8,21 @@ static netwatch_event_t events[NETWATCH_MAX_EVENTS];
 static uint32_t event_count = 0;
 
 static uint32_t next_event_id = 1;
+
+static void count_direction(netwatch_direction_t direction, uint32_t length)
+{
+    if (direction == NETWATCH_RX)
+    {
+        stats.rx_packets++;
+
+        stats.rx_bytes += length;
+    }
+    else
+    {
+        stats.tx_packets++;
+        stats.tx_bytes += length;
+    }
+}
 
 static void record_event(netwatch_direction_t direction, netwatch_protocol_t protocol, uint32_t length, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port)
 {
@@ -82,6 +98,7 @@ void netwatch_set_link(uint8_t up)
 void netwatch_arp_event(netwatch_direction_t direction, uint32_t src_ip, uint32_t dst_ip)
 {
     stats.arp_packets++;
+    count_direction(direction, 0);
 
     record_event(direction, NETWATCH_PROTO_ARP, 0, src_ip, dst_ip, 0, 0);
 }
@@ -89,32 +106,36 @@ void netwatch_arp_event(netwatch_direction_t direction, uint32_t src_ip, uint32_
 void netwatch_ipv4_event(netwatch_direction_t direction, uint32_t length, uint32_t src_ip, uint32_t dst_ip)
 {
     stats.ipv4_packets++;
+    count_direction(direction, length);
 
     record_event(direction, NETWATCH_PROTO_IPV4, length, src_ip, dst_ip, 0, 0);
 }
 
-void netwatch_ipv6_event(netwatch_direction_t direction, uint32_t length, uint32_t src_ip, uint32_t dst_ip)
+void netwatch_ipv6_event(netwatch_direction_t direction, uint32_t length, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port)
 {
-
     stats.ipv6_packets++;
-    record_event(direction, NETWATCH_PROTO_IPV6, length, src_ip, dst_ip, 0, 0);
+    count_direction(direction, length);
+    record_event(direction, NETWATCH_PROTO_IPV6, length, src_ip, dst_ip, src_port, dst_port);
 }
 
 void netwatch_icmp_event(netwatch_direction_t direction, uint32_t length, uint32_t src_ip, uint32_t dst_ip)
 {
     stats.icmp_packets++;
+    count_direction(direction, length);
     record_event(direction, NETWATCH_PROTO_ICMP, length, src_ip, dst_ip, 0, 0);
 }
 
 void netwatch_udp_event(netwatch_direction_t direction, uint32_t length, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port)
 {
     stats.udp_packets++;
+    count_direction(direction, length);
     record_event(direction, NETWATCH_PROTO_UDP, length, src_ip, dst_ip, src_port, dst_port);
 }
 
 void netwatch_tcp_event(netwatch_direction_t direction, uint32_t length, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port)
 {
     stats.tcp_packets++;
+    count_direction(direction, length);
 
     record_event(direction, NETWATCH_PROTO_TCP, length, src_ip, dst_ip, src_port, dst_port);
 }
@@ -124,15 +145,19 @@ void netwatch_get_snapshot(netwatch_snapshot_t *snapshot)
     if (!snapshot)
         return;
 
+    // interrupts off for copy
+    uint32_t f = irq_guard_save();
+
     snapshot->stats = stats;
     snapshot->event_count = event_count;
 
     for (uint32_t i = 0; i < event_count; i++)
-
         snapshot->events[i] = events[i];
 
     for (uint32_t i = event_count; i < NETWATCH_MAX_EVENTS; i++)
         snapshot->events[i].valid = 0;
+
+    irq_guard_restore(f);
 }
 
 void netwatch_get_stats(netwatch_stats_t *output)
@@ -140,7 +165,9 @@ void netwatch_get_stats(netwatch_stats_t *output)
     if (!output)
         return;
 
+    uint32_t f = irq_guard_save();
     *output = stats;
+    irq_guard_restore(f);
 }
 
 const netwatch_event_t *netwatch_get_event(uint32_t index)
@@ -159,8 +186,12 @@ uint32_t netwatch_get_event_count(void)
 
 void netwatch_clear_events(void)
 {
+    uint32_t f = irq_guard_save();
+
     for (uint32_t i = 0; i < event_count; i++)
         events[i].valid = 0;
 
     event_count = 0;
+
+    irq_guard_restore(f);
 }

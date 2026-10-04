@@ -85,7 +85,7 @@ void netwatch_arp_event(netwatch_direction_t direction, uint32_t src_ip, uint32_
 
 void netwatch_ipv4_event(netwatch_direction_t direction, uint32_t length, uint32_t src_ip, uint32_t dst_ip);
 
-void netwatch_ipv6_event(netwatch_direction_t direction, uint32_t length, uint32_t src_ip, uint32_t dst_ip);
+void netwatch_ipv6_event(netwatch_direction_t direction, uint32_t length, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);
 
 void netwatch_icmp_event(netwatch_direction_t direction, uint32_t length, uint32_t src_ip, uint32_t dst_ip);
 

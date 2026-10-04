@@ -52,9 +52,14 @@
 #define EVENTS_W 656
 #define EVENTS_H 620
 
+extern uint64_t get_ticks(void);
+
 #define EVENT_ROW_HEIGHT 42
 
 #define NETVIEW_CHECK_TICKS 50
+
+static uint32_t status_color(nettrace_status_t s);
+static const char *status_label(nettrace_status_t s);
 
 static uint64_t last_check = 0;
 static uint32_t last_pending = 0;
@@ -286,6 +291,7 @@ void network_view_update(const netwatch_snapshot_t *state)
         return;
 
     snapshot = *state;
+    nettrace_rebuild_at(&snapshot, get_ticks());
 
     if (selected_event >= 0 &&
         (uint32_t)selected_event >= snapshot.event_count)
@@ -479,11 +485,11 @@ void netview_tick(uint64_t now)
 
     if (pending != last_pending || timed_out != last_timed_out)
     {
-        if (visible)
-            network_view_draw();
-
         last_pending = pending;
         last_timed_out = timed_out;
+
+        if (visible)
+            network_view_draw();
     }
 }
 

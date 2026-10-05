@@ -1,6 +1,6 @@
 #include "scheduler.h"
-#include "../LockBox/lockbox.h"
-#include "../Conversation/rapport.h"
+#include "../IPv4/LockBox/lockbox.h"
+#include "../IPv4/Conversation/rapport.h"
 #include "../../kernel/Process/task.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"

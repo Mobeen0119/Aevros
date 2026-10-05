@@ -6,15 +6,15 @@
 #include "../../kernel/Memory/kheap.h"
 #include "../../Lib/kprintf.h"
 #include "../../Lib/string.h"
-#include "../Bouncer/bouncer.h"
+#include "../IPv4/Bouncer/bouncer.h"
 #include "../mailroom/mailroom.h"
 #include "../WatchList/watchlist.h"
-#include "../Rolodex/rolodex.h"
-#include "../Rolodex6/rolodex6.h"
+#include "../IPv4/Rolodex/rolodex.h"
+#include "../IPv6/Rolodex6/rolodex6.h"
 #include "../Landlord/landlord.h"
 #include "../Directory/directory.h"
 #include "../Audit/audit.h"
-#include "../Concierge6/concierge6.h"
+#include "../IPv6/Concierge6/concierge6.h"
 #include "../../kernel/Process/task.h"
 #include "../NetWatch/net_observe.h"
 
@@ -54,7 +54,7 @@ static int tx_next_desc;
 
 static int tx_pending;
 
-const frontdesk_state_t *frontdesk_get_state()
+const frontdesk_state_t *frontdesk_get_state(void)
 {
     return &state;
 }

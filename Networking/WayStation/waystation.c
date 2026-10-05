@@ -1,7 +1,7 @@
 #include "waystation.h"
-#include "../LockBox/lockbox.h"
-#include "../Inbox/inbox.h"
-#include "../Conversation/rapport.h"
+#include "../IPv4/LockBox/lockbox.h"
+#include "../IPv4/Inbox/inbox.h"
+#include "../IPv4/Conversation/rapport.h"
 #include "../../Lib/string.h"
 #include "../../Lib/kprintf.h"
 

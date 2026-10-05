@@ -5,7 +5,7 @@
 #include "../Paging/isr.h"
 #include "../../Include/screen.h"
 #include "../Process/exec.h"
-#include "../../Networking/Frontdoor6/frontdoor6.h"
+#include "../../Networking/IPv6/Frontdoor6/frontdoor6.h"
 
 int syscall(int num, int arg1, int arg2, int arg3)
 {

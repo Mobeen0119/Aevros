@@ -46,6 +46,7 @@ while IFS= read -r -d '' c_file; do
     c_objects+=("$obj_file")
 done < <(find . -type f -name "*.c" \
     ! -path "./User/*" \
+    ! -path "./tests/*" \
     ! -path "./iso/*" \
     ! -path "./$BUILD_DIR/*" \
     -print0)
@@ -73,11 +74,11 @@ menuentry "AevrosOS" {
     boot
 }
 EOF
-    if command -v grub-mkrescue >/dev/null 2>&1; then
-        grub-mkrescue -o aevrosos.iso iso/
+    if command -v grub2-mkrescue >/dev/null 2>&1; then
+        grub2-mkrescue -o aevrosos.iso iso/
         echo "AevrosOS build complete: aevrosos.iso"
     else
-        echo "grub-mkrescue not found; kernel.elf was produced but ISO was not generated."
+        echo "grub2-mkrescue not found; kernel.elf was produced but ISO was not generated."
     fi
 else
     echo "Linking failed. Check the symbol errors above."

@@ -19,10 +19,10 @@
 #include "../Process/Blast/blast.h"
 #include "../Process/TIMELINE/timeline.h"
 #include "../../Networking/Ledger/ledger.h"
-#include "../../Networking/Ledger6/ledger6.h"
+#include "../../Networking/IPv6/Ledger6/ledger6.h"
 #include "../../Networking/FrontDesk/frontdesk.h"
-#include "../../Networking/Rolodex6/rolodex6.h"
-#include "../../Networking/Concierge6/concierge6.h"
+#include "../../Networking/IPv6/Rolodex6/rolodex6.h"
+#include "../../Networking/IPv6/Concierge6/concierge6.h"
 #include "../Memory/KallocTracker/kalloc_tracker.h"
 #include "../Process/FDLeak/fdleak.h"
 #include "../Memory/buddy.h"
@@ -58,7 +58,6 @@ void shell_execute(char *input)
 
     char *argv[MAX_ARG];
     int argc = tokenize(input, argv);
-
 
     if (argc == 0)
         return;
@@ -141,17 +140,16 @@ void shell_execute(char *input)
             kprintf("\n");
 
             concierge6_state_t s6 = concierge6_get_state();
-            const char *s6_name = (s6 == CONCIERGE6_DAD_LINK_LOCAL) ? "checking link-local address (DAD)"
-                                   : (s6 == CONCIERGE6_SOLICITING_ROUTER) ? "waiting for a Router Advertisement"
-                                   : (s6 == CONCIERGE6_DAD_GLOBAL)        ? "checking global address (DAD)"
-                                                                          : "ready";
+            const char *s6_name = (s6 == CONCIERGE6_DAD_LINK_LOCAL)      ? "checking link-local address (DAD)"
+                                  : (s6 == CONCIERGE6_SOLICITING_ROUTER) ? "waiting for a Router Advertisement"
+                                  : (s6 == CONCIERGE6_DAD_GLOBAL)        ? "checking global address (DAD)"
+                                                                         : "ready";
             kprintf(" IPv6 bring-up state: %s\n", s6_name);
         }
 
         ledger_print();
         ledger6_print();
     }
-
 
     else if (strcmp(argv[0], "health") == 0)
     {

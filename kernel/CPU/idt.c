@@ -10,6 +10,7 @@ extern void isr14();
 extern void irq0_handler();
 
 extern void irq1_handler();
+extern void irq12_handler();
 
 extern void syscall_asm_handler();
 
@@ -49,6 +50,7 @@ void idt_init()
     idt_gate_set(14, (unsigned int)isr14, 0x8E);
     idt_gate_set(32, (unsigned int)irq0_handler, 0x8E);
     idt_gate_set(33, (unsigned int)irq1_handler, 0x8E);
+    idt_gate_set(44, (unsigned int)irq12_handler, 0x8E);
 
     idt_gate_set(0x80, (unsigned int)syscall_asm_handler, 0xEE);
     idt_load((unsigned int)&idtp);

@@ -1,3 +1,4 @@
+
 #include "isr.h"
 #include <stdint.h>
 #include "../Memory/pmm.h"
@@ -5,6 +6,7 @@
 #include "page_fault.h"
 #include "../../Lib/kprintf.h"
 #include "../../Drivers/keyboard.h"
+#include "../../Drivers/Mouse/mouse.h"
 #include "../io.h"
 #include "../Paging/paging.h"
 #include "../../Drivers/PIT/pit.h"
@@ -24,6 +26,14 @@ void isr_handler(struct registers *r)
     {
         outb(0x20, 0x20);
         timer_callback(r);
+        return;
+    }
+
+    if (r->int_no == 44)
+    {
+        outb(0xA0, 0x20);
+        outb(0x20, 0x20);
+        ps2_mouse_irq_handler();
         return;
     }
 

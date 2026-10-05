@@ -5,7 +5,6 @@
 extern uint8_t inb(uint16_t port);
 extern void outb(uint16_t port, uint8_t val);
 
-extern void register_irq(int irq_num, void (*handler)(void));
 extern uint64_t get_ticks(void);
 
 #define PS2_DATA_PORT 0x60
@@ -188,7 +187,6 @@ void ps2_mouse_init(void)
     last_irq_tick = 0;
     packets_decoded = 0;
 
-    register_irq(12, ps2_mouse_irq_handler);
 }
 
 bool ps2_mouse_selftest(void)

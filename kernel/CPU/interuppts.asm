@@ -6,6 +6,7 @@ extern isr_handler
 
 global irq0_handler
 global irq1_handler
+global irq12_handler
 global isr14
 global default_handler
 
@@ -67,3 +68,4 @@ irq%1_handler:
 
 IRQ 0, 32
 IRQ 1, 33
+IRQ 12, 44

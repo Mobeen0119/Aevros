@@ -20,24 +20,72 @@ typedef enum
 
 } provenance_relation_t;
 
+typedef enum
+{
+    PROVENANCE_REASON_NONE = 0,
+    PROVENANCE_REASON_INTERRUPT,
+    PROVENANCE_REASON_SCHEDULE,
+
+    PROVENANCE_REASON_ALLOCATION,
+    PROVENANCE_REASON_DEALLOCATION,
+
+    PROVENANCE_REASON_CREATION,
+    PROVENANCE_REASON_DESTRUCTION,
+    PROVENANCE_REASON_REQUEST,
+
+    PROVENANCE_REASON_RESPONSE,
+    PROVENANCE_REASON_DELIVERY,
+
+    PROVENANCE_REASON_FAILURE,
+    PROVENANCE_REASON_DEPENDENCY,
+
+    PROVENANCE_REASON_USER_ACTION,
+    PROVENANCE_REASON_SYSTEM_ACTION
+} provenance_reason_t;
+typedef enum
+{
+    PROVENANCE_ENTITY_NONE = 0,
+    PROVENANCE_ENTITY_INTERRUPT,
+    PROVENANCE_ENTITY_DRIVER,
+
+    PROVENANCE_ENTITY_PROCESS,
+    PROVENANCE_ENTITY_MEMORY,
+
+    PROVENANCE_ENTITY_NETWORK,
+    PROVENANCE_ENTITY_FILE,
+    PROVENANCE_ENTITY_DEVICE,
+
+    PROVENANCE_ENTITY_OPERATION
+} provenance_entity_t;
+
 typedef struct
 {
-    uint32_t id, source, target;
+    uint32_t id;
+    provenance_entity_ref_t source;
+    provenance_entity_ref_t target;
+
     provenance_relation_t relation;
-    uint32_t reason;
+    provenance_reason_t reason;
     uint8_t valid;
 
 } provenance_record_t;
 
 typedef struct
 {
+    provenance_entity_t type;
+    uint32_t id;
+} provenance_entity_ref_t;
+
+typedef struct
+{
     provenance_record_t records[PROVENANCE_MAX_RECORDS];
     uint32_t record_count;
+
 } provenance_snapshot_t;
 
 void provenance_init(void);
 
-uint32_t provenance_record(uint32_t source, uint32_t target, provenance_relation_t relation, uint32_t reason);
+uint32_t provenance_record(provenance_entity_ref_t source, provenance_entity_ref_t target, provenance_relation_t relation, provenance_reason_t reason);
 
 const provenance_record_t *provenance_get(uint32_t id);
 

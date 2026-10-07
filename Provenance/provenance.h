@@ -94,4 +94,10 @@ void provenance_get_snapshot(provenance_snapshot_t *snapshot);
 uint32_t provenance_count(void);
 void provenance_clear(void);
 
+uint32_t provenance_find_from(provenance_entity_ref_t source, provenance_record_t *results, uint32_t max_results);
+
+uint32_t provenance_find_to(provenance_entity_ref_t target, provenance_record_t *results, uint32_t max_results);
+
+uint32_t provenance_find_relation(provenance_entity_ref_t entity, provenance_relation_t relation, provenance_record_t *results, uint32_t max_results);
+
 #endif

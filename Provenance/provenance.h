@@ -42,6 +42,7 @@ typedef enum
     PROVENANCE_REASON_USER_ACTION,
     PROVENANCE_REASON_SYSTEM_ACTION
 } provenance_reason_t;
+
 typedef enum
 {
     PROVENANCE_ENTITY_NONE = 0,
@@ -60,7 +61,14 @@ typedef enum
 
 typedef struct
 {
+    provenance_entity_t type;
     uint32_t id;
+} provenance_entity_ref_t;
+
+typedef struct
+{
+    uint32_t id;
+    uint32_t tick;
     provenance_entity_ref_t source;
     provenance_entity_ref_t target;
 
@@ -72,14 +80,9 @@ typedef struct
 
 typedef struct
 {
-    provenance_entity_t type;
-    uint32_t id;
-} provenance_entity_ref_t;
-
-typedef struct
-{
     provenance_record_t records[PROVENANCE_MAX_RECORDS];
     uint32_t record_count;
+    uint32_t dropped;
 
 } provenance_snapshot_t;
 
@@ -87,11 +90,12 @@ void provenance_init(void);
 
 uint32_t provenance_record(provenance_entity_ref_t source, provenance_entity_ref_t target, provenance_relation_t relation, provenance_reason_t reason);
 
-const provenance_record_t *provenance_get(uint32_t id);
+int provenance_get(uint32_t id, provenance_record_t *out);
 
 void provenance_get_snapshot(provenance_snapshot_t *snapshot);
 
 uint32_t provenance_count(void);
+uint32_t provenance_dropped(void);
 void provenance_clear(void);
 
 uint32_t provenance_find_from(provenance_entity_ref_t source, provenance_record_t *results, uint32_t max_results);

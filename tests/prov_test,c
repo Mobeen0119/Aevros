@@ -1,0 +1,96 @@
+#include <stdio.h>
+#include "../Provenance/provenance.h"
+
+static uint32_t fake_tick;
+uint32_t get_ticks(void) { return fake_tick; }
+
+static int fails;
+#define CHECK(c)                                        \
+    do                                                  \
+    {                                                   \
+        if (!(c))                                       \
+        {                                               \
+            printf("FAIL line %d: %s\n", __LINE__, #c); \
+            fails++;                                    \
+        }                                               \
+    } while (0)
+
+static provenance_entity_ref_t E(provenance_entity_t t, uint32_t id)
+{
+    provenance_entity_ref_t r = {t, id};
+    return r;
+}
+
+int main(void)
+{
+    provenance_record_t r, res[300];
+    provenance_entity_ref_t irq = E(PROVENANCE_ENTITY_INTERRUPT, 11);
+    provenance_entity_ref_t nic = E(PROVENANCE_ENTITY_DRIVER, 1);
+    provenance_entity_ref_t pkt = E(PROVENANCE_ENTITY_NETWORK, 7);
+
+    provenance_init();
+
+    fake_tick = 42;
+    uint32_t a = provenance_record(irq, nic, PROVENANCE_RELATION_TRIGGERED, PROVENANCE_REASON_INTERRUPT);
+    fake_tick = 50;
+    uint32_t b = provenance_record(nic, pkt, PROVENANCE_RELATION_CREATED, PROVENANCE_REASON_DELIVERY);
+    CHECK(a == 1 && b == 2);
+    CHECK(provenance_get(a, &r) && r.tick == 42 && r.relation == PROVENANCE_RELATION_TRIGGERED);
+    CHECK(provenance_get(b, &r) && r.tick == 50);
+    CHECK(!provenance_get(99, &r));
+    CHECK(!provenance_get(0, &r));
+
+    // invalid input stores nothing
+    CHECK(provenance_record(E(PROVENANCE_ENTITY_NONE, 0), nic, PROVENANCE_RELATION_CAUSED, PROVENANCE_REASON_NONE) == 0);
+    CHECK(provenance_record(irq, nic, PROVENANCE_RELATION_NONE, PROVENANCE_REASON_NONE) == 0);
+    CHECK(provenance_count() == 2);
+
+    CHECK(provenance_find_from(irq, res, 10) == 1 && res[0].id == a);
+    CHECK(provenance_find_to(pkt, res, 10) == 1 && res[0].id == b);
+    CHECK(provenance_find_relation(nic, PROVENANCE_RELATION_TRIGGERED, res, 10) == 1);
+    CHECK(provenance_find_relation(nic, PROVENANCE_RELATION_CAUSED, res, 10) == 0);
+    CHECK(provenance_find_from(irq, res, 0) == 0);
+    CHECK(provenance_find_from(irq, 0, 5) == 0);
+
+    provenance_init();
+    for (uint32_t i = 0; i < 300; i++)
+    {
+        fake_tick = i;
+        provenance_record(irq, nic, PROVENANCE_RELATION_CAUSED, PROVENANCE_REASON_INTERRUPT);
+    }
+    CHECK(provenance_count() == 256);
+
+    CHECK(provenance_dropped() == 44);
+
+    CHECK(!provenance_get(44, &r));
+
+    CHECK(provenance_get(45, &r) && r.tick == 44);
+
+    uint32_t n = provenance_find_from(irq, res, 300);
+    CHECK(n == 256);
+    int ordered = 1;
+    for (uint32_t i = 1; i < n; i++)
+        if (res[i].id != res[i - 1].id + 1)
+            ordered = 0;
+
+    CHECK(ordered && res[0].id == 45 && res[n - 1].id == 300);
+
+    CHECK(provenance_find_from(irq, res, 5) == 5 && res[0].id == 45);
+
+    static provenance_snapshot_t snap;
+
+    provenance_get_snapshot(&snap);
+
+    CHECK(snap.record_count == 256 && snap.dropped == 44);
+    CHECK(snap.records[0].id == 45 && snap.records[255].id == 300);
+
+    // ids keep increasing after clear restarts
+    provenance_clear();
+
+    CHECK(provenance_count() == 0 && provenance_dropped() == 0);
+
+    CHECK(provenance_record(irq, nic, PROVENANCE_RELATION_CAUSED, PROVENANCE_REASON_NONE) == 1);
+
+    printf(fails ? "provenance: %d FAILED\n" : "provenance: all passed\n", fails);
+    return fails != 0;
+}

@@ -126,15 +126,15 @@ bool bridge_selftest(void)
 
     registry_register("terminal");
 
-    window_init(1, 10, 10, 50, 50, "terminal");
+    window_init(1, 400, 300, 50, 50, "terminal");
 
     registry_register("files");
-    window_init(2, 200, 10, 50, 50, "files");
+    window_init(2, 600, 300, 50, 50, "files");
 
     if (registry_query("terminal") != ENTRY_NOT_RUNNING)
         return false;
 
-    handle_click(20, 20);
+    handle_click(410, 310);
     if (registry_query("terminal") != ENTRY_RUNNING_UNVERIFIED)
         return false;
 
@@ -154,9 +154,9 @@ bool bridge_selftest(void)
         return false;
 
     window_status_t st1, st2;
-    handle_click(200, 20);
+    handle_click(610, 310);
 
-    handle_click(20, 20);
+    handle_click(410, 310);
 
     if (!window_status(1, &st1))
         return false;

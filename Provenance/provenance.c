@@ -191,3 +191,106 @@ uint32_t provenance_find_relation(provenance_entity_ref_t entity, provenance_rel
 
     return found;
 }
+
+uint32_t provenance_trace_from(provenance_entity_ref_t start, provenance_record_t *results, uint32_t max_results)
+{
+    static provenance_entity_ref_t queue[PROVENANCE_MAX_RECORDS + 1];
+    static provenance_entity_ref_t visited[PROVENANCE_MAX_RECORDS + 1];
+
+    uint32_t queue_head = 0;
+    uint32_t queue_tail = 0;
+    uint32_t visited_count = 0;
+    uint32_t found = 0;
+
+    if (!results || max_results == 0)
+        return 0;
+
+    queue[queue_tail++] = start;
+    visited[visited_count++] = start;
+
+    while (queue_head < queue_tail && found < max_results)
+    {
+        provenance_entity_ref_t current = queue[queue_head++];
+
+        for (uint32_t i = 0; i < PROVENANCE_MAX_RECORDS && found < max_results; i++)
+        {
+            if (!records[i].valid || !entity_equal(records[i].source, current))
+                continue;
+
+            results[found++] = records[i];
+
+            provenance_entity_ref_t target = records[i].target;
+            int already_visited = 0;
+
+            for (uint32_t j = 0; j < visited_count; j++)
+            {
+                if (entity_equal(visited[j], target))
+                {
+                    already_visited = 1;
+                    break;
+                }
+            }
+
+            if (!already_visited && visited_count < PROVENANCE_MAX_RECORDS + 1)
+            {
+                visited[visited_count++] = target;
+                queue[queue_tail++] = target;
+            }
+        }
+    }
+
+    return found;
+}
+
+uint32_t provenance_trace_to(provenance_entity_ref_t target, provenance_record_t *results, uint32_t max_results)
+{
+
+    static provenance_entity_ref_t queue[PROVENANCE_MAX_RECORDS + 1];
+
+    static provenance_entity_ref_t visited[PROVENANCE_MAX_RECORDS + 1];
+
+    uint32_t queue_head = 0;
+    uint32_t queue_tail = 0;
+
+    uint32_t visited_count = 0;
+    uint32_t found = 0;
+
+    if (!results || max_results == 0)
+        return 0;
+
+    queue[queue_tail++] = target;
+    visited[visited_count++] = target;
+
+    while (queue_head < queue_tail && found < max_results)
+    {
+        provenance_entity_ref_t current = queue[queue_head++];
+
+        for (uint32_t i = 0; i < PROVENANCE_MAX_RECORDS && found < max_results; i++)
+        {
+            if (!records[i].valid || !entity_equal(records[i].target, current))
+                continue;
+
+            results[found++] = records[i];
+
+            provenance_entity_ref_t source = records[i].source;
+            int already_visited = 0;
+
+            for (uint32_t j = 0; j < visited_count; j++)
+            {
+                if (entity_equal(visited[j], source))
+                {
+                    already_visited = 1;
+                    break;
+                }
+            }
+
+            if (!already_visited && visited_count < PROVENANCE_MAX_RECORDS + 1)
+            {
+                visited[visited_count++] = source;
+                queue[queue_tail++] = source;
+            }
+        }
+    }
+
+    return found;
+}

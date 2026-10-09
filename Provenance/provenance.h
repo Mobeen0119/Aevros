@@ -102,6 +102,10 @@ uint32_t provenance_find_from(provenance_entity_ref_t source, provenance_record_
 
 uint32_t provenance_find_to(provenance_entity_ref_t target, provenance_record_t *results, uint32_t max_results);
 
+uint32_t provenance_trace_from(provenance_entity_ref_t start, provenance_record_t *results, uint32_t max_results);
+
+uint32_t provenance_trace_to(provenance_entity_ref_t target, provenance_record_t *results, uint32_t max_results);
+
 uint32_t provenance_find_relation(provenance_entity_ref_t entity, provenance_relation_t relation, provenance_record_t *results, uint32_t max_results);
 
 #endif

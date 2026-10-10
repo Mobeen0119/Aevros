@@ -98,6 +98,8 @@ uint32_t provenance_count(void);
 uint32_t provenance_dropped(void);
 void provenance_clear(void);
 
+void provenance_report(void);
+
 uint32_t provenance_find_from(provenance_entity_ref_t source, provenance_record_t *results, uint32_t max_results);
 
 uint32_t provenance_find_to(provenance_entity_ref_t target, provenance_record_t *results, uint32_t max_results);

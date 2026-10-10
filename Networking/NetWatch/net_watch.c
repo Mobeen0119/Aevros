@@ -1,5 +1,8 @@
 #include "net_watch.h"
 #include "../../kernel/CPU/irq_guard.h"
+#include "../../Provenance/provenance.h"
+
+#define NETWATCH_NIC_DRIVER_ID 1
 
 extern uint64_t get_ticks(void);
 
@@ -48,7 +51,15 @@ static void record_event(netwatch_direction_t direction, netwatch_protocol_t pro
     events[event_count].valid = 1;
     events[event_count].tick = get_ticks();
 
+    uint32_t event_id = events[event_count].id;
     event_count++;
+
+    // driver is origin of every packet event it sees, RX or TX
+    provenance_entity_ref_t nic = {PROVENANCE_ENTITY_DRIVER, NETWATCH_NIC_DRIVER_ID};
+    provenance_entity_ref_t pkt = {PROVENANCE_ENTITY_NETWORK, event_id};
+
+    provenance_record(nic, pkt, PROVENANCE_RELATION_CREATED,
+                      direction == NETWATCH_RX ? PROVENANCE_REASON_DELIVERY : PROVENANCE_REASON_SYSTEM_ACTION);
 }
 
 void netwatch_init(void)

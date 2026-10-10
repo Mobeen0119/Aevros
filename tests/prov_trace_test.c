@@ -5,7 +5,9 @@ static int fails;
 #define CHECK(c)                                        \
     do                                                  \
     {                                                   \
-        if (!(c))                                       \
+        if (c)                                          \
+            printf("PASS: %s\n", #c);                   \
+        else                                            \
         {                                               \
             printf("FAIL line %d: %s\n", __LINE__, #c); \
             fails++;                                    \

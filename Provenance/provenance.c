@@ -192,49 +192,60 @@ uint32_t provenance_find_relation(provenance_entity_ref_t entity, provenance_rel
     return found;
 }
 
-uint32_t provenance_trace_from(provenance_entity_ref_t start, provenance_record_t *results, uint32_t max_results)
-{
-    static provenance_entity_ref_t queue[PROVENANCE_MAX_RECORDS + 1];
-    static provenance_entity_ref_t visited[PROVENANCE_MAX_RECORDS + 1];
+static provenance_record_t trace_copy[PROVENANCE_MAX_RECORDS];
+static provenance_entity_ref_t trace_queue[PROVENANCE_MAX_RECORDS + 1];
+static provenance_entity_ref_t trace_visited[PROVENANCE_MAX_RECORDS + 1];
 
-    uint32_t queue_head = 0;
-    uint32_t queue_tail = 0;
+static uint32_t trace(provenance_entity_ref_t start, int forward, provenance_record_t *results, uint32_t max_results)
+{
+    uint32_t head = 0;
+    uint32_t tail = 0;
     uint32_t visited_count = 0;
     uint32_t found = 0;
 
     if (!results || max_results == 0)
         return 0;
 
-    queue[queue_tail++] = start;
-    visited[visited_count++] = start;
+    uint32_t f = irq_guard_save();
+    uint32_t start_slot = oldest_slot();
+    uint32_t count = record_count;
+    for (uint32_t k = 0; k < count; k++)
+        trace_copy[k] = records[(start_slot + k) % PROVENANCE_MAX_RECORDS];
+    irq_guard_restore(f);
 
-    while (queue_head < queue_tail && found < max_results)
+    trace_queue[tail++] = start;
+    trace_visited[visited_count++] = start;
+
+    while (head < tail && found < max_results)
     {
-        provenance_entity_ref_t current = queue[queue_head++];
+        provenance_entity_ref_t current = trace_queue[head++];
 
-        for (uint32_t i = 0; i < PROVENANCE_MAX_RECORDS && found < max_results; i++)
+        for (uint32_t k = 0; k < count && found < max_results; k++)
         {
-            if (!records[i].valid || !entity_equal(records[i].source, current))
+            const provenance_record_t *r = &trace_copy[k];
+            provenance_entity_ref_t from = forward ? r->source : r->target;
+
+            provenance_entity_ref_t next = forward ? r->target : r->source;
+
+            if (!r->valid || !entity_equal(from, current))
                 continue;
 
-            results[found++] = records[i];
+            results[found++] = *r;
 
-            provenance_entity_ref_t target = records[i].target;
-            int already_visited = 0;
-
+            int seen = 0;
             for (uint32_t j = 0; j < visited_count; j++)
             {
-                if (entity_equal(visited[j], target))
+                if (entity_equal(trace_visited[j], next))
                 {
-                    already_visited = 1;
+                    seen = 1;
                     break;
                 }
             }
 
-            if (!already_visited && visited_count < PROVENANCE_MAX_RECORDS + 1)
+            if (!seen && visited_count < PROVENANCE_MAX_RECORDS + 1)
             {
-                visited[visited_count++] = target;
-                queue[queue_tail++] = target;
+                trace_visited[visited_count++] = next;
+                trace_queue[tail++] = next;
             }
         }
     }
@@ -242,55 +253,12 @@ uint32_t provenance_trace_from(provenance_entity_ref_t start, provenance_record_
     return found;
 }
 
+uint32_t provenance_trace_from(provenance_entity_ref_t start, provenance_record_t *results, uint32_t max_results)
+{
+    return trace(start, 1, results, max_results);
+}
+
 uint32_t provenance_trace_to(provenance_entity_ref_t target, provenance_record_t *results, uint32_t max_results)
 {
-
-    static provenance_entity_ref_t queue[PROVENANCE_MAX_RECORDS + 1];
-
-    static provenance_entity_ref_t visited[PROVENANCE_MAX_RECORDS + 1];
-
-    uint32_t queue_head = 0;
-    uint32_t queue_tail = 0;
-
-    uint32_t visited_count = 0;
-    uint32_t found = 0;
-
-    if (!results || max_results == 0)
-        return 0;
-
-    queue[queue_tail++] = target;
-    visited[visited_count++] = target;
-
-    while (queue_head < queue_tail && found < max_results)
-    {
-        provenance_entity_ref_t current = queue[queue_head++];
-
-        for (uint32_t i = 0; i < PROVENANCE_MAX_RECORDS && found < max_results; i++)
-        {
-            if (!records[i].valid || !entity_equal(records[i].target, current))
-                continue;
-
-            results[found++] = records[i];
-
-            provenance_entity_ref_t source = records[i].source;
-            int already_visited = 0;
-
-            for (uint32_t j = 0; j < visited_count; j++)
-            {
-                if (entity_equal(visited[j], source))
-                {
-                    already_visited = 1;
-                    break;
-                }
-            }
-
-            if (!already_visited && visited_count < PROVENANCE_MAX_RECORDS + 1)
-            {
-                visited[visited_count++] = source;
-                queue[queue_tail++] = source;
-            }
-        }
-    }
-
-    return found;
+    return trace(target, 0, results, max_results);
 }

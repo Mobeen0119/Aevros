@@ -143,7 +143,7 @@ static const char *provenance_reason_name(provenance_reason_t reason)
 
 static void provenance_command(void)
 {
-    provenance_snapshot_t snapshot;
+    static provenance_snapshot_t snapshot;
 
     provenance_get_snapshot(&snapshot);
 
@@ -161,7 +161,7 @@ static void provenance_command(void)
 
     uint32_t shown = 0;
 
-    for (uint32_t i = 0; i < PROVENANCE_MAX_RECORDS; i++)
+    for (uint32_t i = 0; i < snapshot.record_count; i++)
     {
         provenance_record_t *r = &snapshot.records[i];
 
@@ -176,7 +176,7 @@ static void provenance_command(void)
         shown++;
     }
 
-    kprintf("Records displayed: %u\n", shown);
+    kprintf("Records displayed: %u (overwritten: %u)\n", shown, snapshot.dropped);
 }
 
 void shell_execute(char *input)

@@ -10,6 +10,7 @@
 #include "Memory/KallocTracker/kalloc_tracker.h"
 #include "Paging/paging.h"
 #include "Process/task.h"
+#include "../Provenance/provenance.h"
 #include "Process/exec.h"
 #include "Process/TaskLife/tasklife.h"
 #include "Process/AevrosPoint/aevrospoint.h"
@@ -34,10 +35,10 @@
 #include "Process/exectest_blob.h"
 #include "Process/forktest_blob.h"
 
-extern uint32_t kernel_end; 
+extern uint32_t kernel_end;
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
-#define MULTIBOOT_INFO_MEMORY      0x00000001
+#define MULTIBOOT_INFO_MEMORY 0x00000001
 
 typedef struct multiboot_info
 {
@@ -70,7 +71,7 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
 
     paging_init();
 
-    uint32_t desired_end = 0x2800000; 
+    uint32_t desired_end = 0x2800000;
     uint32_t detected_end = 0;
 
     if (mb_magic == MULTIBOOT_BOOTLOADER_MAGIC && mb_info_addr)
@@ -89,7 +90,7 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
     if (detected_end != 0)
         buddy_end = (detected_end < desired_end) ? detected_end : desired_end;
     else
-        buddy_end = buddy_start + 0x800000; 
+        buddy_end = buddy_start + 0x800000;
 
     if (buddy_end <= buddy_start)
         buddy_end = buddy_start + 0x100000;
@@ -97,8 +98,9 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
     buddy_init(buddy_start, buddy_end);
     slab_init_all();
     tracker_init();
-     vfs_init();
-    aevrospoint_init(); 
+    provenance_init();
+    vfs_init();
+    aevrospoint_init();
     ramfs_init();
     tty_init();
     devfs_init();

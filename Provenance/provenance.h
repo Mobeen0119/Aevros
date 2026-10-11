@@ -90,6 +90,8 @@ void provenance_init(void);
 
 uint32_t provenance_record(provenance_entity_ref_t source, provenance_entity_ref_t target, provenance_relation_t relation, provenance_reason_t reason);
 
+uint32_t provenance_record_once(provenance_entity_ref_t source, provenance_entity_ref_t target, provenance_relation_t relation, provenance_reason_t reason);
+
 int provenance_get(uint32_t id, provenance_record_t *out);
 
 void provenance_get_snapshot(provenance_snapshot_t *snapshot);

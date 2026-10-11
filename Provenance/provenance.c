@@ -43,14 +43,9 @@ void provenance_clear(void)
     provenance_init();
 }
 
-uint32_t provenance_record(provenance_entity_ref_t source, provenance_entity_ref_t target, provenance_relation_t relation, provenance_reason_t reason)
+// caller holds IRQ guard
+static uint32_t store_locked(provenance_entity_ref_t source, provenance_entity_ref_t target, provenance_relation_t relation, provenance_reason_t reason, uint32_t tick)
 {
-    if (source.type == PROVENANCE_ENTITY_NONE || target.type == PROVENANCE_ENTITY_NONE || relation == PROVENANCE_RELATION_NONE)
-        return 0;
-
-    uint32_t tick = get_ticks();
-    uint32_t f = irq_guard_save();
-
     uint32_t index;
     if (record_count < PROVENANCE_MAX_RECORDS)
     {
@@ -71,6 +66,47 @@ uint32_t provenance_record(provenance_entity_ref_t source, provenance_entity_ref
     records[index].relation = relation;
     records[index].reason = reason;
     records[index].valid = 1;
+
+    return id;
+}
+
+static int input_valid(provenance_entity_ref_t source, provenance_entity_ref_t target, provenance_relation_t relation)
+{
+    return source.type != PROVENANCE_ENTITY_NONE && target.type != PROVENANCE_ENTITY_NONE && relation != PROVENANCE_RELATION_NONE;
+}
+
+uint32_t provenance_record(provenance_entity_ref_t source, provenance_entity_ref_t target, provenance_relation_t relation, provenance_reason_t reason)
+{
+    if (!input_valid(source, target, relation))
+        return 0;
+
+    uint32_t tick = get_ticks();
+    uint32_t f = irq_guard_save();
+    uint32_t id = store_locked(source, target, relation, reason, tick);
+    irq_guard_restore(f);
+    return id;
+}
+
+uint32_t provenance_record_once(provenance_entity_ref_t source, provenance_entity_ref_t target, provenance_relation_t relation, provenance_reason_t reason)
+{
+    if (!input_valid(source, target, relation))
+        return 0;
+
+    uint32_t tick = get_ticks();
+    uint32_t f = irq_guard_save();
+
+    uint32_t id = 0;
+    for (uint32_t i = 0; i < record_count; i++)
+    {
+        if (records[i].valid && records[i].relation == relation && entity_equal(records[i].source, source) && entity_equal(records[i].target, target))
+        {
+            id = records[i].id;
+            break;
+        }
+    }
+
+    if (id == 0)
+        id = store_locked(source, target, relation, reason, tick);
 
     irq_guard_restore(f);
     return id;

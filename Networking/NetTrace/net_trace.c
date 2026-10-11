@@ -1,5 +1,6 @@
 
 #include "net_trace.h"
+#include "../../Provenance/provenance.h"
 
 static nettrace_event_t events[NETTRACE_MAX_EVENTS];
 static uint8_t claimed[NETTRACE_MAX_EVENTS];
@@ -81,6 +82,11 @@ void nettrace_rebuild_at(const netwatch_snapshot_t *snapshot, uint64_t now)
 
                 events[i].relation = NETTRACE_RELATION_RESPONSE;
                 claimed[k] = 1;
+
+                provenance_entity_ref_t request = {PROVENANCE_ENTITY_NETWORK, snapshot->events[k].id};
+
+                provenance_entity_ref_t reply = {PROVENANCE_ENTITY_NETWORK, source->id};
+                provenance_record_once(request, reply, PROVENANCE_RELATION_TRIGGERED, PROVENANCE_REASON_RESPONSE);
                 break;
             }
         }

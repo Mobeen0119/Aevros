@@ -2,6 +2,7 @@
 #include <string.h>
 #include "../Networking/NetWatch/net_watch.h"
 #include "../Networking/NetWatch/net_observe.h"
+#include "../Networking/NetTrace/net_trace.h"
 #include "../Provenance/provenance.h"
 
 static const uint8_t udp_frame[] = {
@@ -18,6 +19,12 @@ static const uint8_t arp_frame[] = {
 static const char *ENT[] = {"NONE", "INTERRUPT", "DRIVER", "PROCESS", "MEMORY", "NETWORK", "FILE", "DEVICE", "OPERATION"};
 static const char *REL[] = {"NONE", "CAUSED", "AFFECTED", "CREATED", "DESTROYED", "OWNED", "TRIGGERED", "DEPENDED_ON", "RESPONDED_TO"};
 static const char *WHY[] = {"NONE", "INTERRUPT", "SCHEDULE", "ALLOCATION", "DEALLOCATION", "CREATION", "DESTRUCTION", "REQUEST", "RESPONSE", "DELIVERY", "FAILURE", "DEPENDENCY", "USER_ACTION", "SYSTEM_ACTION"};
+
+// 10.0.0.2:53 -> 10.0.0.1:1234, answer to udp_frame
+static const uint8_t reply_frame[] = {
+    0x02, 0, 0, 0, 0, 1, 0x02, 0, 0, 0, 0, 2, 0x08, 0x00,
+    0x45, 0, 0, 29, 0, 1, 0, 0, 64, 17, 0, 0, 10, 0, 0, 2, 10, 0, 0, 1,
+    0, 53, 0x04, 0xD2, 0, 9, 0, 0, 'y'};
 
 static void step(const char *title)
 {
@@ -68,7 +75,28 @@ int main(void)
     provenance_entity_ref_t nic = {PROVENANCE_ENTITY_DRIVER, 1};
     show_edges("trace_from(DRIVER:1)", res, provenance_trace_from(nic, res, 32));
 
-    step("8. flood: 300 more frames, table holds 256");
+    step("8. request/reply: UDP out, answer back, NetTrace pairs them");
+    netobserve_capture(NETWATCH_TX, udp_frame, sizeof(udp_frame));
+
+    netobserve_capture(NETWATCH_RX, reply_frame, sizeof(reply_frame));
+
+    netobserve_drain();
+    static netwatch_snapshot_t ns;
+
+    netwatch_get_snapshot(&ns);
+    nettrace_init();
+
+    for (int i = 0; i < 3; i++)
+        nettrace_rebuild(&ns); // NetView does on every redraw
+
+    uint32_t reply_id = ns.events[ns.event_count - 1].id;
+    provenance_entity_ref_t reply_ref = {PROVENANCE_ENTITY_NETWORK, reply_id};
+
+    show_edges("trace_to(the reply): its whole cause chain", res, provenance_trace_to(reply_ref, res, 32));
+    printf("(NetTrace rebuilt 3 times, the pairing edge is stored once)\n");
+
+    step("9. flood: 300 more frames, table holds 256");
+
     for (int i = 0; i < 300; i++)
     {
         netobserve_capture(NETWATCH_RX, udp_frame, sizeof(udp_frame));

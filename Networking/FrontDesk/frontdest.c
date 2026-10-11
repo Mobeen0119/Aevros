@@ -247,7 +247,8 @@ void frontdesk_irq_handler(void)
         }
     }
 
-    if (status & ISR_ROK)
+    // finished transmit is TOK
+    if (status & ISR_TOK)
         if (tx_pending > 0)
             tx_pending--;
 

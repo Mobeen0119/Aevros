@@ -1,4 +1,3 @@
-
 #include "isr.h"
 #include <stdint.h>
 #include "../Memory/pmm.h"
@@ -44,7 +43,21 @@ void isr_handler(struct registers *r)
         return;
     }
 
-    // if(frontdesk_dispatch_irq(r->int_no)) return;   ----Issue in compilation until networking complete
+    // IRQ 7 / 15 can be spurious
+    if (r->int_no == 39 || r->int_no == 47)
+    {
+        uint16_t pic_port = (r->int_no == 47) ? 0xA0 : 0x20;
+        outb(pic_port, 0x0B);
+        if (!(inb(pic_port) & 0x80))
+        {
+            if (r->int_no == 47)
+                outb(0x20, 0x20);
+            return;
+        }
+    }
+
+    if (frontdesk_dispatch_irq(r->int_no))
+        return;
 
     if (r->int_no < 32)
     {

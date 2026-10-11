@@ -1,6 +1,6 @@
 # Shell commands, actually doing stuff
 
-Most command references tell you *what* a command does.
+Most command references tell you _what_ a command does.
 
 This one shows you what actually happened when it ran.
 
@@ -32,7 +32,7 @@ A full-screen dashboard: version, uptime, current pid, task count, memory summar
 
 ![identity dashboard](images/identity-dashboard.png)
 
-Numbered options open a module (memory, tasks, debug, storage, drivers, about), `ESC` drops you back to the shell. 
+Numbered options open a module (memory, tasks, debug, storage, drivers, about), `ESC` drops you back to the shell.
 
 ### `health`
 
@@ -157,6 +157,7 @@ Aevros > blast 3
   IMPACT : LOW
     0 orphaned child(ren), 1 file(s) would free, 0 file(s) remain safely shared
 ```
+
 The block above shows the cleaner case, blasting a task that actually owns a named file outright, no underflow, no shared fds.
 
 ### `quarantine [check|release <name>]`
@@ -165,7 +166,7 @@ Not something you run to start, it's a safety net running on its own. If a task 
 
 ![quarantine command output](images/quarantine-command.png)
 
-Worth being straight about: every built-in shell command that opens a file (`cat`, `touch`, `write`) closes it again immediately, so there's currently no way to *trigger* a real quarantine event from the shell itself, the trigger needs a task that opens several file descriptors and leaks them.A small `User/Programs` test binary that opens files in a loop without closing them would make this demonstrable end to end, and would be a solid first contribution if you want one, see [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+Important to note: every built-in shell command that opens a file (`cat`, `touch`, `write`) closes it again immediately, so there's currently no way to _trigger_ a real quarantine event from the shell itself, the trigger needs a task that opens several file descriptors and leaks them.A small `User/Programs` test binary that opens files in a loop without closing them would make this demonstrable end to end, and would be a solid first contribution if you want one, see [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
 `quarantine check` forces an immediate sweep, `quarantine release <name>` puts a task back on the ready queue once you've decided it's fine. Here's what the kernel actually prints the moment a quarantine trips (from the source in `kernel/Process/Quarantine/Quarantine.c`, not yet captured live for the reason above):
 
@@ -215,7 +216,28 @@ A raw debug view of the buddy allocator's free lists, order by order. Lower-leve
 
 Runs the in-kernel self-test suite (`kernel/selftest.c`) live, in the booted kernel, not a separate host-side runner. Each line prints `[PASS]` or `[FAIL]`.
 
-
 Add a subsystem, add a matching `test_<subsystem>` function here, same `CHECK(name, condition)` pattern. See [`CONTRIBUTING.md`](../CONTRIBUTING.md), new features are expected to ship with a self-test in the same PR.
 
 `checktest` is separate: it runs `aevrospoint_full_test()` specifically, checkpoint save/restore under load, not the general suite.
+
+---
+
+## Networking
+
+### `provenance`
+
+Lists the cause-and-effect edges the kernel has recorded: which driver created which packet event, and which request triggered which reply. Each line shows the tick it was recorded at and the reason. When the table is full the oldest records are overwritten, and the footer says how many.
+
+This one is different from the rest of this page: the output below is from the host demo (`./tests/run_all.sh`), which runs the real report code on a Linux host. It is not a screenshot from a booted Aevros.
+
+```
+ PROVENANCE REPORT
+ -----------------
+[1] t=1 DRIVER:1 --CREATED--> NETWORK:1
+    Reason: DELIVERY
+[2] t=3 DRIVER:1 --CREATED--> NETWORK:2
+    Reason: SYSTEM_ACTION
+[3] t=5 DRIVER:1 --CREATED--> NETWORK:3
+    Reason: DELIVERY
+Records displayed: 3 (overwritten: 0)
+```

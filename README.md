@@ -4,7 +4,7 @@
 
 **An operating system that explains itself.**
 
-[![C](https://img.shields.io/badge/language-C-blue.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
+[![C](https://img.shields.io/badge/language-C-blue.svg)](<https://en.wikipedia.org/wiki/C_(programming_language)>)
 [![Architecture](https://img.shields.io/badge/arch-x86--32-lightgrey.svg)](#)
 [![Status](https://img.shields.io/badge/status-active--development-orange.svg)](#)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -14,8 +14,8 @@
 </div>
 
 ---
-![Aevros boot screen](docs/images/boot-welcome.png)
 
+![Aevros boot screen](docs/images/boot-welcome.png)
 
 ![Aevros feature tour demo](docs/images/aevros-demo.gif)
 
@@ -23,7 +23,7 @@
 
 Aevros is a small operating system kernel, written from scratch in C and x86 assembly.
 
-It exists to answer a question most educational kernels don't bother with: not just *what* broke, but *why*. "Something went wrong" has never been useful information to anyone, ever.
+It exists to answer a question most educational kernels don't bother with: not just _what_ broke, but _why_. "Something went wrong" has never been useful information to anyone, ever.
 
 Everything was written from scratch so every subsystem can be understood and modified without hidden dependencies.
 
@@ -50,7 +50,6 @@ No debugger. No print statements added for the screenshot. The kernel just answe
 - **Failures explain themselves.** A page fault doesn't just print a faulting address, it tells you in a sentence what kind of access failed and what that usually means. See [`decode_fault`](kernel/Paging/Aevros_Panic/aevros_panic.c) and the panic screen built on top of it.
 - **Built to be read, not just run.** A subsystem and the tool that explains it live next to each other in the tree. `kernel/Process/Blast` sits right beside `kernel/Process/task.c`.
 
-
 ## Try it right now
 
 ```bash
@@ -60,23 +59,38 @@ cd Aevros
 qemu-system-i386 -cdrom aevrosos.iso
 ```
 
-Few Moments , and you're at a shell that can explain itself. Details: [`docs/BUILDING.md`](docs/BUILDING.md).
+Few moments, and you're at a shell that can explain itself. Details: [`docs/BUILDING.md`](docs/BUILDING.md).
 
 ## What's actually working
 
-| Area | Status |
-|---|---|
-| Boot, GDT/IDT/PIC, interrupts | Working |
-| Physical memory, paging, buddy + slab allocators | Working |
-| Allocation tracker (file, line, owner, per alloc) | Working |
-| Scheduler, fork/exec, ELF loader | Working (cooperative) |
-| Syscalls (`int 0x80`), VFS, RAMFS | Working |
-| `whyalive`, `blast`, `quarantine`, `memfreeze`, checkpoint/restore | Working |
-| DevFS, full ring 3 isolation | Experimental / partial |
+| Area                                                                                           | Status                                                         |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Boot, GDT/IDT/PIC, interrupts                                                                  | Working                                                        |
+| Physical memory, paging, buddy + slab allocators                                               | Working                                                        |
+| Allocation tracker (file, line, owner, per alloc)                                              | Working                                                        |
+| Scheduler, fork/exec, ELF loader                                                               | Working (cooperative)                                          |
+| Syscalls (`int 0x80`), VFS, RAMFS                                                              | Working                                                        |
+| `whyalive`, `blast`, `quarantine`, `memfreeze`, checkpoint/restore                             | Working                                                        |
+| Network diagnostics: NetWatch (event log), NetTrace (request/reply pairing), NetView (overlay) | Builds and links, host-tested                                  |
+| Provenance (cause-and-effect log: NIC driver to packet to reply), `provenance` shell command   | Builds and links, host-tested, not yet observed in a live boot |
+| DevFS, full ring 3 isolation                                                                   | Experimental / partial                                         |
 
 Every "Working" row has a real self-test in `kernel/selftest.c`, run `selftest` yourself. Full table: [`README` implementation matrix in the repo](docs/ARCHITECTURE.md).
 
+## Networking diagnostics and provenance
 
+- **NetWatch** logs the packets the NIC sees (RX and TX, IPv4/IPv6/ARP, TCP/UDP/ICMP).
+- **NetTrace** pairs a request with its reply and marks it answered, pending or timed out.
+- **NetView** shows both in a full-screen overlay.
+- **Provenance** (`Provenance/`) logs cause-and-effect edges, like `DRIVER:1 --CREATED--> NETWORK:5`, so you can trace where a packet came from. The `provenance` shell command lists them.
+
+## Running the tests
+
+```bash
+./tests/run_all.sh
+```
+
+Runs the networking and provenance tests, then a demo of the `provenance` command. This tests the logic, not a booted kernel with a real NIC.
 
 ## Where this is going
 
@@ -87,6 +101,7 @@ Today, Aevros is a hobby kernel.
 Because debugging should feel less like archaeology, and more like asking a question.
 
 **In the near term, concretely:**
+
 - Real memory protection between user tasks, full ring 3, not partial
 - A preemptive scheduler, so one task can't quietly hog the CPU
 - Proper Networking And GUI for better experience.

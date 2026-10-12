@@ -31,6 +31,8 @@ static int checksum_ok(const uint8_t *udp, const uint16_t length, const uint8_t 
         sum += (uint16_t)((dst_ip[i] << 8) | dst_ip[i + 1]);
 
     sum += 17;
+    sum += length; // UDP length is part of the pseudo-header (RFC 768)
+
     for (int i = 0; i < length; i += 2)
     {
         uint16_t word = (uint16_t)((udp[i] << 8) | (i + 1 < length ? udp[i + 1] : 0));
@@ -143,6 +145,7 @@ int postcard_dispatch(const uint8_t dest_ip[4], uint16_t dest_port, uint16_t src
         sum += (uint16_t)((dest_ip[i] << 8) | dest_ip[i + 1]);
 
     sum += 17;
+    sum += udp_len; //  UDP length is part of the pseudo-header (RFC 768)
 
     for (int i = 0; i < udp_len; i += 2)
         sum += (uint16_t)((udp[i] << 8) | (i + 1 < udp_len ? udp[i + 1] : 0));

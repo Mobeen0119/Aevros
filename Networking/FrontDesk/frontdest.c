@@ -22,6 +22,8 @@
 #define RTL8139_DEVICE_ID 0x8139
 
 #define REG_MAC0 0x00
+#define REG_MAR0 0x08
+
 #define REG_RBSTART 0x30
 #define REG_CMD 0x37
 #define REG_CAPR 0x38
@@ -114,6 +116,9 @@ void frontdesk_init(void)
     outl(io_base + REG_RBSTART, (uint32_t)(uintptr_t)rx_buffer);
 
     outw(io_base + REG_IMR, ISR_ROK | ISR_TOK | ISR_RXOVW | ISR_RER);
+
+    for (int i = 0; i < 8; i++)
+        outb(io_base + REG_MAR0 + i, 0xFF);
 
     outl(io_base + REG_RCR, 0x0E | (1 << 7));
 
@@ -247,7 +252,6 @@ void frontdesk_irq_handler(void)
         }
     }
 
-    // finished transmit is TOK
     if (status & ISR_TOK)
         if (tx_pending > 0)
             tx_pending--;

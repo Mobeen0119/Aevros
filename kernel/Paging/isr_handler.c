@@ -51,7 +51,7 @@ void isr_handler(struct registers *r)
         if (!(inb(pic_port) & 0x80))
         {
             if (r->int_no == 47)
-                outb(0x20, 0x20);
+                outb(0x20, 0x20); // master still needs EOI for  cascade line
             return;
         }
     }

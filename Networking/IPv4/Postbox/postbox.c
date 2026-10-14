@@ -59,7 +59,7 @@ uint16_t postbox_read(uint32_t slot, uint8_t src_ip_out[4], uint16_t *src_port_o
     for (uint16_t i = 0; i < n; i++)
         data_out[i] = e->data[i];
 
-    head[slot] = (uint16_t)(head[slot] + 1 % POSTBOX_MAX_PENDING);
+    head[slot] = (uint16_t)((head[slot] + 1) % POSTBOX_MAX_PENDING);
 
     pending[slot]--;
 

@@ -10,7 +10,7 @@
 #include "../../Lib/kprintf.h"
 
 #define DHCP_FIXED_LEN 240
-#define DHCP_MAX_PACKET 320
+#define DHCP_MAX_PACKET 576
 #define PIT_HZ 100
 #define DHCP_RETRY_TICKS (5 * PIT_HZ)
 #define DHCP_RENEW_FRACTION_NUM 1

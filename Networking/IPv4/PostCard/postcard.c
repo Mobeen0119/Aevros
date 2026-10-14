@@ -106,7 +106,10 @@ void postcard_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
     uint16_t data_len = (uint16_t)(declared_len - UDP_HEADER_LEN);
 
     if (!postbox_deposit(slot, src_ip, src_port, payload + UDP_HEADER_LEN, data_len))
+    {
+        kprintf("[Postcard] could not queue %d bytes for slot %d (too big or queue full), dropping\n", data_len, slot);
         return;
+    }
 
     kprintf("[Postcard] delivered %d bytes into slot %d\n", data_len, slot);
 }

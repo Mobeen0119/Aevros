@@ -237,6 +237,17 @@ static void apply_lease(void)
             router_ip[0], router_ip[1], router_ip[2], router_ip[3], lease_seconds);
 }
 
+// only a BOOTP reply to our own request counts....op 2, our transaction id, our MAC
+static int reply_is_ours(const uint8_t *packet, uint16_t len, const uint8_t our_mac[6])
+{
+    if (len < DHCP_FIXED_LEN + 4 || packet[0] != 2)
+        return 0;
+
+    uint32_t reply_xid = ((uint32_t)packet[4] << 24) | ((uint32_t)packet[5] << 16) | ((uint32_t)packet[6] << 8) | packet[7];
+
+    return reply_xid == xid && memcmp(packet + 28, our_mac, 6) == 0;
+}
+
 void landlord_start(const uint8_t our_mac[6])
 {
     menu_open_port(LANDLORD_CLIENT_PORT, 17);
@@ -257,6 +268,12 @@ void landlord_tick(const uint8_t our_mac[6])
     uint8_t packet[DHCP_MAX_PACKET];
 
     uint16_t got = switchboard_recv_udp(LANDLORD_CLIENT_PORT, src_ip, &src_port, packet, sizeof(packet));
+
+    if (got > 0 && !reply_is_ours(packet, got, our_mac))
+    {
+        kprintf("[Landlord] ignoring a DHCP reply that isn't ours (wrong op, xid or MAC)\n");
+        got = 0;
+    }
 
     if (got > 0)
     {

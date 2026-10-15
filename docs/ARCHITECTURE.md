@@ -1,12 +1,12 @@
 # Architecture
 
-How Aevros is put together, from the moment GRUB hands over control to a shell command actually running a program. Read `PHILOSOPHY.md` first if you haven't, it explains *why* several of these subsystems look the way they do, this doc is more about the *how*.
+How Aevros is put together, from the moment GRUB hands over control to a shell command actually running a program. Read `PHILOSOPHY.md` first if you haven't, it explains _why_ several of these subsystems look the way they do, this doc is more about the _how_.
 
 Targets 32-bit x86. Nothing here depends on another kernel's source, headers, or design, beyond what the Multiboot spec and the x86 architecture itself require you to follow.
 
 ## Why this document exists
 
-```mermaid
+````mermaid
 flowchart LR
     A[Developer asks: Why?] --> B[Typical kernel]
     B --> C[Hex dump]
@@ -38,7 +38,7 @@ flowchart TD
     M --> N[init_tasking: task 0 created]
     N --> O[pit_init: timer armed, interrupts enabled]
     O --> P[First task scheduled, shell starts]
-```
+````
 
 Every step in that list is a real, separate initialization call in `kernel/main.c`, in that order, because later steps depend on earlier ones (paging needs the PMM, the heap needs paging, tasking needs the heap and the VFS). If you're adding a new subsystem that needs memory or filesystem access, its `_init()` call belongs after those in `kernel_main`.
 
@@ -121,7 +121,7 @@ flowchart LR
 
 ### 2.1 Memory map: what actually lives where
 
-The section above covers the *layers*. Here's the more concrete version: freeze the machine right after boot, look at physical memory address by address, what's actually there, and why. Every number below is real, pulled straight from `kernel/main.c` and `linker.ld`, nothing simplified for the example.
+The section above covers the _layers_. Here's the more concrete version: freeze the machine right after boot, look at physical memory address by address, what's actually there, and why. Every number below is real, pulled straight from `kernel/main.c` and `linker.ld`.
 
 Quick note first, for anyone new to this: memory is just one long strip of numbered boxes, called addresses, starting at `0x00000000`. The `0x` just means the number's written in hexadecimal instead of base-10, that's the convention low-level code uses because it lines up cleanly with how memory hardware is organized. You don't need to convert it in your head, just read it as "a specific spot in memory," the same way a street address is a specific spot on a map.
 
@@ -171,15 +171,16 @@ buddy_end   ┘
 
 In table form, if the diagram above is easier to skim as a reference:
 
-| Region | Starts at | Size | Plain-English purpose |
-|---|---|---|---|
-| Reserved / real-mode area | `0x00000000` | up to 1 MiB | Belongs to the PC platform, not touched by Aevros |
-| VGA text buffer | `0x000B8000` | 4000 bytes (80x25 characters x 2 bytes each) | The literal screen you're looking at; writes here appear on screen instantly, no driver in between |
-| Kernel image | `0x00100000` (the "1 MiB mark") | however big the last build was | The kernel's own compiled code and data, this is what `kernel.elf` gets loaded into |
-| PMM region | `kernel_end`, page-aligned | 4 MiB (`0x400000`) | Raw physical page frames, tracked one bit per frame: free or used, nothing more |
-| Buddy allocator region | right after the PMM region | up to 40 MiB (`0x2800000`), or 8 MiB if less RAM is detected | Larger reusable blocks handed out in power-of-two sizes; this is what the kernel heap is actually built on top of |
+| Region                    | Starts at                       | Size                                                         | Plain-English purpose                                                                                             |
+| ------------------------- | ------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Reserved / real-mode area | `0x00000000`                    | up to 1 MiB                                                  | Belongs to the PC platform, not touched by Aevros                                                                 |
+| VGA text buffer           | `0x000B8000`                    | 4000 bytes (80x25 characters x 2 bytes each)                 | The literal screen you're looking at; writes here appear on screen instantly, no driver in between                |
+| Kernel image              | `0x00100000` (the "1 MiB mark") | however big the last build was                               | The kernel's own compiled code and data, this is what `kernel.elf` gets loaded into                               |
+| PMM region                | `kernel_end`, page-aligned      | 4 MiB (`0x400000`)                                           | Raw physical page frames, tracked one bit per frame: free or used, nothing more                                   |
+| Buddy allocator region    | right after the PMM region      | up to 40 MiB (`0x2800000`), or 8 MiB if less RAM is detected | Larger reusable blocks handed out in power-of-two sizes; this is what the kernel heap is actually built on top of |
 
 Why walk through this at all, instead of just saying "there's a heap"? Because it's the same idea the rest of this document keeps coming back to: nothing in Aevros happens "somewhere," everything happens at a specific, nameable place, for a specific, traceable reason, and that's true all the way down to the raw address level, not just at the API level. If you ever see a crash with a faulting address in the panic screen (`docs/ARCHITECTURE.md#6-faults-and-panics`), this table is what lets you work out by hand whether that address was supposed to be valid at all.
+
 - **`MemFreeze`** takes a snapshot of the tracker's table and can diff it against a later snapshot, so you can answer "what did this command actually allocate" by snapshotting before and after.
 
 ## 3. Processes and scheduling
@@ -199,7 +200,7 @@ stateDiagram-v2
 
 A task (`task_t`, in `kernel/Process/task.h`) owns a page directory (`cr3`), a kernel stack, a register save area, a file descriptor table, a working directory, and a small ring buffer of the last events that happened to it (`task_event_t events[TASK_MAX_EVENTS]`). Tasks live on a circular ready queue (`ready_queue`) and a flat list of every task that has ever existed (`all_tasks`), which is what lets tools like `ps` and `blast` walk the whole system rather than just the runnable set.
 
-**Context switching** (`kernel/Process/content_switch.asm`) saves the callee-saved registers and instruction pointer of the outgoing task and restores them for the incoming one. It is currently cooperative: a switch happens on a timer tick or a syscall that blocks, there is no priority-based preemption yet (see the "Known limitations" table in the README).
+**Context switching** (`kernel/Process/content_switch.asm`) saves the callee-saved registers and instruction pointer of the outgoing task and restores them for the incoming one. Switching is driven by the timer: `timer_callback` (`Drivers/PIT/pit.c`) calls `schedule()` every 60 ticks (0.6 s at 100 Hz), so a task that never yields still loses the CPU. A task that blocks (for example in `waitpid`) also calls `schedule()` itself. Selection is plain round-robin, with no priorities yet. Because a switch can happen at any instruction, the heap allocator and the allocation tracker run with interrupts disabled. `selftest` checks both claims: two tasks that spin without yielding must both keep advancing, and two tasks hammering `kmalloc`/`kfree` under 10 ms slices must never corrupt a block.
 
 **Fork** (`do_fork`, `kernel/Process/fork.c`) duplicates the calling task's address space and file descriptor table and gives the child a new pid.
 
@@ -209,17 +210,17 @@ A task (`task_t`, in `kernel/Process/task.h`) owns a page directory (`cr3`), a k
 
 This is the part that is specific to Aevros. It lives directly next to the process code it inspects, one small module per question:
 
-| Module | Directory | Answers |
-|---|---|---|
-| `TaskLife` | `kernel/Process/TaskLife` | "What has happened to this task, in order?" |
-| `WhyAlive` | `kernel/Process/WhyAlive` | "Why does this task, inode, or allocation still exist?" |
-| `Blast` | `kernel/Process/Blast` | "What breaks if I kill this task, before I kill it?" |
-| `Quarantine` | `kernel/Process/Quarantine` | Watches automatically, freezes tasks whose fd-open rate looks like a leak |
-| `FDLeak` | `kernel/Process/FDLeak` | "Which tasks are holding file descriptors they never closed?" |
-| `OutLook` | `kernel/Process/OutLook` | A system-wide scan for the same kind of anomalies `whyalive` checks one object at a time |
-| `StackMap` | `kernel/Process/StackMap` | "How much of this task's stack is actually in use?" |
-| `TIMELINE` | `kernel/Process/TIMELINE` | A merged, system-wide view of every task's event log |
-| `AevrosPoint` | `kernel/Process/AevrosPoint` | Save and restore a task's complete state under a name, a manual checkpoint |
+| Module        | Directory                    | Answers                                                                                  |
+| ------------- | ---------------------------- | ---------------------------------------------------------------------------------------- |
+| `TaskLife`    | `kernel/Process/TaskLife`    | "What has happened to this task, in order?"                                              |
+| `WhyAlive`    | `kernel/Process/WhyAlive`    | "Why does this task, inode, or allocation still exist?"                                  |
+| `Blast`       | `kernel/Process/Blast`       | "What breaks if I kill this task, before I kill it?"                                     |
+| `Quarantine`  | `kernel/Process/Quarantine`  | Watches automatically, freezes tasks whose fd-open rate looks like a leak                |
+| `FDLeak`      | `kernel/Process/FDLeak`      | "Which tasks are holding file descriptors they never closed?"                            |
+| `OutLook`     | `kernel/Process/OutLook`     | A system-wide scan for the same kind of anomalies `whyalive` checks one object at a time |
+| `StackMap`    | `kernel/Process/StackMap`    | "How much of this task's stack is actually in use?"                                      |
+| `TIMELINE`    | `kernel/Process/TIMELINE`    | A merged, system-wide view of every task's event log                                     |
+| `AevrosPoint` | `kernel/Process/AevrosPoint` | Save and restore a task's complete state under a name, a manual checkpoint               |
 
 See [`docs/COMMANDS.md`](COMMANDS.md) for each of these run against a real task.
 
@@ -296,12 +297,12 @@ The shell (`kernel/Shell`) is a straightforward read-tokenize-dispatch loop (`sh
 
 ## 8. Where new code should go
 
-| You're adding... | It probably belongs in |
-|---|---|
-| A new syscall | `kernel/Syscall/syscall.c` (dispatch) + wherever the actual logic lives (e.g. `kernel/Process` for a process-related call) |
-| A new filesystem backend | A new directory under `kernel/VFS`, registered against the `vfs_ops_t` interface the same way RAMFS is |
+| You're adding...         | It probably belongs in                                                                                                                                                                        |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A new syscall            | `kernel/Syscall/syscall.c` (dispatch) + wherever the actual logic lives (e.g. `kernel/Process` for a process-related call)                                                                    |
+| A new filesystem backend | A new directory under `kernel/VFS`, registered against the `vfs_ops_t` interface the same way RAMFS is                                                                                        |
 | A new introspection tool | A new small directory under `kernel/Process` or `kernel/Memory`, next to the subsystem it inspects, following the `WhyAlive`/`Blast` pattern: one focused question, one plain-English verdict |
-| A new shell command | `kernel/Shell/shell.c` dispatch table, plus a `help_line(...)` entry, plus a builtin function if it's simple enough to live in `builtins.c` |
-| A new driver | `Drivers/`, following the existing `keyboard.c` / `tty.c` / `PIT` structure |
+| A new shell command      | `kernel/Shell/shell.c` dispatch table, plus a `help_line(...)` entry, plus a builtin function if it's simple enough to live in `builtins.c`                                                   |
+| A new driver             | `Drivers/`, following the existing `keyboard.c` / `tty.c` / `PIT` structure                                                                                                                   |
 
-If you're not sure where something goes, open a draft PR or a discussion issue before writing the implementation. See [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+If you're not sure where something goes, open a draft PR or a discussion issue before writing the implementation. See [`CONTRIBUTING.md`](../CONTRIBUTING.md).h

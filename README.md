@@ -68,7 +68,7 @@ Few moments, and you're at a shell that can explain itself. Details: [`docs/BUIL
 | Boot, GDT/IDT/PIC, interrupts                                                                  | Working                                                        |
 | Physical memory, paging, buddy + slab allocators                                               | Working                                                        |
 | Allocation tracker (file, line, owner, per alloc)                                              | Working                                                        |
-| Scheduler, fork/exec, ELF loader                                                               | Working (cooperative)                                          |
+| Scheduler, fork/exec, ELF loader                                                               | Working (round-robin, timer-driven, no priorities)             |
 | Syscalls (`int 0x80`), VFS, RAMFS                                                              | Working                                                        |
 | `whyalive`, `blast`, `quarantine`, `memfreeze`, checkpoint/restore                             | Working                                                        |
 | Network diagnostics: NetWatch (event log), NetTrace (request/reply pairing), NetView (overlay) | Builds and links, host-tested                                  |
@@ -103,7 +103,7 @@ Because debugging should feel less like archaeology, and more like asking a ques
 **In the near term, concretely:**
 
 - Real memory protection between user tasks, full ring 3, not partial
-- A preemptive scheduler, so one task can't quietly hog the CPU
+- Task priorities on top of the timer-driven round-robin (preemption itself already works: the timer takes the CPU from a task every 0.6 s)
 - Proper Networking And GUI for better experience.
 - Every existing subsystem passing the two-question test from [`PHILOSOPHY.md`](docs/PHILOSOPHY.md): can it say why it's still alive, and can it say what breaks if it's removed
 

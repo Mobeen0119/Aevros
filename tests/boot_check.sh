@@ -15,7 +15,12 @@ qemu-system-i386 -cdrom "$ISO" -m 256 -display none -vga std \
   -monitor unix:"$T/mon",server,nowait -no-reboot >"$T/qemu.log" 2>&1 &
 QPID=$!
 
-sleep 2
+# loaded machine can take a few seconds to create the log files
+for i in $(seq 20); do
+  [ -e "$T/serial" ] && break
+  kill -0 $QPID 2>/dev/null || break
+  sleep 1
+done
 if ! kill -0 $QPID 2>/dev/null || [ ! -e "$T/serial" ]; then
   echo "QEMU did not start. Its error output:"
   cat "$T/qemu.log"

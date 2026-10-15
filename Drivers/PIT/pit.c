@@ -8,7 +8,14 @@
 #include "../../Networking/FrontDesk/frontdesk.h"
 #include "../../Networking/Concierge/concierge.h"
 #include "../../Networking/NetWatch/net_observe.h"
-#define TIME_SLICE 60
+#define DEFAULT_TIME_SLICE 60 // ticks per slice (0.6 s at 100 Hz)
+
+static volatile uint32_t time_slice = DEFAULT_TIME_SLICE;
+
+void pit_set_time_slice(uint32_t ticks)
+{
+    time_slice = ticks ? ticks : DEFAULT_TIME_SLICE;
+}
 #define QUARANTINE_SCAN_INTERVAL 600
 
 volatile uint32_t timer_clicks = 0;
@@ -29,7 +36,7 @@ int timer_callback(register_t *regs)
     (void)regs;
     ++timer_clicks;
 
-    if (timer_clicks % TIME_SLICE == 0)
+    if (timer_clicks % time_slice == 0)
         schedule();
 
     if (timer_clicks % QUARANTINE_SCAN_INTERVAL == 0)

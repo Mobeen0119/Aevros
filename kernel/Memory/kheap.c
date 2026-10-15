@@ -3,6 +3,7 @@
 
 #include "buddy.h"
 #include "slab.h"
+#include "../CPU/irq_guard.h"
 
 #define SLAB_NUM_CACHES 3
 extern slab_t cache_32b;
@@ -26,7 +27,7 @@ int size_to_order(size_t size)
     return order;
 }
 
-void *kmalloc_raw(size_t size)
+static void *kmalloc_unlocked(size_t size)
 {
     if (size <= 32)
         return slab_alloc(&cache_32b);
@@ -38,7 +39,6 @@ void *kmalloc_raw(size_t size)
         return slab_alloc(&cache_128b);
 
     size_t total = size + sizeof(block_header_t);
-
 
     int order = size_to_order(total);
 
@@ -52,7 +52,7 @@ void *kmalloc_raw(size_t size)
     return (void *)(hdr + 1);
 }
 
-void kfree_raw(void *ptr)
+static void kfree_unlocked(void *ptr)
 {
     if (!ptr)
         return;
@@ -76,6 +76,24 @@ void kfree_raw(void *ptr)
     {
         buddy_free(hdr, hdr->infor.order);
     }
+}
+
+// timer can switch tasks at any instruction...allocator runs with interuppt off
+void *kmalloc_raw(size_t size)
+{
+    uint32_t f = irq_guard_save();
+    void *p = kmalloc_unlocked(size);
+
+    irq_guard_restore(f);
+    return p;
+}
+
+void kfree_raw(void *ptr)
+{
+    uint32_t f = irq_guard_save();
+
+    kfree_unlocked(ptr);
+    irq_guard_restore(f);
 }
 
 uint32_t heap_used_bytes(void)

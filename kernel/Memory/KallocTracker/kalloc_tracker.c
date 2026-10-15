@@ -2,6 +2,7 @@
 #include "../../Process/task.h"
 #include "../../../Include/screen.h"
 #include "../../../Lib/kprintf.h"
+#include "../../CPU/irq_guard.h"
 
 static alloc_record_t records[TRACKER_MAX_ALLOCS];
 static uint32_t record_count = 0;
@@ -13,7 +14,7 @@ void tracker_init(void)
     record_count = 0;
 }
 
-void tracker_record(void *ptr, size_t size, const char *file, uint32_t line, const char *func)
+static void tracker_record_unlocked(void *ptr, size_t size, const char *file, uint32_t line, const char *func)
 {
     if (!ptr)
         return;
@@ -39,7 +40,7 @@ void tracker_record(void *ptr, size_t size, const char *file, uint32_t line, con
             TRACKER_MAX_ALLOCS, ptr);
 }
 
-void tracker_remove(void *ptr)
+static void tracker_remove_unlocked(void *ptr)
 {
     if (!ptr)
         return;
@@ -71,6 +72,21 @@ static uint8_t pid_is_alive(uint32_t pid)
     } while (t && t != ready_queue);
 
     return 0;
+}
+
+// timer switch tasks mid-update.....record table only touched with interuppts off
+void tracker_record(void *ptr, size_t size, const char *file, uint32_t line, const char *func)
+{
+    uint32_t f = irq_guard_save();
+    tracker_record_unlocked(ptr, size, file, line, func);
+    irq_guard_restore(f);
+}
+
+void tracker_remove(void *ptr)
+{
+    uint32_t f = irq_guard_save();
+    tracker_remove_unlocked(ptr);
+    irq_guard_restore(f);
 }
 
 void tracker_dump(void)
@@ -207,10 +223,12 @@ alloc_record_t *tracker_find(void *ptr)
     return NULL;
 }
 
-alloc_record_t* tracker_get_table(void){
+alloc_record_t *tracker_get_table(void)
+{
     return records;
 }
 
-uint32_t tracker_table_size(void){
+uint32_t tracker_table_size(void)
+{
     return TRACKER_MAX_ALLOCS;
 }

@@ -166,11 +166,30 @@ void tasklife_ps(void)
         const char *state;
         switch (t->state)
         {
-            case TASK_READY:   state = "READY    "; state_color = VGA_CYAN;   break;
-            case TASK_RUNNING: state = "RUNNING  "; state_color = VGA_GREEN;  break;
-            case TASK_BLOCKED: state = "BLOCKED  "; state_color = VGA_YELLOW; break;
-            case TASK_ZOMBIE:  state = "ZOMBIE   "; state_color = VGA_RED;    break;
-            default:           state = "SUSPENDED"; state_color = VGA_WHITE;  break;
+        case TASK_READY:
+            state = "READY    ";
+            state_color = VGA_CYAN;
+            break;
+
+        case TASK_RUNNING:
+            state = "RUNNING  ";
+            state_color = VGA_GREEN;
+            break;
+
+        case TASK_BLOCKED:
+            state = "BLOCKED  ";
+            state_color = VGA_YELLOW;
+            break;
+
+        case TASK_ZOMBIE:
+            state = "ZOMBIE   ";
+            state_color = VGA_RED;
+            break;
+
+        default:
+            state = "SUSPENDED";
+            state_color = VGA_WHITE;
+            break;
         }
 
         set_color(VGA_WHITE, VGA_BLACK);
@@ -190,4 +209,17 @@ void tasklife_ps(void)
     reset_color();
 
     kprint("\n");
+}
+
+void tasklife_stacks(void)
+{
+    kprintf("  PID  NAME             STACK USED\n");
+
+    for (task_t *t = all_tasks; t; t = t->all_next)
+    {
+        uint32_t used = task_stack_peak_used(t);
+        const char *flag = used >= KSTACK_BYTES ? "  OVERFLOW" : (used >= KSTACK_BYTES * 3 / 4 ? "  DANGER" : "");
+
+        kprintf("  %d    %s   %u / %u%s\n", t->pid, t->name, used, KSTACK_BYTES, flag);
+    }
 }

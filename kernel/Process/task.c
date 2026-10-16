@@ -101,6 +101,7 @@ void init_tasking()
         current_task = NULL;
         return;
     }
+    kstack_paint(stack_base);
 
     uint32_t stack_top = (uint32_t)stack_base + 4096;
 
@@ -221,6 +222,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir,
         kfree_raw(new_task);
         return NULL;
     }
+    kstack_paint(stack_base);
 
     uint32_t stack_top = (uint32_t)stack_base + 4096;
 
@@ -236,8 +238,7 @@ task_t *create_process(void (*entry_point)(), uint32_t flags, uint32_t page_dir,
         ss = 0x10;
     }
 
-    new_task->context_esp = build_initial_stack(stack_base, (uint32_t)entry_point, cs, ss,
-                                                 page_dir ? user_stack_top : stack_top);
+    new_task->context_esp = build_initial_stack(stack_base, (uint32_t)entry_point, cs, ss, page_dir ? user_stack_top : stack_top);
 
     new_task->cr3 = page_dir ? page_dir : read_cr3();
 
@@ -272,7 +273,6 @@ void schedule(void)
         asm volatile("mov %0, %%cr3" ::"r"(next->cr3) : "memory");
 
     context_switch(&prev->context_esp, next->context_esp);
-
 }
 
 void switch_to_task_state(task_t *target, task_state_t leave_prev_as)
@@ -502,4 +502,25 @@ void task_wake(task_t *task)
 
     task_log_event(task, EVT_WOKE, 0);
     task->state = TASK_READY;
+}
+
+#define KSTACK_PAINT 0xA5
+
+void kstack_paint(void *base)
+{
+    memset(base, KSTACK_PAINT, KSTACK_BYTES);
+}
+
+uint32_t task_stack_peak_used(const task_t *t)
+{
+    if (!t || !t->kernel_stack_base)
+        return 0;
+
+    const uint8_t *p = (const uint8_t *)t->kernel_stack_base;
+    uint32_t untouched = 0;
+
+    while (untouched < KSTACK_BYTES && p[untouched] == KSTACK_PAINT)
+        untouched++;
+
+    return KSTACK_BYTES - untouched;
 }

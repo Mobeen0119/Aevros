@@ -35,11 +35,6 @@ int foyer_queue(const uint8_t target_ip[4], const uint8_t our_mac[6], const uint
 
     if (rolodex_lookup(target_ip, mac))
     {
-        uint8_t out[FOYER_MAX_FRAME];
-
-        memcpy(out, frame, len);
-        memcpy(out, mac, 6);
-
         uint32_t pass_id;
         if (bailiff_present_pass(pass_id, frame, len) && bailiff_request_pass(frame, len, &pass_id))
         {
@@ -71,7 +66,7 @@ int foyer_queue(const uint8_t target_ip[4], const uint8_t our_mac[6], const uint
     foyer_entry_t *e = &slots[free_slot];
     e->len = len;
     memcpy(e->frame, frame, len);
-  
+
     memcpy(e->target_ip, target_ip, 4);
     e->last_attempt = get_ticks();
     e->retry_count = 0;

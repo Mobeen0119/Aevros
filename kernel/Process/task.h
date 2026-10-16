@@ -119,6 +119,12 @@ extern task_t *all_tasks;
 
 extern int next_pid;
 
+#define KSTACK_BYTES 4096
+
+void kstack_paint(void *base);
+
+uint32_t task_stack_peak_used(const task_t *t);
+
 void init_tasking();
 
 task_t *create_process(void (*entry)(), uint32_t flags, uint32_t page_dir, uint32_t user_stack_top);

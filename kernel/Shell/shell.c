@@ -397,6 +397,11 @@ void shell_execute(char *input)
         tasklife_ps();
     }
 
+    else if (strcmp(argv[0], "stacks") == 0)
+    {
+        tasklife_stacks();
+    }
+
     else if (strcmp(argv[0], "tasklife") == 0)
     {
         if (argc < 2)
@@ -606,6 +611,7 @@ void shell_execute(char *input)
         help_line("exec <file>", "run a program");
         help_line("fork", "run the fork demo program");
         help_line("ps", "list tasks");
+        help_line("stacks", "kernel stack use per task");
         help_line("ticks", "show system tick count");
         help_line("tasklife <pid|name>", "task lifetime info");
         help_line("checkpoint <save|restore|list> <name>", "save/restore a process");

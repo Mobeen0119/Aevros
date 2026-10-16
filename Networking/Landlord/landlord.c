@@ -11,6 +11,7 @@
 
 #define DHCP_FIXED_LEN 240
 #define DHCP_MAX_PACKET 576
+#define DHCP_SEND_MAX 320
 #define PIT_HZ 100
 #define DHCP_RETRY_TICKS (5 * PIT_HZ)
 #define DHCP_RENEW_FRACTION_NUM 1
@@ -113,7 +114,7 @@ static uint16_t append_request_options(uint8_t *packet)
 static void send_discover(const uint8_t our_mac[6])
 {
 
-    uint8_t packet[DHCP_MAX_PACKET];
+    uint8_t packet[DHCP_SEND_MAX];
 
     xid = new_xid(our_mac);
 
@@ -132,7 +133,7 @@ static void send_discover(const uint8_t our_mac[6])
 
 static void send_request(const uint8_t our_mac[6])
 {
-    uint8_t packet[DHCP_MAX_PACKET];
+    uint8_t packet[DHCP_SEND_MAX];
     build_header(packet, our_mac, zero_ip);
 
     uint16_t len = append_request_options(packet);
@@ -265,7 +266,7 @@ void landlord_tick(const uint8_t our_mac[6])
 
     uint16_t src_port;
 
-    uint8_t packet[DHCP_MAX_PACKET];
+    static uint8_t packet[DHCP_MAX_PACKET];
 
     uint16_t got = switchboard_recv_udp(LANDLORD_CLIENT_PORT, src_ip, &src_port, packet, sizeof(packet));
 

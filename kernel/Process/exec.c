@@ -72,7 +72,8 @@ int exec_user(void *binary, uint32_t size)
         destroy_user_space(new_cr3);
         return VFS_ERR;
     }
-    
+    kstack_paint(kstack);
+
     task->pid = next_pid++;
     task->state = TASK_READY;
     task->cr3 = new_cr3;
@@ -109,7 +110,7 @@ int exec_user(void *binary, uint32_t size)
     task_add_ready(task);
 
     task_log_event(current_task, EVT_EXEC, task->pid);
-task_log_event(task, EVT_CREATED, 0);
+    task_log_event(task, EVT_CREATED, 0);
 
     return task->pid;
 }
@@ -204,6 +205,7 @@ int sys_exec(const char *path)
         kfree_raw(buffer);
         return VFS_ERR;
     }
+    kstack_paint(kstack);
 
     task->pid = next_pid++;
     task->state = TASK_READY;
@@ -245,7 +247,7 @@ int sys_exec(const char *path)
     task_register_all(task);
     task_add_ready(task);
     task_log_event(current_task, EVT_EXEC, task->pid);
-task_log_event(task, EVT_CREATED, 0);
+    task_log_event(task, EVT_CREATED, 0);
 
     return task->pid;
 }

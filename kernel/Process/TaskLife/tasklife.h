@@ -3,12 +3,14 @@
 
 #include "../task.h"
 
-void task_log_event(task_t* task,task_event_type_t type,uint32_t data);
+void task_log_event(task_t *task, task_event_type_t type, uint32_t data);
 
 void tasklife_dump(uint32_t pid);
 
 void tasklife_dump_current(void);
 
 void tasklife_ps(void);
+
+void tasklife_stacks(void);
 
 #endif

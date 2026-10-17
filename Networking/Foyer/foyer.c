@@ -32,18 +32,8 @@ int foyer_queue(const uint8_t target_ip[4], const uint8_t our_mac[6], const uint
         return 0;
 
     uint8_t mac[6];
+    int mac_known = rolodex_lookup(target_ip, mac);
 
-    if (rolodex_lookup(target_ip, mac))
-    {
-        uint32_t pass_id;
-        if (bailiff_present_pass(pass_id, frame, len) && bailiff_request_pass(frame, len, &pass_id))
-        {
-            flushed_total++;
-            kprintf("[Foyer] %d.%d.%d.%d already known, sent straight through\n",
-                    target_ip[0], target_ip[1], target_ip[2], target_ip[3]);
-        }
-        return 1;
-    }
     int requested_already = 0;
     int free_slot = -1;
 
@@ -70,6 +60,21 @@ int foyer_queue(const uint8_t target_ip[4], const uint8_t our_mac[6], const uint
     memcpy(e->target_ip, target_ip, 4);
     e->last_attempt = get_ticks();
     e->retry_count = 0;
+
+    if (mac_known)
+    {
+        uint32_t pass_id;
+
+        memcpy(e->frame, mac, 6);
+
+        if (bailiff_request_pass(e->frame, e->len, &pass_id) && bailiff_present_pass(pass_id, e->frame, e->len))
+        {
+            flushed_total++;
+            kprintf("[Foyer] %d.%d.%d.%d already known, sent straight through\n", target_ip[0], target_ip[1], target_ip[2], target_ip[3]);
+        }
+        return 1;
+    }
+
     e->in_use = 1;
 
     kprintf("[Foyer] holding a frame for %d.%d.%d.%d, no MAC yet\n",

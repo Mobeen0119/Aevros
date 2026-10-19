@@ -45,7 +45,8 @@
 #define ISR_RXOVW 0x10
 #define ISR_RER 0x02
 
-#define RX_BUFFER_SIZE (8192 + 16 + 1500)
+#define RX_RING_BYTES 8192
+#define RX_BUFFER_SIZE (RX_RING_BYTES + 16 + 1500)
 
 static frontdesk_state_t state;
 static pci_device_t nic_pci;
@@ -245,8 +246,10 @@ void frontdesk_irq_handler(void)
             }
             rx_read_offset = (uint16_t)((rx_read_offset + packet_length + 4 + 3) & ~3);
 
-            if (rx_read_offset > RX_BUFFER_SIZE - 16)
-                rx_read_offset -= (RX_BUFFER_SIZE - 16);
+            // wrap at the ring size the card uses. wrapping later (at the buffer size) made the driver read stale memory
+            // after the first lap, so receiving silently stopped after about 8 KB of traffic
+            if (rx_read_offset >= RX_RING_BYTES)
+                rx_read_offset -= RX_RING_BYTES;
 
             outw(io_base + REG_CAPR, (uint16_t)(rx_read_offset - 16));
         }

@@ -27,10 +27,13 @@ typedef struct
     uint32_t conn_id;
     uint16_t local_port;
     int in_use;
+    int closing;
 
 } socket_entry_t;
 
 static socket_entry_t sockets[FRONTDOOR_MAX_SOCKETS];
+
+static int try_send_fin(int fd);
 
 #define UDP_EPHEMERAL_LOW 40000
 #define UDP_EPHEMERAL_HIGH 40999
@@ -54,7 +57,10 @@ static int find_free_slot(void)
 
     for (int i = 0; i < FRONTDOOR_MAX_SOCKETS; i++)
         if (!sockets[i].in_use)
+        {
+            sockets[i].closing = 0;
             return i;
+        }
 
     return -1;
 }
@@ -80,6 +86,14 @@ void frontdoor_init(void)
 
 void frontdoor_tick(void)
 {
+    for (int i = 0; i < FRONTDOOR_MAX_SOCKETS; i++)
+    {
+        if (sockets[i].in_use && sockets[i].closing && try_send_fin(i))
+        {
+            sockets[i].closing = 0;
+            sockets[i].in_use = 0;
+        }
+    }
 }
 
 int frontdoor_socket(int type)
@@ -271,7 +285,7 @@ int frontdoor_recv(int fd, uint8_t *buf, uint16_t max_len)
 
         conversation_state_t st = rapport6_get_state(sockets[fd].conn_id);
 
-        if (st == CONV_CLOSED || st == CONV_TIME_WAIT)
+        if (st == CONV_CLOSED || st == CONV_TIME_WAIT || st == CONV_CLOSE_WAIT)
             return -1;
 
         return 0;
@@ -287,7 +301,7 @@ int frontdoor_recv(int fd, uint8_t *buf, uint16_t max_len)
 
     conversation_state_t st = rapport_get_state(sockets[fd].conn_id);
 
-    if (st == CONV_CLOSED || st == CONV_TIME_WAIT)
+    if (st == CONV_CLOSED || st == CONV_TIME_WAIT || st == CONV_CLOSE_WAIT)
         return -1;
 
     return 0;
@@ -351,11 +365,8 @@ int frontdoor_recvfrom(int fd, recvfrom_args_t *args)
     return switchboard_recv_udp(sockets[fd].local_port, args->src_out.ip, &args->src_out.port, args->buf, args->max_len);
 }
 
-int frontdoor_close(int fd)
+static int try_send_fin(int fd)
 {
-    if (fd < 0 || fd >= FRONTDOOR_MAX_SOCKETS || !sockets[fd].in_use)
-        return -1;
-
     if (sockets[fd].kind == SOCK_TCP6 && !sockets[fd].listening && sockets[fd].conn_id != LOCKBOX6_CAPACITY)
     {
         conversation_state_t st = rapport6_get_state(sockets[fd].conn_id);
@@ -366,12 +377,11 @@ int frontdoor_close(int fd)
 
             get_identity6(our_mac, our_ip);
 
-            switchboard6_close(sockets[fd].conn_id, our_mac, our_ip);
+            return switchboard6_close(sockets[fd].conn_id, our_mac, our_ip) ? 1 : 0;
         }
     }
     else if (sockets[fd].kind == SOCK_TCP && !sockets[fd].listening && sockets[fd].conn_id != LOCKBOX_CAPACITY)
     {
-
         conversation_state_t st = rapport_get_state(sockets[fd].conn_id);
 
         if (st == CONV_ESTABLISHED || st == CONV_CLOSE_WAIT)
@@ -380,8 +390,22 @@ int frontdoor_close(int fd)
 
             get_identity(our_mac, our_ip);
 
-            switchboard_close(sockets[fd].conn_id, our_mac, our_ip);
+            return switchboard_close(sockets[fd].conn_id, our_mac, our_ip) ? 1 : 0;
         }
+    }
+
+    return 1;
+}
+
+int frontdoor_close(int fd)
+{
+    if (fd < 0 || fd >= FRONTDOOR_MAX_SOCKETS || !sockets[fd].in_use)
+        return -1;
+
+    if (!try_send_fin(fd))
+    {
+        sockets[fd].closing = 1;
+        return 0;
     }
 
     sockets[fd].in_use = 0;

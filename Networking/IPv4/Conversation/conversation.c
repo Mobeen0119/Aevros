@@ -352,12 +352,6 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
         return;
     }
 
-    if (flags & FLAG_FIN)
-    {
-        rapport_on_fin(conn_id);
-        return;
-    }
-
     if (flags & FLAG_ACK)
     {
         uint32_t ack_num = (uint32_t)((payload[8] << 24) | (payload[9] << 16) | (payload[10] << 8) | payload[11]);
@@ -372,6 +366,9 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
         rapport_advance_seq(conn_id, data_len);
         waystation_drain(conn_id);
     }
+
+    if (flags & FLAG_FIN)
+        rapport_on_fin(conn_id);
 }
 
 uint32_t tcp_accepted_count(void)
@@ -549,7 +546,7 @@ int conversation_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], co
     if (!conversation_dispatch(conn_id, FLAG_SYN | FLAG_ACK, our_isn, ack, 0, 0, our_mac, our_ip, out_pass_id))
         return 0;
 
-    scheduler_track(conn_id, our_isn, last_dispatched_frame, last_dispatched_len);
+    scheduler_track(conn_id, our_isn, 1, last_dispatched_frame, last_dispatched_len); // a SYN-ACK uses one sequence number
     return 1;
 }
 
@@ -580,7 +577,7 @@ int conversation_dispatch_data(uint32_t conn_id, const uint8_t *data, uint16_t l
     if (!conversation_dispatch(conn_id, FLAG_ACK, seq, ack, data, len, our_mac, our_ip, out_pass_id))
         return 0;
 
-    scheduler_track(conn_id, seq, last_dispatched_frame, last_dispatched_len);
+    scheduler_track(conn_id, seq, len, last_dispatched_frame, last_dispatched_len); // data uses its payload length
 
     rapport_advance_send_seq(conn_id, len);
 
@@ -592,7 +589,7 @@ int conversation_dispatch_syn(uint32_t conn_id, uint32_t our_isn, const uint8_t 
     if (!conversation_dispatch(conn_id, FLAG_SYN, our_isn, 0, 0, 0, our_mac, our_ip, out_pass_id))
         return 0;
 
-    scheduler_track(conn_id, our_isn, last_dispatched_frame, last_dispatched_len);
+    scheduler_track(conn_id, our_isn, 1, last_dispatched_frame, last_dispatched_len); // a SYN uses one sequence number
     return 1;
 }
 
@@ -625,7 +622,7 @@ int conversation_dispatch_fin(uint32_t conn_id, const uint8_t our_mac[6], const 
     if (!conversation_dispatch(conn_id, FLAG_FIN | FLAG_ACK, seq, ack, 0, 0, our_mac, our_ip, out_pass_id))
         return 0;
 
-    scheduler_track(conn_id, seq, last_dispatched_frame, last_dispatched_len);
+    scheduler_track(conn_id, seq, 1, last_dispatched_frame, last_dispatched_len); // a FIN uses one sequence number
     rapport_advance_send_seq(conn_id, 1);
     rapport_initiate_close(conn_id, seq);
 

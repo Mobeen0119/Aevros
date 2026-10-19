@@ -15,13 +15,12 @@ static int fails;
         }                                               \
     } while (0)
 
+// stubs for neighbours foyer talks to
 static uint8_t known_ip[4];
 static uint8_t known_mac[6];
 static int have_mac;
-
 static int arp_requests;
 static uint32_t next_pass = 1000, last_issued;
-
 static int sent, sent_with_bad_pass, present_before_request;
 static uint8_t sent_dst[6];
 static uint32_t fake_now;
@@ -43,9 +42,7 @@ int rolodex_dispatch_request(const uint8_t t[4], const uint8_t m[6], uint32_t *i
     (void)t;
     (void)m;
     *id = next_pass++;
-
     last_issued = *id;
-
     arp_requests++;
     return 1;
 }
@@ -70,7 +67,7 @@ int bailiff_present_pass(uint32_t id, const uint8_t *frame, uint16_t len)
 {
     (void)len;
     if (frame[12] != 0x08)
-        return 1;
+        return 1; // ARP request is not frame under test
     if (!pending_request)
         present_before_request++;
     if (id != last_issued)
@@ -108,6 +105,7 @@ int main(void)
     frame[12] = 0x08;
     frame[13] = 0x00; // ethertype IPv4, destination MAC zeroed
 
+    // unknown MAC: hold the frame and ask who has the address
     reset();
     CHECK(foyer_queue(ip, our_mac, frame, sizeof(frame)) == 1);
     CHECK(arp_requests == 1 && sent == 0);
@@ -117,17 +115,13 @@ int main(void)
     have_mac = 1;
     foyer_tick(our_mac);
     CHECK(sent == 1 && memcmp(sent_dst, mac, 6) == 0);
-
     CHECK(sent_with_bad_pass == 0 && present_before_request == 0);
 
     reset();
     have_mac = 1;
-
     CHECK(foyer_queue(ip, our_mac, frame, sizeof(frame)) == 1);
     CHECK(sent == 1);
-
     CHECK(memcmp(sent_dst, mac, 6) == 0);
-
     CHECK(sent_with_bad_pass == 0 && present_before_request == 0);
     CHECK(arp_requests == 0);
 
@@ -136,13 +130,11 @@ int main(void)
     {
         reset();
         have_mac = 1;
-
         if (foyer_queue(ip, our_mac, frame, sizeof(frame)) != 1 || sent != 1)
             ok = 0;
     }
     CHECK(ok);
 
     printf(fails ? "foyer: %d FAILED\n" : "foyer: all passed\n", fails);
-
     return fails != 0;
 }

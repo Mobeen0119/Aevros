@@ -30,7 +30,7 @@ static int resend(packets_state_t *e, uint32_t conn_id, const char *reason)
     return 0;
 }
 
-int scheduler_track(uint32_t conn_id, uint32_t seq, const uint8_t *frame, uint16_t len)
+int scheduler_track(uint32_t conn_id, uint32_t seq, uint16_t seq_len, const uint8_t *frame, uint16_t len)
 {
     if (!valid_id(conn_id) || len == 0 || len > SCHED_MAX_FRAME)
         return 0;
@@ -40,6 +40,7 @@ int scheduler_track(uint32_t conn_id, uint32_t seq, const uint8_t *frame, uint16
     e->conn_id = conn_id;
     e->seq = seq;
     e->length = len;
+    e->seq_len = seq_len;
     memcpy(e->frame, frame, len);
     e->start_timer = get_ticks();
     e->retry_track = 0;
@@ -65,7 +66,7 @@ void scheduler_ack(uint32_t conn_id, uint32_t acked_seq)
     if (e->state != PACKET_STATE_RETRY)
         return;
 
-    if (acked_seq >= e->seq + e->length)
+    if (acked_seq >= e->seq + e->seq_len)
     {
         if (!e->retransmitted)
         {
@@ -169,10 +170,12 @@ void scheduler_tick(void)
     }
 }
 
-uint16_t scheduler_bytes_in_flight(uint32_t conn_id){
-    if(!valid_id(conn_id)) return 0;
+uint16_t scheduler_bytes_in_flight(uint32_t conn_id)
+{
+    if (!valid_id(conn_id))
+        return 0;
 
-    return (entries[conn_id].state == PACKET_STATE_RETRY) ? entries[conn_id].length : 0;
+    return (entries[conn_id].state == PACKET_STATE_RETRY) ? entries[conn_id].seq_len : 0;
 }
 uint32_t scheduler_retransmit_count(void)
 {

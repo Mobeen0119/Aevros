@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "../../Include/shell.h"
+#include "../../Networking/FrontDoor/tcpecho.h"
 #include "../../Include/screen.h"
 #include "../../Include/terminal.h"
 #include "../../Lib/string.h"
@@ -402,6 +403,11 @@ void shell_execute(char *input)
         tasklife_stacks();
     }
 
+    else if (strcmp(argv[0], "tcpecho") == 0)
+    {
+        tcpecho_start();
+    }
+
     else if (strcmp(argv[0], "tasklife") == 0)
     {
         if (argc < 2)
@@ -612,6 +618,7 @@ void shell_execute(char *input)
         help_line("fork", "run the fork demo program");
         help_line("ps", "list tasks");
         help_line("stacks", "kernel stack use per task");
+        help_line("tcpecho", "start a TCP echo server on port 7007");
         help_line("ticks", "show system tick count");
         help_line("tasklife <pid|name>", "task lifetime info");
         help_line("checkpoint <save|restore|list> <name>", "save/restore a process");

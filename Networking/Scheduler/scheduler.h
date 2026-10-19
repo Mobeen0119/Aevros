@@ -24,7 +24,8 @@ typedef struct
 {
     uint32_t conn_id;
     uint32_t seq;
-    uint16_t length;
+    uint16_t length;  // bytes in stored frame
+    uint16_t seq_len; // sequence numbers segment uses
 
     uint32_t start_timer;
     uint32_t retry_track;
@@ -40,7 +41,7 @@ typedef struct
     uint32_t dup_ack_count;
 } packets_state_t;
 
-int scheduler_track(uint32_t conn_id, uint32_t seq, const uint8_t *frame, uint16_t len);
+int scheduler_track(uint32_t conn_id, uint32_t seq, uint16_t seq_len, const uint8_t *frame, uint16_t len);
 void scheduler_ack(uint32_t conn_id, uint32_t acked_seq);
 
 void scheduler_cancel(uint32_t conn_id);

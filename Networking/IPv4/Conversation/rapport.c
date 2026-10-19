@@ -37,6 +37,7 @@ void rapport_on_syn(uint32_t conn_id, uint32_t peer_isn, uint32_t our_isn)
     expected_seq[conn_id] = peer_isn + 1;
 
     our_isn_table[conn_id] = our_isn;
+    send_seq[conn_id] = our_isn + 1; // SYN-ACK uses one sequence number ... data starts af
 
     kprintf("[Rapport] slot %d: said hi, waiting to hear back (peer_isn=%u, our_isn=%u)\n", conn_id, peer_isn, our_isn);
 }
@@ -68,6 +69,12 @@ void rapport_on_ack(uint32_t conn_id, uint32_t ack_num)
     switch (status[conn_id])
     {
     case CONV_SYN_RECEIVED:
+        // only an ACK of our SYN-ACK completes the handshake (it proves the peer saw our ISN)
+        if (ack_num != our_isn_table[conn_id] + 1)
+        {
+            kprintf("[Rapport] slot %d: ack %u doesn't acknowledge our syn-ack, ignoring\n", conn_id, ack_num);
+            break;
+        }
         status[conn_id] = CONV_ESTABLISHED;
         kprintf("[Rapport] slot %d: we're officially talking now\n", conn_id);
         break;

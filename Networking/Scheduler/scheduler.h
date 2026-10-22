@@ -10,6 +10,7 @@
 #define SCHED_MAX_RTO 1000
 #define SCHED_DUP_ACK_THRESHOLD 3
 #define SCHED_MAX_FRAME BAILIFF_MAX_FRAME
+#define SCHED_WINDOW 4
 
 typedef enum
 {
@@ -22,20 +23,24 @@ typedef enum
 
 typedef struct
 {
-    uint32_t conn_id;
     uint32_t seq;
     uint16_t length;  // bytes in stored frame
     uint16_t seq_len; // sequence numbers segment uses
-
     uint32_t start_timer;
-    uint32_t retry_track;
-    packet_sched_state_t state;
+    uint8_t in_use;
+    uint8_t retransmitted;
     uint8_t frame[SCHED_MAX_FRAME];
+} sched_segment_t;
 
+typedef struct
+{
+    sched_segment_t seg[SCHED_WINDOW];
+    packet_sched_state_t state;
+
+    uint32_t retry_track;
     uint32_t srtt;
     uint32_t rttvar;
     uint32_t rto;
-    int retransmitted;
 
     uint32_t last_ack_seen;
     uint32_t dup_ack_count;
@@ -51,5 +56,7 @@ uint32_t scheduler_retransmit_count(void);
 uint32_t scheduler_giveup_count(void);
 
 uint16_t scheduler_bytes_in_flight(uint32_t conn_id);
+
+uint8_t scheduler_free_slots(uint32_t conn_id);
 
 #endif

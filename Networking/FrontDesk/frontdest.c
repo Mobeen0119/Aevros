@@ -56,6 +56,9 @@ static uint16_t rx_read_offset;
 static int tx_next_desc;
 
 static int tx_pending;
+static uint8_t tx_busy[4];
+
+#define TSD_FINISHED_BITS (0x2000u | 0x4000u | 0x8000u | 0x40000000u)
 
 const frontdesk_state_t *frontdesk_get_state(void)
 {
@@ -175,7 +178,12 @@ int frontdesk_send(const void *data, uint16_t length)
     if (!state.present || length > 1792)
         return 0;
 
-    if (tx_pending >= 4)
+    int desc = tx_next_desc;
+
+    if (tx_busy[desc] && (inl(state.io_base + REG_TSD0 + (desc * 4)) & TSD_FINISHED_BITS))
+        tx_busy[desc] = 0;
+
+    if (tx_busy[desc])
     {
         kprintf("[FrontDesk] all 4 TX descriptors believed busy, refusing send rather than risk overwriting one mid-transmit\n");
         return 0;
@@ -187,6 +195,7 @@ int frontdesk_send(const void *data, uint16_t length)
     outl(tsad, (uint32_t)(uintptr_t)data);
     outl(tsd, (uint32_t)length);
 
+    tx_busy[desc] = 1;
     tx_next_desc = (tx_next_desc + 1) % 4;
     tx_pending++;
     state.packets_send++;
@@ -206,6 +215,8 @@ void frontdesk_irq_handler(void)
 
     uint16_t io_base = state.io_base;
     uint16_t status = inw(io_base + REG_ISR);
+
+    outw(io_base + REG_ISR, status);
 
     if (status & ISR_ROK)
     {
@@ -246,8 +257,6 @@ void frontdesk_irq_handler(void)
             }
             rx_read_offset = (uint16_t)((rx_read_offset + packet_length + 4 + 3) & ~3);
 
-            // wrap at the ring size the card uses. wrapping later (at the buffer size) made the driver read stale memory
-            // after the first lap, so receiving silently stopped after about 8 KB of traffic
             if (rx_read_offset >= RX_RING_BYTES)
                 rx_read_offset -= RX_RING_BYTES;
 
@@ -255,14 +264,8 @@ void frontdesk_irq_handler(void)
         }
     }
 
-    if (status & ISR_TOK)
-        if (tx_pending > 0)
-            tx_pending--;
-
     if (status & (ISR_RXOVW | ISR_RER))
         state.rx_errors++;
-
-    outw(io_base + REG_ISR, status);
 }
 
 int frontdesk_dispatch_irq(uint32_t int_no)

@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "../../Include/shell.h"
 #include "../../Networking/FrontDoor/tcpecho.h"
+#include "../../Networking/Why/why.h"
 #include "../../Include/screen.h"
 #include "../../Include/terminal.h"
 #include "../../Lib/string.h"
@@ -127,6 +128,7 @@ void shell_execute(char *input)
 
         const frontdesk_state_t *nic = frontdesk_get_state();
         kprintf(" NIC present: %s\n", nic->present ? "yes" : "no (networking offline)");
+        kprintf(" NIC frames received: %u, sent: %u, receive overflows/errors: %u\n", nic->packets_received, nic->packets_send, nic->rx_errors);
 
         if (nic->present)
         {
@@ -408,6 +410,21 @@ void shell_execute(char *input)
         tcpecho_start();
     }
 
+    else if (strcmp(argv[0], "why") == 0)
+    {
+        why_report();
+    }
+
+    else if (strcmp(argv[0], "netlog") == 0)
+    {
+        if (argc > 1 && strcmp(argv[1], "chatty") == 0)
+            kprintf_set_net_chatty(1);
+        else if (argc > 1 && strcmp(argv[1], "quiet") == 0)
+            kprintf_set_net_chatty(0);
+
+        kprintf("network narration: %s (netlog chatty | netlog quiet)\n", kprintf_net_chatty() ? "chatty, a line per packet" : "quiet, counted instead");
+    }
+
     else if (strcmp(argv[0], "tasklife") == 0)
     {
         if (argc < 2)
@@ -619,6 +636,8 @@ void shell_execute(char *input)
         help_line("ps", "list tasks");
         help_line("stacks", "kernel stack use per task");
         help_line("tcpecho", "start a TCP echo server on port 7007");
+        help_line("why", "why connections were held back");
+        help_line("netlog", "per-packet network narration: chatty | quiet");
         help_line("ticks", "show system tick count");
         help_line("tasklife <pid|name>", "task lifetime info");
         help_line("checkpoint <save|restore|list> <name>", "save/restore a process");

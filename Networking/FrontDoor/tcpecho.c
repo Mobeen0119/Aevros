@@ -6,6 +6,9 @@
 
 #define ECHO_PORT 7007
 
+static uint8_t echo_buf[4096];
+#define ECHO_SEGMENT 1400
+
 static void wait_ticks(uint32_t n)
 {
     uint32_t start = get_ticks();
@@ -42,8 +45,7 @@ static void echo_task(void)
 
         for (;;)
         {
-            uint8_t buf[128];
-            int got = frontdoor_recv(conn, buf, sizeof(buf));
+            int got = frontdoor_recv(conn, echo_buf, sizeof(echo_buf));
 
             if (got < 0)
                 break; // the peer closed
@@ -56,12 +58,11 @@ static void echo_task(void)
 
                 while (sent < got && get_ticks() - started < 500)
                 {
-                    int r = frontdoor_send(conn, buf + sent, (uint16_t)(got - sent));
+                    int chunk = got - sent > ECHO_SEGMENT ? ECHO_SEGMENT : got - sent;
+                    int r = frontdoor_send(conn, echo_buf + sent, (uint16_t)chunk);
 
                     if (r > 0)
                         sent += r;
-                    else
-                        wait_ticks(1);
                 }
             }
             else

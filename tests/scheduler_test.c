@@ -42,7 +42,7 @@ int bailiff_present_pass(uint32_t id, const uint8_t *f, uint16_t l)
 
 int main(void)
 {
-    uint8_t frame[80];
+    uint8_t frame[128];
     memset(frame, 0, sizeof(frame));
 
     // SYN-ACK: a 58-byte frame uses ONE sequence number.... peer ACKs isn + 1
@@ -79,6 +79,42 @@ int main(void)
     CHECK(resent >= 1);
     scheduler_ack(5, 101);
     CHECK(scheduler_bytes_in_flight(5) == 0);
+
+    CHECK(scheduler_free_slots(6) == SCHED_WINDOW);
+    for (int i = 0; i < SCHED_WINDOW; i++)
+        CHECK(scheduler_track(6, 2000 + i * 100, 100, frame, 70) == 1);
+    CHECK(scheduler_free_slots(6) == 0);
+    CHECK(scheduler_bytes_in_flight(6) == 4 * 100);
+    CHECK(scheduler_track(6, 2400, 100, frame, 70) == 0);
+
+    // one cumulative ACK frees every segment it fully covers, and only those
+    scheduler_ack(6, 2250); // covers the segments ending at 2100 and 2200
+    CHECK(scheduler_free_slots(6) == 2);
+    CHECK(scheduler_bytes_in_flight(6) == 200);
+    scheduler_ack(6, 2400);
+    CHECK(scheduler_free_slots(6) == SCHED_WINDOW);
+    CHECK(scheduler_bytes_in_flight(6) == 0);
+
+    // a timeout resends only the OLDEST unacknowledged segment
+    resent = 0;
+    CHECK(scheduler_track(7, 3000, 100, frame, 70) == 1);
+    CHECK(scheduler_track(7, 3100, 100, frame, 70) == 1);
+    now += 500;
+    scheduler_tick();
+    CHECK(resent == 1);
+    scheduler_ack(7, 3200);
+    CHECK(scheduler_bytes_in_flight(7) == 0);
+
+    CHECK(scheduler_track(8, 0xFFFFFFF0u, 32, frame, 90) == 1);
+    scheduler_ack(8, 0xFFFFFFF8u); // not yet covered
+    CHECK(scheduler_bytes_in_flight(8) == 32);
+    scheduler_ack(8, 16); // 0xFFFFFFF0 + 32 wraps to 16
+    CHECK(scheduler_bytes_in_flight(8) == 0);
+
+    // cancel clears the whole window
+    CHECK(scheduler_track(9, 10, 5, frame, 60) == 1 && scheduler_track(9, 15, 5, frame, 60) == 1);
+    scheduler_cancel(9);
+    CHECK(scheduler_free_slots(9) == SCHED_WINDOW && scheduler_bytes_in_flight(9) == 0);
 
     printf(fails ? "scheduler: %d FAILED\n" : "scheduler: all passed\n", fails);
     return fails != 0;

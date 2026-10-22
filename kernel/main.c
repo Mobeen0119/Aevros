@@ -11,6 +11,7 @@
 #include "Paging/paging.h"
 #include "Process/task.h"
 #include "../Provenance/provenance.h"
+#include "../Networking/Why/why.h"
 #include "Process/exec.h"
 #include "Process/TaskLife/tasklife.h"
 #include "Process/AevrosPoint/aevrospoint.h"
@@ -99,6 +100,7 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
     slab_init_all();
     tracker_init();
     provenance_init();
+    why_init();
     vfs_init();
     aevrospoint_init();
     ramfs_init();

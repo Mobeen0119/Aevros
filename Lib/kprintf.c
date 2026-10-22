@@ -41,8 +41,43 @@ void print_hex(uint32_t num)
     }
 }
 
+static int net_chatty = 0;
+
+void kprintf_set_net_chatty(int on)
+{
+    net_chatty = on;
+}
+
+int kprintf_net_chatty(void)
+{
+    return net_chatty;
+}
+
+static int starts_with(const char *text, const char *prefix)
+{
+    while (*prefix)
+        if (*text++ != *prefix++)
+            return 0;
+
+    return 1;
+}
+
+static int is_net_chatter(const char *format)
+{
+    static const char *tags[] = {"[Mailroom]", "[Compass]", "[Bailiff]", "[Switchboard]", "[Postcard]", "[Conversation] accepted"};
+
+    for (unsigned i = 0; i < sizeof(tags) / sizeof(tags[0]); i++)
+        if (starts_with(format, tags[i]))
+            return 1;
+
+    return 0;
+}
+
 void kprintf(const char *format, ...)
 {
+    if (!net_chatty && is_net_chatter(format))
+        return;
+
     va_list args;
     va_start(args, format);
 
@@ -168,7 +203,7 @@ void kprintf(const char *format, ...)
         }
 
         int pad = width - len;
-      
+
         if (pad > 0 && !left_align)
         {
             for (int p = 0; p < pad; p++)

@@ -10,7 +10,8 @@ echo; echo "###### NetTrace request/reply -> provenance"; $C tests/prov_pair_tes
 echo; echo "##### postbox: queue wrap and DHCP-sized datagrams"; $C -fsanitize=address,undefined tests/postbox_test.c Networking/IPv4/Postbox/postbox.c -o /tmp/t6 && /tmp/t6
 echo; echo "##### interrupt-path stack depth (4 KB task stacks)"; python3 tests/stack_depth.py
 echo; echo "##### foyer: hold until the MAC is known, then send with it filled in"; $C -fsanitize=address,undefined tests/foyer_test.c Networking/Foyer/foyer.c -o /tmp/t7 2>/dev/null && /tmp/t7
-echo; echo "##### scheduler: retransmit timer clears on the sequence length"; $C -fsanitize=address,undefined tests/scheduler_test.c Networking/Scheduler/scheduler.c -o /tmp/t8 2>/dev/null && /tmp/t8
+echo; echo "#### scheduler: retransmit timer clears on the sequence length"; $C -fsanitize=address,undefined tests/scheduler_test.c Networking/Scheduler/scheduler.c Networking/Why/why.c -o /tmp/t8 2>/dev/null && /tmp/t8
 echo; echo "##### rapport: passive-open sequence numbers and handshake"; $C -fsanitize=address,undefined tests/rapport_test.c Networking/IPv4/Conversation/rapport.c -o /tmp/t9 2>/dev/null && /tmp/t9
+echo; echo "#### why: reasons are counted, rate-limited and explained"; $C -fsanitize=address,undefined tests/why_test.c Networking/Why/why.c -o /tmp/t10 2>/dev/null && /tmp/t10
 echo; echo "#### DEMO: the provenance command"; $C tests/prov_demo.c $S Provenance/provenance_report.c tests/host_console_stubs.c tests/provenance_host_stubs.c -o /tmp/t4 && /tmp/t4
 echo; echo "ALL DONE"

@@ -17,6 +17,7 @@
 #include "../../FrontDesk/frontdesk.h"
 #include "../../Atlas/atlas.h"
 #include "../../Sentry/sentry.h"
+#include "../../Why/why.h"
 
 #define TCP_MAX_PAYLOAD 1460 // Ethernet MTU(1500)...Ipv4(20)...TCP header(20)
 #define TCP_MIN_HEADER 20
@@ -337,11 +338,25 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     {
         uint16_t probe_len = (uint16_t)(length - header_len);
 
+        if (flags & FLAG_ACK)
+        {
+            uint32_t early_ack = (uint32_t)((payload[8] << 24) | (payload[9] << 16) | (payload[10] << 8) | payload[11]);
+
+            if (early_ack <= rapport_get_send_seq(conn_id))
+                scheduler_ack(conn_id, early_ack);
+        }
+
         if (rapport_seq_is_stale_retransmit(conn_id, seq, probe_len))
-            kprintf("[Conversation] slot %d: seq=%u is an old retransmission, already have this - ignoring, not an attack\n", conn_id, seq);
+        {
+            if (why_note(conn_id, WHY_STALE_RETRANSMIT))
+                kprintf("[Conversation] slot %d: seq=%u is an old retransmission, already have this - ignoring, not an attack\n", conn_id, seq);
+        }
         else if (probe_len > 0)
+        {
+            why_note(conn_id, WHY_OUT_OF_ORDER);
             waystation_hold(conn_id, seq, payload + header_len, probe_len);
-        else
+        }
+        else if (why_note(conn_id, WHY_OUT_OF_ORDER))
             kprintf("[Conversation] slot %d: seq=%u doesn't match expected, refusing to trust it\n", conn_id, seq);
         return;
     }
@@ -559,15 +574,18 @@ int conversation_dispatch_data(uint32_t conn_id, const uint8_t *data, uint16_t l
     if (rapport_get_state(conn_id) != CONV_ESTABLISHED)
         return 0;
 
-    if (scheduler_bytes_in_flight(conn_id) > 0)
+    // up to SCHED_WINDOW segments may be in flight; only a full window makes the sender wait
+    if (scheduler_free_slots(conn_id) == 0)
     {
-        kprintf("[Conversation] slot %d: already have an unacked segment out, refusing to send another yet\n", conn_id);
+        if (why_note(conn_id, WHY_SEND_WAITING_ACK))
+            kprintf("[Conversation] slot %d: waiting for an ACK before sending more (repeats are counted, type 'why')\n", conn_id);
         return 0;
     }
 
     if (!rapport_send_allowed(conn_id, len))
     {
-        kprintf("[Conversation] slot %d: peer's window won't fit %u more bytes right now\n", conn_id, len);
+        if (why_note(conn_id, WHY_PEER_WINDOW_FULL))
+            kprintf("[Conversation] slot %d: peer's window won't fit %u more bytes right now\n", conn_id, len);
         return 0;
     }
 
@@ -612,7 +630,8 @@ int conversation_dispatch_fin(uint32_t conn_id, const uint8_t our_mac[6], const 
 
     if (scheduler_bytes_in_flight(conn_id) > 0)
     {
-        kprintf("[Conversation] slot %d: still have an unacked segment out, refusing to close yet\n", conn_id);
+        if (why_note(conn_id, WHY_CLOSE_WAITING_ACK))
+            kprintf("[Conversation] slot %d: still waiting for an ACK, will close after it (repeats are counted)\n", conn_id);
         return 0;
     }
 

@@ -13,6 +13,7 @@
 
 void font_draw_char(int32_t x, int32_t y, char c, uint32_t color);
 void font_draw_string(int32_t x, int32_t y, const char *str, uint32_t color);
+void font_draw_char_scaled(int32_t x, int32_t y, char c, uint32_t color, int32_t scale);
 
 uint32_t font_string_width(const char *str);
 

@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 
-typedef struct {
+typedef struct
+{
     int present;
     uint8_t mac[6];
     uint16_t io_base;
@@ -11,8 +12,9 @@ typedef struct {
     uint32_t packets_received;
     uint32_t packets_send;
     uint32_t rx_errors;
+    uint32_t tx_drops;
 
-}frontdesk_state_t;
+} frontdesk_state_t;
 
 void frontdesk_init(void);
 
@@ -25,6 +27,5 @@ int frontdesk_send(const void *data, uint16_t length);
 void frontdesk_irq_handler(void);
 
 int frontdesk_dispatch_irq(uint32_t int_no);
-
 
 #endif

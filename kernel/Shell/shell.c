@@ -132,6 +132,8 @@ void shell_execute(char *input)
         const frontdesk_state_t *nic = frontdesk_get_state();
         kprintf(" NIC present: %s\n", nic->present ? "yes" : "no (networking offline)");
         kprintf(" NIC frames received: %u, sent: %u, receive overflows/errors: %u\n", nic->packets_received, nic->packets_send, nic->rx_errors);
+        kprintf(" TX frames dropped (queue full): %u\n", nic->tx_drops);
+
         kprintf(" Frames dropped by flood protection: %u (senders flagged: %u)\n", watchlist_dropped_count(), watchlist_flagged_count());
 
         if (nic->present)
@@ -414,6 +416,7 @@ void shell_execute(char *input)
         {
             network_view_hide();
             fb_clear(0, 0, 0);
+            terminal_show();
         }
         else
         {

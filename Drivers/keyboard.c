@@ -141,6 +141,7 @@ void keyboard_handler()
         {
             network_view_hide();
             fb_clear(0, 0, 0);
+            terminal_show();
         }
         else if (framebuffer_available())
             network_view_open();

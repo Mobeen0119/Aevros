@@ -59,6 +59,16 @@ static int tx_next_desc;
 static int tx_pending;
 static uint8_t tx_busy[4];
 
+#define TX_FRAME_MAX 1792
+#define TX_QUEUE_LEN 16
+
+static uint8_t tx_buf[4][TX_FRAME_MAX];
+static uint8_t txq[TX_QUEUE_LEN][TX_FRAME_MAX];
+static uint16_t txq_len[TX_QUEUE_LEN];
+
+static int txq_head;
+static int txq_count;
+
 #define TSD_FINISHED_BITS (0x2000u | 0x4000u | 0x8000u | 0x40000000u)
 
 const frontdesk_state_t *frontdesk_get_state(void)
@@ -175,32 +185,79 @@ void frontdesk_bringup(void)
     }
 }
 
+static inline uint32_t tx_lock(void)
+{
+    uint32_t flags;
+    asm volatile("pushf; pop %0; cli" : "=r"(flags));
+    return flags;
+}
+
+static inline void tx_unlock(uint32_t flags)
+{
+    asm volatile("push %0; popf" : : "r"(flags) : "memory");
+}
+
+static void tx_pump(void)
+{
+    for (int d = 0; d < 4; d++)
+    {
+        if (tx_busy[d] && (inl(state.io_base + REG_TSD0 + (d * 4)) & TSD_FINISHED_BITS))
+            tx_busy[d] = 0;
+    }
+
+    while (txq_count > 0)
+    {
+        int d = -1;
+        for (int k = 0; k < 4; k++)
+        {
+            int cand = (tx_next_desc + k) % 4;
+            if (!tx_busy[cand])
+            {
+                d = cand;
+                break;
+            }
+        }
+        if (d < 0)
+            break;
+
+        uint16_t len = txq_len[txq_head];
+        memcpy(tx_buf[d], txq[txq_head], len);
+
+        outl(state.io_base + REG_TSAD0 + (d * 4), (uint32_t)(uintptr_t)tx_buf[d]);
+        outl(state.io_base + REG_TSD0 + (d * 4), (uint32_t)len);
+
+        tx_busy[d] = 1;
+        tx_next_desc = (d + 1) % 4;
+        tx_pending++;
+        state.packets_send++;
+
+        txq_head = (txq_head + 1) % TX_QUEUE_LEN;
+        txq_count--;
+    }
+}
+
 int frontdesk_send(const void *data, uint16_t length)
 {
-    if (!state.present || length > 1792)
+    if (!state.present || length == 0 || length > TX_FRAME_MAX)
         return 0;
 
-    int desc = tx_next_desc;
+    uint32_t flags = tx_lock();
 
-    if (tx_busy[desc] && (inl(state.io_base + REG_TSD0 + (desc * 4)) & TSD_FINISHED_BITS))
-        tx_busy[desc] = 0;
-
-    if (tx_busy[desc])
+    if (txq_count == TX_QUEUE_LEN)
     {
-        kprintf("[FrontDesk] all 4 TX descriptors believed busy, refusing send rather than risk overwriting one mid-transmit\n");
+        state.tx_drops++;
+        tx_unlock(flags);
         return 0;
     }
 
-    uint32_t tsad = state.io_base + REG_TSAD0 + (tx_next_desc * 4);
-    uint32_t tsd = state.io_base + REG_TSD0 + (tx_next_desc * 4);
+    int slot = (txq_head + txq_count) % TX_QUEUE_LEN;
+    memcpy(txq[slot], data, length);
+    txq_len[slot] = length;
+    txq_count++;
 
-    outl(tsad, (uint32_t)(uintptr_t)data);
-    outl(tsd, (uint32_t)length);
+    tx_pump();
+    tx_unlock(flags);
 
-    tx_busy[desc] = 1;
-    tx_next_desc = (tx_next_desc + 1) % 4;
-    tx_pending++;
-    state.packets_send++;
     netobserve_capture(NETWATCH_TX, data, length);
     return 1;
 }
@@ -265,6 +322,9 @@ void frontdesk_irq_handler(void)
             outw(io_base + REG_CAPR, (uint16_t)(rx_read_offset - 16));
         }
     }
+
+    if (status & ISR_TOK)
+        tx_pump();
 
     if (status & (ISR_RXOVW | ISR_RER))
         state.rx_errors++;

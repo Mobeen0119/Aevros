@@ -166,6 +166,29 @@ void font_draw_char(int32_t x, int32_t y, char c, uint32_t color)
     }
 }
 
+void font_draw_char_scaled(int32_t x, int32_t y, char c, uint32_t color, int32_t scale)
+{
+    int idx = glyph_index(c);
+
+    if (idx < 0)
+        return;
+
+    for (int row = 0; row < FONT_GLYPH_H; row++)
+    {
+        uint8_t bits = glyphs[idx][row];
+
+        for (int col = 0; col < FONT_GLYPH_W; col++)
+        {
+            if (!(bits & (1 << (FONT_GLYPH_W - 1 - col))))
+                continue;
+
+            for (int32_t dy = 0; dy < scale; dy++)
+                for (int32_t dx = 0; dx < scale; dx++)
+                    fb_put_pixel(x + col * scale + dx, y + row * scale + dy, color);
+        }
+    }
+}
+
 void font_draw_string(int32_t x, int32_t y, const char *str, uint32_t color)
 {
     int32_t cursor_x = x;

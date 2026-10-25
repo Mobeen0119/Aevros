@@ -3,8 +3,59 @@
 #include "../Drivers/keyboard.h"
 #include "../Include/screen.h"
 #include "../Lib/kprintf.h"
+#include "../GUI/Framebuffer/framebuffer.h"
+#include "../GUI/Algo/Font/font.h"
+#include "../GUI/Algo/algo.h"
+#include "../GUI/Interaction/NetView/net_view.h"
 
 uint16_t *const vga_memory = (uint16_t *)0xB8000;
+
+#define CELL_W 12
+#define CELL_H 18
+#define GLYPH_SCALE 2
+
+static uint16_t shadow[WIDTH * HEIGHT];
+
+static uint32_t vga_rgb(uint8_t c)
+{
+    static const uint32_t pal[16] = {
+        0x000000, 0x0000AA, 0x00AA00, 0x00AAAA, 0xAA0000, 0xAA00AA, 0xAA5500, 0xAAAAAA,
+        0x555555, 0x5555FF, 0x55FF55, 0x55FFFF, 0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF};
+    return pal[c & 0xF];
+}
+
+static void draw_cell(int idx, uint16_t cell)
+{
+    int x = (idx % WIDTH) * CELL_W;
+    int y = (idx / WIDTH) * CELL_H;
+    uint32_t bg = vga_rgb((uint8_t)(cell >> 12));
+    uint32_t fg = vga_rgb((uint8_t)(cell >> 8));
+
+    fb_rect_filled(x, y, CELL_W, CELL_H, (bg >> 16) & 0xFF, (bg >> 8) & 0xFF, bg & 0xFF);
+    font_draw_char_scaled(x + 1, y + 1, (char)(cell & 0xFF), fg, GLYPH_SCALE);
+}
+
+static void put_cell(int idx, uint16_t cell)
+{
+    if (!framebuffer_available())
+    {
+        vga_memory[idx] = cell;
+        return;
+    }
+
+    if (shadow[idx] == cell)
+        return;
+
+    shadow[idx] = cell;
+    draw_cell(idx, cell);
+}
+
+void terminal_show(void)
+{
+    for (int i = 0; i < WIDTH * HEIGHT; i++)
+        shadow[i] = 0xFFFF;
+    render();
+}
 
 struct Line buffer[MAX_LINES];
 
@@ -139,6 +190,8 @@ void handle_enter()
 
 void render()
 {
+    if (framebuffer_available() && network_view_is_visible())
+        return;
 
     for (int y = 0; y < HEIGHT; y++)
     {
@@ -149,8 +202,7 @@ void render()
         {
             char c = buffer[line].text[x];
             uint8_t color = buffer[line].colors[x];
-            vga_memory[y * WIDTH + x] =
-                (uint16_t)c | (color << 8);
+            put_cell(y * WIDTH + x, (uint16_t)c | (color << 8));
         }
     }
 
@@ -165,17 +217,15 @@ void render_input_line(void)
         for (int x = 0; x < input_length; x++)
         {
 
-            vga_memory[input_row * WIDTH + x] = (uint16_t)input_line[x] | (current_color << 8);
+            put_cell(input_row * WIDTH + x, (uint16_t)input_line[x] | (current_color << 8));
         }
         for (int x = input_length; x < WIDTH; x++)
         {
-            vga_memory[input_row * WIDTH + x] =
-                (uint16_t)' ' | (current_color << 8);
+            put_cell(input_row * WIDTH + x, (uint16_t)' ' | (current_color << 8));
         }
         if (input_length < WIDTH)
         {
-            vga_memory[input_row * WIDTH + cursor_x] =
-                ('_' | (current_color << 8));
+            put_cell(input_row * WIDTH + cursor_x, ('_' | (current_color << 8)));
         }
     }
 }
@@ -185,8 +235,8 @@ void terminal_readline(char *out)
     int i = 0;
     char c;
 
-    input_length =0;
-     cursor_x = 10;
+    input_length = 0;
+    cursor_x = 10;
 
     while (1)
     {

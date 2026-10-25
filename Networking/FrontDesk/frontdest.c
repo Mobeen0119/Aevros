@@ -17,6 +17,7 @@
 #include "../IPv6/Concierge6/concierge6.h"
 #include "../../kernel/Process/task.h"
 #include "../NetWatch/net_observe.h"
+#include "../NetWatch/net_watch.h"
 
 #define RTL8139_VENDOR_ID 0x10EC
 #define RTL8139_DEVICE_ID 0x8139
@@ -146,6 +147,7 @@ void frontdesk_bringup(void)
     if (state.present)
     {
         pic_unmask_irq(state.irq_line);
+        netwatch_set_link((inb(state.io_base + 0x58) & 0x04) ? 0 : 1);
         kprintf("[FrontDesk] IRQ %d unmasked, ready to receive\n", state.irq_line);
 
         static const uint8_t our_ip[4] = {10, 0, 2, 15};

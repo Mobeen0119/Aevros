@@ -6,7 +6,7 @@
 #include "../Font/font.h"
 #include <stddef.h>
 
-extern uint64_t get_ticks(void);
+extern uint32_t get_ticks(void);
 
 typedef struct
 {

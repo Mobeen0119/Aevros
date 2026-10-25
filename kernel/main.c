@@ -35,6 +35,8 @@
 #include "Syscall/syscall.h"
 #include "Process/exectest_blob.h"
 #include "Process/forktest_blob.h"
+#include "../GUI/Framebuffer/framebuffer.h"
+#include "../GUI/Interaction/NetView/net_view.h"
 
 extern uint32_t kernel_end;
 
@@ -71,6 +73,9 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
     pmm_init(free_start, pmm_size);
 
     paging_init();
+
+    framebuffer_init(mb_magic, mb_info_addr);
+    network_view_init();
 
     uint32_t desired_end = 0x2800000;
     uint32_t detected_end = 0;
@@ -130,6 +135,8 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
     asm volatile("sti");
 
     frontdesk_bringup(); // brings up the NIC, IPv4 + IPv6 addressing, DHCP - was never called from anywhere before this
+    if (framebuffer_available())
+        network_view_open();
 
     set_color(VGA_MAGENTA, VGA_BLACK);
     kprintf("                    Welcome to AevrosOS\n");

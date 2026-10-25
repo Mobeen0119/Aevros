@@ -2,7 +2,7 @@
 #include "../Interaction/Window/window.h"
 #include "../../Lib/string.h"
 
-extern uint64_t get_ticks(void);
+extern uint32_t get_ticks(void);
 
 static witness_log_entry_t log_buf[WITNESS_LOG_LEN];
 static uint32_t log_head = 0;

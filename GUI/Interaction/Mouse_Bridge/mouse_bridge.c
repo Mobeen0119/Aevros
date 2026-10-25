@@ -8,7 +8,7 @@
 #include "../List/list.h"
 #include "../List/list_render.h"
 
-extern uint64_t get_ticks(void);
+extern uint32_t get_ticks(void);
 
 static uint64_t events_forwarded = 0;
 static uint64_t clicks_resolved = 0;

@@ -61,7 +61,7 @@
 
 #define NETVIEW_CHECK_TICKS 50
 
-extern uint64_t get_ticks(void);
+extern uint32_t get_ticks(void);
 
 static uint8_t visible;
 static uint32_t selected_id;
@@ -176,8 +176,8 @@ static void draw_status_indicator(int x, int y, uint8_t up)
 static void draw_traffic_bars(void)
 {
     const int x = STATS_X + 24;
-    const int base_y = STATS_Y + 202;
-    const int max_h = 70;
+    const int base_y = STATS_Y + 240;
+    const int max_h = 40;
     const int bar_w = 72;
 
     uint32_t rx = snapshot.stats.rx_packets;
@@ -190,10 +190,10 @@ static void draw_traffic_bars(void)
     int rx_h = (int)scale_u32(rx, max_h, max);
     int tx_h = (int)scale_u32(tx, max_h, max);
 
-    font_draw_string(x, STATS_Y + 150, "RX PACKETS",
+    font_draw_string(x, STATS_Y + 184, "RX PACKETS",
                      (RX_R << 16) | (RX_G << 8) | RX_B);
 
-    font_draw_string(x + 140, STATS_Y + 150, "TX PACKETS",
+    font_draw_string(x + 140, STATS_Y + 184, "TX PACKETS",
                      (TX_R << 16) | (TX_G << 8) | TX_B);
 
     fb_rect(x, base_y - max_h, bar_w, max_h, LINE_R, LINE_G, LINE_B);
@@ -472,7 +472,7 @@ static void draw_events(void)
 
     font_draw_string(EVENTS_X + 16, EVENTS_Y + 14, "RECENT NETWORK EVENTS", text_color());
 
-    font_draw_string(EVENTS_X + 16, EVENTS_Y + 30, "Protocol       Dir       Length (bytes)", (ACCENT_R << 16) | (ACCENT_G << 8) | ACCENT_B);
+    font_draw_string(EVENTS_X + 16, EVENTS_Y + 30, "Protocol       Dir       Length in bytes", (ACCENT_R << 16) | (ACCENT_G << 8) | ACCENT_B);
 
     uint32_t count = snapshot.event_count;
 
@@ -782,6 +782,13 @@ void netview_tick(uint64_t now)
         if (visible)
             network_view_draw();
     }
+}
+
+void network_view_open(void)
+{
+    fill_snapshot();
+    network_view_update(&snapshot);
+    network_view_show();
 }
 
 void network_view_reset(void)

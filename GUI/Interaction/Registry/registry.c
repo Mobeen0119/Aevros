@@ -1,15 +1,14 @@
 #include "registry.h"
 #include "../../../Lib/string.h"
 
-extern uint64_t get_ticks(void);
+extern uint32_t get_ticks(void);
 
 static registry_entry_t entries[REGISTRY_MAX_ENTRIES];
 static registry_history_entry_t history[REGISTRY_HISTORY_LEN];
 
 static uint32_t history_head = 0;
 
-static uint32_t history_count = 0; 
-
+static uint32_t history_count = 0;
 
 static void push_history(const char *name, entry_state_t from, entry_state_t to, uint64_t tick)
 {
@@ -229,5 +228,4 @@ bool registry_selftest(void)
         return false;
 
     return true;
-
 }

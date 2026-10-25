@@ -1,11 +1,10 @@
 #include "mouse.h"
 #include "../../kernel/io.h"
 
-
 extern uint8_t inb(uint16_t port);
 extern void outb(uint16_t port, uint8_t val);
 
-extern uint64_t get_ticks(void);
+extern uint32_t get_ticks(void);
 
 #define PS2_DATA_PORT 0x60
 #define PS2_STATUS_PORT 0x64
@@ -93,7 +92,6 @@ static void queue_push(mouse_event_t ev)
     if (next == queue_tail)
         return;
 
-        
     event_queue[queue_head] = ev;
     queue_head = next;
 }
@@ -186,7 +184,6 @@ void ps2_mouse_init(void)
     queue_head = queue_tail = 0;
     last_irq_tick = 0;
     packets_decoded = 0;
-
 }
 
 bool ps2_mouse_selftest(void)

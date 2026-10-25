@@ -2,7 +2,7 @@
 #include "../../../Lib/string.h"
 #include "../../Framebuffer/framebuffer.h"
 
-extern uint64_t get_ticks(void);
+extern uint32_t get_ticks(void);
 
 #define GLYPH_COUNT 45
 

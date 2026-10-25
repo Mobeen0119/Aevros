@@ -1,7 +1,7 @@
 #include "cursor.h"
 #include "../../Framebuffer/framebuffer.h"
 
-extern uint64_t get_ticks(void);
+extern uint32_t get_ticks(void);
 
 #define CURSOR_SPAN 9
 #define CURSOR_CENTER 4

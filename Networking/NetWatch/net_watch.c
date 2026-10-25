@@ -4,7 +4,7 @@
 
 #define NETWATCH_NIC_DRIVER_ID 1
 
-extern uint64_t get_ticks(void);
+extern uint32_t get_ticks(void);
 
 static netwatch_stats_t stats;
 static netwatch_event_t events[NETWATCH_MAX_EVENTS];

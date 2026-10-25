@@ -3,6 +3,8 @@
 #include "../../Networking/FrontDoor/tcpecho.h"
 #include "../../Networking/Why/why.h"
 #include "../../Networking/WatchList/watchlist.h"
+#include "../../GUI/Framebuffer/framebuffer.h"
+#include "../../GUI/Interaction/NetView/net_view.h"
 #include "../../Include/screen.h"
 #include "../../Include/terminal.h"
 #include "../../Lib/string.h"
@@ -400,6 +402,23 @@ void shell_execute(char *input)
     else if (strcmp(argv[0], "ps") == 0)
     {
         tasklife_ps();
+    }
+
+    else if (strcmp(argv[0], "netview") == 0)
+    {
+        if (!framebuffer_available())
+        {
+            kprintf("netview: no graphics mode (GRUB did not grant the framebuffer)\n");
+        }
+        else if (argc > 1 && strcmp(argv[1], "off") == 0)
+        {
+            network_view_hide();
+            fb_clear(0, 0, 0);
+        }
+        else
+        {
+            network_view_open();
+        }
     }
 
     else if (strcmp(argv[0], "stacks") == 0)

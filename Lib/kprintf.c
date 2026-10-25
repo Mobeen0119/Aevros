@@ -62,13 +62,36 @@ static int starts_with(const char *text, const char *prefix)
     return 1;
 }
 
+static int contains(const char *text, const char *needle)
+{
+    for (; *text; text++)
+        if (starts_with(text, needle))
+            return 1;
+
+    return 0;
+}
+
 static int is_net_chatter(const char *format)
 {
-    static const char *tags[] = {"[Mailroom]", "[Compass]", "[Bailiff]", "[Switchboard]", "[Postcard]", "[Conversation] accepted"};
+    static const char *routine[] = {
+        "[Mailroom] delivered to",
+        "[Compass] accepted from",
+        "[Bailiff] issued pass",
+        "[Postcard] accepted,",
+        "[Postcard] delivered",
+        "[Postcard] broadcast",
+        "[Postcard] sent",
+        "[Conversation] accepted,"};
 
-    for (unsigned i = 0; i < sizeof(tags) / sizeof(tags[0]); i++)
-        if (starts_with(format, tags[i]))
+    for (unsigned i = 0; i < sizeof(routine) / sizeof(routine[0]); i++)
+        if (starts_with(format, routine[i]))
             return 1;
+
+    if (starts_with(format, "[Bailiff] pass") && contains(format, " honored"))
+        return 1;
+
+    if (starts_with(format, "[Switchboard] slot") && contains(format, ": sent "))
+        return 1;
 
     return 0;
 }

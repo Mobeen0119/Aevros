@@ -12,6 +12,7 @@ typedef struct
 } watch_entry_t;
 
 static watch_entry_t entries[WATCHLIST_CAPACITY];
+static uint32_t dropped_total;
 
 static watch_entry_t *find_or_create(const uint8_t mac[6])
 {
@@ -61,7 +62,15 @@ int watchlist_observe(const uint8_t src_mac[6])
         e->flagged = 1;
     }
 
+    if (e->flagged)
+        dropped_total++;
+
     return e->flagged;
+}
+
+uint32_t watchlist_dropped_count(void)
+{
+    return dropped_total;
 }
 
 int watchlist_is_flagged(const uint8_t src_mac[6])

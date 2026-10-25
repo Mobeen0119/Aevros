@@ -2,6 +2,7 @@
 #include "../../Include/shell.h"
 #include "../../Networking/FrontDoor/tcpecho.h"
 #include "../../Networking/Why/why.h"
+#include "../../Networking/WatchList/watchlist.h"
 #include "../../Include/screen.h"
 #include "../../Include/terminal.h"
 #include "../../Lib/string.h"
@@ -129,6 +130,7 @@ void shell_execute(char *input)
         const frontdesk_state_t *nic = frontdesk_get_state();
         kprintf(" NIC present: %s\n", nic->present ? "yes" : "no (networking offline)");
         kprintf(" NIC frames received: %u, sent: %u, receive overflows/errors: %u\n", nic->packets_received, nic->packets_send, nic->rx_errors);
+        kprintf(" Frames dropped by flood protection: %u (senders flagged: %u)\n", watchlist_dropped_count(), watchlist_flagged_count());
 
         if (nic->present)
         {

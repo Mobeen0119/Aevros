@@ -88,7 +88,7 @@ int lockbox6_deposit(uint32_t id, uint16_t bytes)
     if (id >= LOCKBOX6_CAPACITY || !table[id].in_use)
         return 0;
 
-    if ((table[id].buffered_bytes + bytes) >= LOCKBOX6_MAX_BUFFERED)
+    if ((table[id].buffered_bytes + bytes) > LOCKBOX6_MAX_BUFFERED)
     {
         kprintf("[Lockbox6] slot %d refused %d bytes, would exceed the %d byte cap\n",
                 id, bytes, LOCKBOX6_MAX_BUFFERED);

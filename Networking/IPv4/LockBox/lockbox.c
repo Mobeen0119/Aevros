@@ -91,7 +91,7 @@ int lockbox_deposit(uint32_t id, uint16_t bytes)
     if (id >= LOCKBOX_CAPACITY || !table[id].in_use)
         return 0;
 
-    if ((table[id].buffered_bytes + bytes) >= LOCKBOX_MAX_BUFFERED)
+    if ((table[id].buffered_bytes + bytes) > LOCKBOX_MAX_BUFFERED)
     {
         kprintf("[Lockbox] slot %d refused %d bytes, would exceed the %d byte cap, peer isn't being read fast enough or is flooding\n",
                 id, bytes, LOCKBOX_MAX_BUFFERED);
@@ -163,10 +163,10 @@ int lockbox_get_tuple(uint32_t id, uint16_t *local_port, uint8_t remote_ip[4], u
         return 0;
 
     *local_port = table[id].local_port;
-   
+
     memcpy(remote_ip, table[id].remote_ip, 4);
     *remote_port = table[id].remote_port;
-   
+
     return 1;
 }
 

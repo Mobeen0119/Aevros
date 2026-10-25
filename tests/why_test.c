@@ -1,4 +1,3 @@
-// the Why engine counts reasons per connection, speaks up rarely, and names the main one
 #include <stdio.h>
 #include <string.h>
 #include "../Networking/Why/why.h"

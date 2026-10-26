@@ -39,7 +39,7 @@ static watch_entry_t *find_or_create(const uint8_t mac[6])
     return free_slot;
 }
 
-int watchlist_observe(const uint8_t src_mac[6])
+int watchlist_strike(const uint8_t src_mac[6])
 {
     watch_entry_t *e = find_or_create(src_mac);
     if (!e)
@@ -62,10 +62,12 @@ int watchlist_observe(const uint8_t src_mac[6])
         e->flagged = 1;
     }
 
-    if (e->flagged)
-        dropped_total++;
-
     return e->flagged;
+}
+
+void watchlist_note_dropped(void)
+{
+    dropped_total++;
 }
 
 uint32_t watchlist_dropped_count(void)
@@ -75,9 +77,17 @@ uint32_t watchlist_dropped_count(void)
 
 int watchlist_is_flagged(const uint8_t src_mac[6])
 {
+    uint32_t now = get_ticks();
+
     for (int i = 0; i < WATCHLIST_CAPACITY; i++)
+    {
         if (entries[i].in_use && memcmp(entries[i].mac, src_mac, 6) == 0)
+        {
+            if (now - entries[i].window_start > WATCH_WINDOW_TICKS)
+                entries[i].flagged = 0;
             return entries[i].flagged;
+        }
+    }
 
     return 0;
 }

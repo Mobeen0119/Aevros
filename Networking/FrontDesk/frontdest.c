@@ -45,6 +45,7 @@
 #define ISR_TOK 0x04
 #define ISR_RXOVW 0x10
 #define ISR_RER 0x02
+#define ISR_TER 0x08
 
 #define RX_RING_BYTES 8192
 #define RX_BUFFER_SIZE (RX_RING_BYTES + 16 + 1500)
@@ -61,15 +62,15 @@ static uint8_t tx_busy[4];
 
 #define TX_FRAME_MAX 1792
 #define TX_QUEUE_LEN 16
-
 static uint8_t tx_buf[4][TX_FRAME_MAX];
 static uint8_t txq[TX_QUEUE_LEN][TX_FRAME_MAX];
 static uint16_t txq_len[TX_QUEUE_LEN];
-
+static uint16_t tx_len[4];
 static int txq_head;
 static int txq_count;
 
 #define TSD_FINISHED_BITS (0x2000u | 0x4000u | 0x8000u | 0x40000000u)
+#define TSD_TOK 0x8000u
 
 const frontdesk_state_t *frontdesk_get_state(void)
 {
@@ -130,7 +131,7 @@ void frontdesk_init(void)
     rx_read_offset = 0;
     outl(io_base + REG_RBSTART, (uint32_t)(uintptr_t)rx_buffer);
 
-    outw(io_base + REG_IMR, ISR_ROK | ISR_TOK | ISR_RXOVW | ISR_RER);
+    outw(io_base + REG_IMR, ISR_ROK | ISR_TOK | ISR_TER | ISR_RXOVW | ISR_RER);
 
     for (int i = 0; i < 8; i++)
         outb(io_base + REG_MAR0 + i, 0xFF);
@@ -201,8 +202,30 @@ static void tx_pump(void)
 {
     for (int d = 0; d < 4; d++)
     {
-        if (tx_busy[d] && (inl(state.io_base + REG_TSD0 + (d * 4)) & TSD_FINISHED_BITS))
-            tx_busy[d] = 0;
+        if (!tx_busy[d])
+            continue;
+
+        uint32_t tsd = inl(state.io_base + REG_TSD0 + (d * 4));
+        if (!(tsd & TSD_FINISHED_BITS))
+            continue;
+
+        tx_busy[d] = 0;
+
+        if (tsd & TSD_TOK)
+            continue;
+
+        kprintf("[FrontDesk] frame on descriptor %d not sent (status %x), queued again\n", d, tsd);
+        if (txq_count < TX_QUEUE_LEN)
+        {
+            txq_head = (txq_head + TX_QUEUE_LEN - 1) % TX_QUEUE_LEN;
+            memcpy(txq[txq_head], tx_buf[d], tx_len[d]);
+            txq_len[txq_head] = tx_len[d];
+            txq_count++;
+        }
+        else
+        {
+            state.tx_drops++;
+        }
     }
 
     while (txq_count > 0)
@@ -222,6 +245,7 @@ static void tx_pump(void)
 
         uint16_t len = txq_len[txq_head];
         memcpy(tx_buf[d], txq[txq_head], len);
+        tx_len[d] = len;
 
         outl(state.io_base + REG_TSAD0 + (d * 4), (uint32_t)(uintptr_t)tx_buf[d]);
         outl(state.io_base + REG_TSD0 + (d * 4), (uint32_t)len);
@@ -301,13 +325,21 @@ void frontdesk_irq_handler(void)
 
                 if (verdict == BOUNCE_ACCEPT)
                 {
-                    int flagged = src ? watchlist_observe(src) : 0;
+                    int flagged = src ? watchlist_is_flagged(src) : 0;
 
                     if (!flagged)
                     {
                         state.packets_received++;
                         mailroom_deliver(frame, packet_length, state.mac);
                     }
+                    else
+                    {
+                        watchlist_note_dropped();
+                    }
+                }
+                else if (src)
+                {
+                    watchlist_strike(src);
                 }
             }
             else
@@ -323,7 +355,7 @@ void frontdesk_irq_handler(void)
         }
     }
 
-    if (status & ISR_TOK)
+    if (status & (ISR_TOK | ISR_TER))
         tx_pump();
 
     if (status & (ISR_RXOVW | ISR_RER))

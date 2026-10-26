@@ -143,7 +143,7 @@ void shell_execute(char *input)
             kprintf(" Current IPv6 address: ");
             for (int i = 0; i < 16; i += 2)
             {
-                kprintf("%02x%02x", ip6[i], ip6[i + 1]);
+                kprintf("%x", (unsigned)((ip6[i] << 8) | ip6[i + 1]));
                 if (i < 14)
                     kprintf(":");
             }

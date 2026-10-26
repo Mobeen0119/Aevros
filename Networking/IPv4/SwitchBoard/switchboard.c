@@ -1,3 +1,4 @@
+#include "../../../Include/critical.h"
 #include "switchboard.h"
 #include "../LockBox/lockbox.h"
 #include "../Conversation/rapport.h"
@@ -26,8 +27,8 @@ static int pick_ephemeral_port(void)
     return 0;
 }
 
-int switchboard_connect(const uint8_t dest_ip[4], uint16_t dest_port,
-                        const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_conn_id)
+int switchboard_connect_locked(const uint8_t dest_ip[4], uint16_t dest_port,
+                               const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_conn_id)
 {
     uint16_t local_port = pick_ephemeral_port();
     if (local_port == 0)
@@ -60,7 +61,7 @@ int switchboard_connect(const uint8_t dest_ip[4], uint16_t dest_port,
     return 1;
 }
 
-int switchboard_send(uint32_t conn_id, const uint8_t *data, const uint16_t len, const uint8_t our_mac[6], const uint8_t our_ip[4])
+int switchboard_send_locked(uint32_t conn_id, const uint8_t *data, const uint16_t len, const uint8_t our_mac[6], const uint8_t our_ip[4])
 {
 
     uint32_t pass_id;
@@ -76,7 +77,7 @@ int switchboard_send(uint32_t conn_id, const uint8_t *data, const uint16_t len, 
     return 1;
 }
 
-int switchboard_close(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4])
+int switchboard_close_locked(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4])
 {
     uint32_t pass_id;
 
@@ -91,8 +92,8 @@ int switchboard_close(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t 
     return 1;
 }
 
-int switchboard_send_udp(uint16_t local_port, const uint8_t dest_ip[4], uint16_t dest_port, const uint8_t our_mac[6], const uint8_t our_ip[4],
-                         const uint8_t *data, uint16_t len)
+int switchboard_send_udp_locked(uint16_t local_port, const uint8_t dest_ip[4], uint16_t dest_port, const uint8_t our_mac[6], const uint8_t our_ip[4],
+                                const uint8_t *data, uint16_t len)
 {
     return postcard_dispatch(dest_ip, dest_port, local_port, our_mac, our_ip, data, len);
 }
@@ -134,7 +135,7 @@ uint32_t switchboard_accept(uint16_t port)
     return SWITCHBOARD_NONE;
 }
 
-uint16_t switchboard_recv(uint32_t conn_id, uint8_t *out, uint16_t max_len)
+uint16_t switchboard_recv_locked(uint32_t conn_id, uint8_t *out, uint16_t max_len)
 {
     if (conn_id >= LOCKBOX_CAPACITY)
         return 0;
@@ -148,8 +149,8 @@ uint16_t switchboard_recv(uint32_t conn_id, uint8_t *out, uint16_t max_len)
     return inbox_read(conn_id, out, max_len);
 }
 
-uint16_t switchboard_recv_udp(uint16_t port, uint8_t src_ip_out[4], uint16_t *src_port_out,
-                              uint8_t *data_out, uint16_t max_len)
+uint16_t switchboard_recv_udp_locked(uint16_t port, uint8_t src_ip_out[4], uint16_t *src_port_out,
+                                     uint8_t *data_out, uint16_t max_len)
 {
     uint32_t slot = lockbox_find_listener(port, 17);
 
@@ -157,4 +158,55 @@ uint16_t switchboard_recv_udp(uint16_t port, uint8_t src_ip_out[4], uint16_t *sr
         return 0;
 
     return postbox_read(slot, src_ip_out, src_port_out, data_out, max_len);
+}
+
+int switchboard_connect(const uint8_t dest_ip[4], uint16_t dest_port,
+                        const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_conn_id)
+{
+    uint32_t flags = critical_enter();
+    int result = switchboard_connect_locked(dest_ip, dest_port, our_mac, our_ip, out_conn_id);
+    critical_leave(flags);
+    return result;
+}
+
+int switchboard_send(uint32_t conn_id, const uint8_t *data, const uint16_t len, const uint8_t our_mac[6], const uint8_t our_ip[4])
+{
+    uint32_t flags = critical_enter();
+    int result = switchboard_send_locked(conn_id, data, len, our_mac, our_ip);
+    critical_leave(flags);
+    return result;
+}
+
+int switchboard_close(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4])
+{
+    uint32_t flags = critical_enter();
+    int result = switchboard_close_locked(conn_id, our_mac, our_ip);
+    critical_leave(flags);
+    return result;
+}
+
+uint16_t switchboard_recv(uint32_t conn_id, uint8_t *out, uint16_t max_len)
+{
+    uint32_t flags = critical_enter();
+    uint16_t result = switchboard_recv_locked(conn_id, out, max_len);
+    critical_leave(flags);
+    return result;
+}
+
+int switchboard_send_udp(uint16_t local_port, const uint8_t dest_ip[4], uint16_t dest_port, const uint8_t our_mac[6], const uint8_t our_ip[4],
+                         const uint8_t *data, uint16_t len)
+{
+    uint32_t flags = critical_enter();
+    int result = switchboard_send_udp_locked(local_port, dest_ip, dest_port, our_mac, our_ip, data, len);
+    critical_leave(flags);
+    return result;
+}
+
+uint16_t switchboard_recv_udp(uint16_t port, uint8_t src_ip_out[4], uint16_t *src_port_out,
+                              uint8_t *data_out, uint16_t max_len)
+{
+    uint32_t flags = critical_enter();
+    uint16_t result = switchboard_recv_udp_locked(port, src_ip_out, src_port_out, data_out, max_len);
+    critical_leave(flags);
+    return result;
 }

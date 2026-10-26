@@ -7,7 +7,8 @@
 #define WATCH_WINDOW_TICKS 200 // 2 seconds at 100 Hz
 #define WATCH_THRESHOLD 4000
 
-int watchlist_observe(const uint8_t src_mac[6]);
+int watchlist_strike(const uint8_t src_mac[6]);
+void watchlist_note_dropped(void);
 
 int watchlist_is_flagged(const uint8_t src_mac[6]);
 

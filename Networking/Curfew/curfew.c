@@ -1,6 +1,7 @@
 #include "curfew.h"
 #include "../../kernel/Process/task.h"
 #include "../../Lib/string.h"
+#include "../../Lib/kprintf.h"
 
 typedef struct
 {
@@ -43,37 +44,50 @@ static curfew_entry_t *find_or_create(const uint8_t ip[4])
     target->count = 0;
     target->denied = 0;
     target->in_use = 1;
-    target->last_seen=get_ticks();
+    target->last_seen = get_ticks();
 
     return target;
 }
 
-int curfew_check(const uint8_t src_ip[4])
+static void roll_window(curfew_entry_t *e, uint32_t now)
 {
-    curfew_entry_t *e = find_or_create(src_ip);
-
-    if (!e)
-        return 1;
-
-    uint32_t now = get_ticks();
-
-    e->last_seen = now;
-
     if (now - e->window_start > CURFEW_WINDOW_TICKS)
     {
         e->window_start = now;
         e->count = 0;
         e->denied = 0;
     }
+}
+
+int curfew_check(const uint8_t src_ip[4])
+{
+    curfew_entry_t *e = find_or_create(src_ip);
+    if (!e)
+        return 1;
+
+    uint32_t now = get_ticks();
+    e->last_seen = now;
+    roll_window(e, now);
+    return !e->denied;
+}
+
+void curfew_strike(const uint8_t src_ip[4])
+{
+    curfew_entry_t *e = find_or_create(src_ip);
+    if (!e)
+        return;
+
+    uint32_t now = get_ticks();
+    e->last_seen = now;
+    roll_window(e, now);
 
     e->count++;
     if (e->count >= CURFEW_THRESHOLD && !e->denied)
     {
         e->denied = 1;
         denied_total++;
+        kprintf("[Curfew] %d.%d.%d.%d denied: %u bad frames in one window\n", src_ip[0], src_ip[1], src_ip[2], src_ip[3], e->count);
     }
-
-    return !e->denied;
 }
 
 uint32_t curfew_denied_count(void)

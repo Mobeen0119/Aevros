@@ -8,6 +8,7 @@
 #define CURFEW6_THRESHOLD 150
 
 int curfew6_check(const uint8_t src_ip[16]);
+void curfew6_strike(const uint8_t src_ip[16]);
 
 uint32_t curfew6_denied_count(void);
 

@@ -47,6 +47,16 @@ static curfew6_entry_t *find_or_create(const uint8_t ip[16])
     return target;
 }
 
+static void roll_window6(curfew6_entry_t *e, uint32_t now)
+{
+    if (now - e->window_start > CURFEW6_WINDOW_TICKS)
+    {
+        e->window_start = now;
+        e->count = 0;
+        e->denied = 0;
+    }
+}
+
 int curfew6_check(const uint8_t src_ip[16])
 {
     curfew6_entry_t *e = find_or_create(src_ip);
@@ -55,15 +65,21 @@ int curfew6_check(const uint8_t src_ip[16])
         return 1;
 
     uint32_t now = get_ticks();
-
     e->last_seen = now;
+    roll_window6(e, now);
+    return !e->denied;
+}
 
-    if (now - e->window_start > CURFEW6_WINDOW_TICKS)
-    {
-        e->window_start = now;
-        e->count = 0;
-        e->denied = 0;
-    }
+void curfew6_strike(const uint8_t src_ip[16])
+{
+    curfew6_entry_t *e = find_or_create(src_ip);
+
+    if (!e)
+        return;
+
+    uint32_t now = get_ticks();
+    e->last_seen = now;
+    roll_window6(e, now);
 
     e->count++;
     if (e->count >= CURFEW6_THRESHOLD && !e->denied)
@@ -71,8 +87,6 @@ int curfew6_check(const uint8_t src_ip[16])
         e->denied = 1;
         denied_total++;
     }
-
-    return !e->denied;
 }
 
 uint32_t curfew6_denied_count(void)

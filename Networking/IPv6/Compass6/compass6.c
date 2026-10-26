@@ -15,15 +15,14 @@
 #define NEXT_HEADER_ESP 50
 #define NEXT_HEADER_AH 51
 #define NEXT_HEADER_DEST_OPTS 60
-#define MAX_EXT_HEADERS 8 // cap the chain length so nobody can walk us into a busy-loop 
+#define MAX_EXT_HEADERS 8 // cap the chain length so nobody can walk into a busy-loop
 
 extern ip6_directory_entry_t __ip6_directory_start[];
 extern ip6_directory_entry_t __ip6_directory_end[];
 
 static uint32_t accepted, rejected;
 
-static void dispatch(uint8_t next_header, const uint8_t *payload, uint16_t len,
-                      const uint8_t src_ip[16], const uint8_t dst_ip[16])
+static void dispatch(uint8_t next_header, const uint8_t *payload, uint16_t len, const uint8_t src_ip[16], const uint8_t dst_ip[16])
 {
     for (ip6_directory_entry_t *e = __ip6_directory_start; e < __ip6_directory_end; e++)
     {
@@ -59,6 +58,8 @@ void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
     if (v != IP6_ACCEPT)
     {
         kprintf("[Compass6] rejected: %s\n", ip6_verdict_string(v));
+        if (length >= 40)
+            curfew6_strike(payload + 8);
         rejected++;
         return;
     }
@@ -70,7 +71,7 @@ void compass6_handle(const uint8_t *payload, uint16_t length, const uint8_t src_
     const uint8_t *dst_ip = payload + 24;
     uint16_t payload_len = (uint16_t)((payload[4] << 8) | payload[5]);
 
-   if (guestlist6_check(src_ip) == GUESTLIST6_DENIED)
+    if (guestlist6_check(src_ip) == GUESTLIST6_DENIED)
     {
         kprintf("[Compass6] source is on the Guestlist6 deny list, refusing outright\n");
         ids6_notify(IDS6_EVENT_GUESTLIST_DENY, src_ip, 0);

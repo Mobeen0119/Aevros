@@ -79,6 +79,8 @@ void compass_handle(const uint8_t *payload, uint16_t length, const uint8_t src_m
 
     if (v != IP_ACCEPT)
     {
+        if (length >= 20)
+            curfew_strike(payload + 12);
         rejected++;
         return;
     }

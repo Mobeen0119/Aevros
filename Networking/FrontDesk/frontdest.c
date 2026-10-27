@@ -1,4 +1,5 @@
 #include "frontdesk.h"
+#include "../../Drivers/Wifi/e1000/e1000.h"
 #include "../../kernel/PCI/pci.h"
 #include "../../kernel/io.h"
 #include "../../kernel/pic.h"
@@ -51,6 +52,7 @@
 #define RX_BUFFER_SIZE (RX_RING_BYTES + 16 + 1500)
 
 static frontdesk_state_t state;
+static int backend_e1000;
 static pci_device_t nic_pci;
 static uint8_t *rx_buffer;
 
@@ -84,8 +86,11 @@ void frontdesk_init(void)
     nic_pci = pci_find_device(RTL8139_VENDOR_ID, RTL8139_DEVICE_ID);
     if (!nic_pci.found)
     {
-        kprintf("[FrontDesk] checkpoint 2: not found on PCI bus\n");
-        state.present = 0;
+        kprintf("[FrontDesk] checkpoint 2: not found on PCI bus, trying e1000\n");
+        if (e1000_probe(&state))
+            backend_e1000 = 1;
+        else
+            state.present = 0;
         return;
     }
     kprintf("[FrontDesk] checkpoint 2: found on PCI bus, resetting\n");
@@ -158,7 +163,8 @@ void frontdesk_bringup(void)
     if (state.present)
     {
         pic_unmask_irq(state.irq_line);
-        netwatch_set_link((inb(state.io_base + 0x58) & 0x04) ? 0 : 1);
+        if (!backend_e1000)
+            netwatch_set_link((inb(state.io_base + 0x58) & 0x04) ? 0 : 1);
         kprintf("[FrontDesk] IRQ %d unmasked, ready to receive\n", state.irq_line);
 
         static const uint8_t our_ip[4] = {10, 0, 2, 15};
@@ -262,6 +268,9 @@ static void tx_pump(void)
 
 int frontdesk_send(const void *data, uint16_t length)
 {
+    if (backend_e1000)
+        return e1000_send(data, length);
+
     if (!state.present || length == 0 || length > TX_FRAME_MAX)
         return 0;
 
@@ -286,6 +295,36 @@ int frontdesk_send(const void *data, uint16_t length)
     return 1;
 }
 
+void frontdesk_deliver(const uint8_t *frame, uint16_t packet_length)
+{
+    netobserve_capture(NETWATCH_RX, frame, packet_length > 4 ? (uint32_t)packet_length - 4 : packet_length);
+
+    bounce_verdict_t verdict = bouncer_check(frame, packet_length, state.mac);
+
+    const uint8_t *dest = (packet_length >= 6) ? frame : 0;
+    const uint8_t *src = (packet_length >= 12) ? frame + 6 : 0;
+    bouncer_log(verdict, packet_length, dest, src);
+
+    if (verdict == BOUNCE_ACCEPT)
+    {
+        int flagged = src ? watchlist_is_flagged(src) : 0;
+
+        if (!flagged)
+        {
+            state.packets_received++;
+            mailroom_deliver(frame, packet_length, state.mac);
+        }
+        else
+        {
+            watchlist_note_dropped();
+        }
+    }
+    else if (src)
+    {
+        watchlist_strike(src);
+    }
+}
+
 void frontdesk_irq_handler(void)
 {
     static uint32_t call_count = 0;
@@ -295,6 +334,12 @@ void frontdesk_irq_handler(void)
 
     if (!state.present)
         return;
+
+    if (backend_e1000)
+    {
+        e1000_irq();
+        return;
+    }
 
     uint16_t io_base = state.io_base;
     uint16_t status = inw(io_base + REG_ISR);
@@ -314,33 +359,7 @@ void frontdesk_irq_handler(void)
 
             if (packet_status & 0x01)
             {
-                // observed before the bouncer, so frames rejects still show up...RTL8139 length includes 4-byte CRC
-                netobserve_capture(NETWATCH_RX, frame, packet_length > 4 ? (uint32_t)packet_length - 4 : packet_length);
-
-                bounce_verdict_t verdict = bouncer_check(frame, packet_length, state.mac);
-
-                const uint8_t *dest = (packet_length >= 6) ? frame : 0;
-                const uint8_t *src = (packet_length >= 12) ? frame + 6 : 0;
-                bouncer_log(verdict, packet_length, dest, src);
-
-                if (verdict == BOUNCE_ACCEPT)
-                {
-                    int flagged = src ? watchlist_is_flagged(src) : 0;
-
-                    if (!flagged)
-                    {
-                        state.packets_received++;
-                        mailroom_deliver(frame, packet_length, state.mac);
-                    }
-                    else
-                    {
-                        watchlist_note_dropped();
-                    }
-                }
-                else if (src)
-                {
-                    watchlist_strike(src);
-                }
+                frontdesk_deliver(frame, packet_length);
             }
             else
             {

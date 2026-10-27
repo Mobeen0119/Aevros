@@ -26,6 +26,8 @@ int frontdesk_send(const void *data, uint16_t length);
 
 void frontdesk_irq_handler(void);
 
+void frontdesk_deliver(const uint8_t *frame, uint16_t packet_length);
+
 int frontdesk_dispatch_irq(uint32_t int_no);
 
 #endif

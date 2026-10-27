@@ -10,6 +10,7 @@
 
 #define E1000_VENDOR_ID 0x8086
 #define E1000_DEVICE_ID 0x100E
+#define E1000E_DEVICE_ID 0x10D3
 
 #define REG_CTRL 0x0000
 #define REG_STATUS 0x0008
@@ -112,7 +113,12 @@ int e1000_probe(frontdesk_state_t *dev_state)
 {
     st = dev_state;
 
-    pci_device_t dev = pci_find_device(E1000_VENDOR_ID, E1000_DEVICE_ID);
+    static const uint16_t device_ids[] = {E1000_DEVICE_ID, E1000E_DEVICE_ID};
+    pci_device_t dev = {0};
+
+    for (unsigned k = 0; k < sizeof(device_ids) / sizeof(device_ids[0]) && !dev.found; k++)
+        dev = pci_find_device(E1000_VENDOR_ID, device_ids[k]);
+
     if (!dev.found)
     {
         kprintf("[FrontDesk] e1000 not found on PCI bus\n");
@@ -198,7 +204,8 @@ int e1000_probe(frontdesk_state_t *dev_state)
     netwatch_set_link((reg_read(REG_STATUS) & STATUS_LU) ? 1 : 0);
 
     kprintf("[FrontDesk] e1000 found at PCI %x:%x.%x, mmio=%x, irq=%d, mac=%x:%x:%x:%x:%x:%x\n",
-            dev.bus, dev.slot, dev.function, base, dev.interrupt_line, st->mac[0], st->mac[1], st->mac[2], st->mac[3], st->mac[4], st->mac[5]);
+            dev.bus, dev.slot, dev.function, base, dev.interrupt_line,
+            st->mac[0], st->mac[1], st->mac[2], st->mac[3], st->mac[4], st->mac[5]);
     return 1;
 }
 

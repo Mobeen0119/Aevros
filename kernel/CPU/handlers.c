@@ -7,14 +7,22 @@
 
 void irq_handler(register_t *r)
 {
-    
+
     if (r->int_no >= 40)
         outb(0xA0, 0x20);
-    outb(0x20, 0x20);    
+
+    outb(0x20, 0x20);
 
     if (r->int_no == 32)
         timer_callback(r);
 
     else if (r->int_no == 33)
         keyboard_handler();
+}
+
+void unhandled_vector(uint32_t v)
+{
+    kprintf("[FATAL] unhandled interrupt vector %d\n", v);
+    for (;;)
+        __asm__ volatile("hlt");
 }

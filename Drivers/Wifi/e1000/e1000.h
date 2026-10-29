@@ -2,7 +2,7 @@
 #define E1000_H
 
 #include <stdint.h>
-#include "frontdesk.h"
+#include "../../../Networking/FrontDesk/frontdesk.h"
 
 int e1000_probe(frontdesk_state_t *st);
 

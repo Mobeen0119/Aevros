@@ -3,6 +3,8 @@
 #include <stdbool.h>
 
 #include "../../kernel/Paging/paging.h"
+#include "../../kernel/Memory/buddy.h"
+#include "../../Lib/string.h"
 
 // Multiboot2's info structure is a sequence of variable-length, 8-byte aligned tags....looking for the framebuffer tag (type 8).
 typedef struct
@@ -16,17 +18,17 @@ typedef struct
     uint32_t type; // = 8
     uint32_t size;
     uint64_t framebuffer_addr;
-   
+
     uint32_t framebuffer_pitch;
     uint32_t framebuffer_width;
     uint32_t framebuffer_height;
-  
+
     uint8_t framebuffer_bpp;
-   
+
     uint8_t framebuffer_type;
     uint8_t reserved[2];
     uint8_t red_field_position, red_mask_size;
-   
+
     uint8_t green_field_position, green_mask_size;
     uint8_t blue_field_position, blue_mask_size;
 } __attribute__((packed)) mb2_tag_framebuffer_t;
@@ -36,6 +38,7 @@ typedef struct
 #define FB_TYPE_RGB 1
 
 static uint8_t *fb_base;
+static uint8_t *back_base;
 static uint32_t fb_pitch, screen_w, screen_h, fb_bpp;
 
 static uint8_t red_pos, red_size, green_pos, green_size, blue_pos, blue_size;
@@ -119,6 +122,27 @@ int framebuffer_init(uint32_t mb_magic, uint32_t mb_info_addr)
     return 1;
 }
 
+void fb_backbuffer_init(void)
+{
+    if (!available)
+        return;
+
+    uint32_t size = fb_pitch * screen_h;
+    int order = 0;
+    while (((uint32_t)4096 << order) < size)
+        order++;
+
+    back_base = buddy_alloc(order);
+}
+
+void fb_flush(void)
+{
+    if (!available || !back_base)
+        return;
+
+    memcpy(fb_base, back_base, fb_pitch * screen_h);
+}
+
 int framebuffer_available(void)
 {
     return available;
@@ -147,7 +171,7 @@ void fb_put_pixel_rgb(int x, int y, uint8_t r, uint8_t g, uint8_t b)
     if (!available || x < 0 || y < 0 || (uint32_t)x >= screen_w || (uint32_t)y >= screen_h)
         return;
     uint32_t color = pack_color(r, g, b);
-    uint8_t *p = fb_base + (uint32_t)y * fb_pitch + (uint32_t)x * (fb_bpp / 8);
+    uint8_t *p = (back_base ? back_base : fb_base) + (uint32_t)y * fb_pitch + (uint32_t)x * (fb_bpp / 8);
 
     p[0] = (uint8_t)(color & 0xFF);
     p[1] = (uint8_t)((color >> 8) & 0xFF);
@@ -177,7 +201,7 @@ uint32_t fb_get_pixel(int32_t x, int32_t y)
     if (!available || x < 0 || y < 0 || (uint32_t)x >= screen_w || (uint32_t)y >= screen_h)
         return 0;
 
-    uint8_t *p = fb_base + (uint32_t)y * fb_pitch + (uint32_t)x * (fb_bpp / 8);
+    uint8_t *p = (back_base ? back_base : fb_base) + (uint32_t)y * fb_pitch + (uint32_t)x * (fb_bpp / 8);
 
     uint32_t raw = (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16);
     if (fb_bpp == 32)
@@ -208,6 +232,8 @@ uint32_t fb_height(void)
 bool framebuffer_selftest(void)
 {
     uint8_t *saved_base = fb_base;
+    uint8_t *saved_back = back_base;
+    back_base = 0;
     uint32_t saved_pitch = fb_pitch, saved_w = screen_w, saved_h = screen_h, saved_bpp = fb_bpp;
     uint8_t saved_rp = red_pos, saved_rs = red_size;
     uint8_t saved_gp = green_pos, saved_gs = green_size;
@@ -268,6 +294,7 @@ bool framebuffer_selftest(void)
     }
 
     fb_base = saved_base;
+    back_base = saved_back;
     fb_pitch = saved_pitch;
 
     screen_w = saved_w;

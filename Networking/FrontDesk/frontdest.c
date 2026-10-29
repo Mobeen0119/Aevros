@@ -201,7 +201,8 @@ static inline uint32_t tx_lock(void)
 
 static inline void tx_unlock(uint32_t flags)
 {
-    asm volatile("push %0; popf" : : "r"(flags) : "memory");
+    if (flags & 0x200)
+        asm volatile("sti" : : : "memory");
 }
 
 static void tx_pump(void)

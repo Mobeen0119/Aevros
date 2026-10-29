@@ -1,8 +1,8 @@
-
 #include "idt.h"
 #include "../Paging/isr.h"
 
 extern void default_handler();
+extern unsigned int dflt_table[256];
 extern void isr13();
 
 extern void isr14();
@@ -11,6 +11,7 @@ extern void irq0_handler();
 
 extern void irq1_handler();
 extern void irq12_handler();
+extern void irq2_handler();
 extern void irq9_handler();
 extern void irq10_handler();
 extern void irq11_handler();
@@ -49,12 +50,13 @@ void idt_init()
     idtp.base = (unsigned int)&idt;
 
     for (int i = 0; i < 256; i++)
-        idt_gate_set(i, (unsigned int)default_handler, 0x8E);
+        idt_gate_set(i, dflt_table[i], 0x8E);
 
     idt_gate_set(13, (unsigned int)isr13, 0x8E);
     idt_gate_set(14, (unsigned int)isr14, 0x8E);
     idt_gate_set(32, (unsigned int)irq0_handler, 0x8E);
     idt_gate_set(33, (unsigned int)irq1_handler, 0x8E);
+    idt_gate_set(34, (unsigned int)irq2_handler, 0x8E);
     idt_gate_set(44, (unsigned int)irq12_handler, 0x8E);
     idt_gate_set(41, (unsigned int)irq9_handler, 0x8E);
     idt_gate_set(42, (unsigned int)irq10_handler, 0x8E);

@@ -37,6 +37,10 @@ static void draw_cell(int idx, uint16_t cell)
 
 static void put_cell(int idx, uint16_t cell)
 {
+    if (idx < 0 || idx >= WIDTH * HEIGHT)
+    {
+        return;
+    }
     if (!framebuffer_available())
     {
         vga_memory[idx] = cell;
@@ -188,7 +192,7 @@ void handle_enter()
     }
 }
 
-void render()
+static void render_frame(void)
 {
     if (framebuffer_available() && network_view_is_visible())
         return;
@@ -207,6 +211,12 @@ void render()
     }
 
     render_input_line();
+}
+
+void render(void)
+{
+    render_frame();
+    fb_flush();
 }
 
 void render_input_line(void)

@@ -7,6 +7,10 @@
 int framebuffer_init(uint32_t mb_magic, uint32_t mb_info_addr);
 
 int framebuffer_available(void);
+
+void fb_backbuffer_init(void);
+void fb_flush(void);
+
 uint32_t framebuffer_width(void);
 uint32_t framebuffer_height(void);
 

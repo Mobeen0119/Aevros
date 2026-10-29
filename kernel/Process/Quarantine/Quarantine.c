@@ -52,7 +52,8 @@ static inline uint32_t save_and_disable_irq(void)
 
 static inline void restore_irq(uint32_t flags)
 {
-    asm volatile("push %0; popf" :: "r"(flags));
+    if (flags & 0x200)
+        asm volatile("sti");
 }
 
 void quarantine_check_and_act(void)
@@ -83,7 +84,7 @@ void quarantine_list(void)
         return;
     }
 
-    #define QUARANTINE_LIST_MAX 64
+#define QUARANTINE_LIST_MAX 64
     uint32_t pids[QUARANTINE_LIST_MAX];
     char names[QUARANTINE_LIST_MAX][TASK_NAME_LEN];
     int found = 0;

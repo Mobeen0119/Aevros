@@ -43,6 +43,12 @@ void isr_handler(struct registers *r)
         return;
     }
 
+    if (r->int_no == 34)
+    {
+        outb(0x20, 0x20);
+        return;
+    }
+
     // IRQ 7 / 15 can be spurious
     if (r->int_no == 39 || r->int_no == 47)
     {

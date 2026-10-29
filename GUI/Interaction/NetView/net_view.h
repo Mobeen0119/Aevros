@@ -94,6 +94,8 @@ void network_view_select_event(uint32_t index);
 int32_t network_view_selected_event(void);
 void network_view_clear_selection(void);
 
+void network_view_move_selection(int32_t delta);
+
 void network_view_draw_event_detail(void);
 
 void network_view_reset(void);

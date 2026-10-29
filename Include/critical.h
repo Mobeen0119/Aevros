@@ -12,7 +12,8 @@ static inline uint32_t critical_enter(void)
 
 static inline void critical_leave(uint32_t flags)
 {
-    asm volatile("push %0; popf" : : "r"(flags) : "memory");
+    if (flags & 0x200)
+        asm volatile("sti" : : : "memory");
 }
 
 #endif

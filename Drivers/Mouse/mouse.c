@@ -163,26 +163,55 @@ const char *ps2_mouse_dependency_note(void)
     return "GUI cursor movement and pointer input have no source without this.";
 }
 
-void ps2_mouse_init(void)
+static void flush_controller_output(void)
+
 {
+
+    for (int i = 0; i < 16 && (inb(PS2_STATUS_PORT) & PS2_STATUS_OUT_FULL); i++)
+
+        inb(PS2_DATA_PORT);
+}
+
+void ps2_mouse_init(void)
+
+{
+
+    controller_write_cmd(0xAD);
+
+    controller_write_cmd(0xA7);
+
+    flush_controller_output();
+
     controller_write_cmd(PS2_CMD_ENABLE_PORT2);
 
     controller_write_cmd(PS2_CMD_READ_CONFIG);
+
     uint8_t config = controller_read_data();
-    config |= 0x02;
-    config &= ~0x20;
+
+    config |= 0x03;
+
+    config &= ~0x30;
+
     controller_write_cmd(PS2_CMD_WRITE_CONFIG);
+
     controller_write_data(config);
 
+    controller_write_cmd(0xAE);
+
     mouse_write(MOUSE_CMD_SET_DEFAULTS);
+
     controller_read_data();
 
     mouse_write(MOUSE_CMD_ENABLE_STREAM);
+
     controller_read_data();
 
     packet_index = 0;
+
     queue_head = queue_tail = 0;
+
     last_irq_tick = 0;
+
     packets_decoded = 0;
 }
 

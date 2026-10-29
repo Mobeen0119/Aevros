@@ -1,6 +1,8 @@
 #include "keyboard.h"
 #include "../kernel/io.h"
+#include "../Lib/kprintf.h"
 #include "../GUI/Interaction/NetView/net_view.h"
+#include "../GUI/Interaction/Gui_Task/gui_task.h"
 #include "../GUI/Framebuffer/framebuffer.h"
 #include "../Include/terminal.h"
 
@@ -80,6 +82,21 @@ void keyboard_handler()
     if (scan & KEY_RELEASE)
         return;
 
+    if (network_view_is_visible())
+    {
+        if (scan == SCAN_UP)
+            gui_push_key(GUI_KEY_UP);
+        else if (scan == SCAN_DOWN)
+            gui_push_key(GUI_KEY_DOWN);
+        else
+        {
+            char c = shift_pressed ? keyb_shift[scan] : keyb[scan];
+            if (c)
+                gui_push_key((uint8_t)c);
+        }
+        return;
+    }
+
     switch (scan)
     {
     case SCAN_UP:
@@ -137,14 +154,7 @@ void keyboard_handler()
 
     if (scan == 0x01)
     {
-        if (network_view_is_visible())
-        {
-            network_view_hide();
-            fb_clear(0, 0, 0);
-            terminal_show();
-        }
-        else if (framebuffer_available())
-            network_view_open();
+        gui_push_key(27);
         return;
     }
 

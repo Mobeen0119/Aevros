@@ -37,6 +37,8 @@
 #include "Process/forktest_blob.h"
 #include "../GUI/Framebuffer/framebuffer.h"
 #include "../GUI/Interaction/NetView/net_view.h"
+#include "../GUI/Interaction/Gui_Task/gui_task.h"
+#include "../Drivers/Mouse/mouse.h"
 
 extern uint32_t kernel_end;
 
@@ -90,6 +92,28 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
         }
     }
 
+    if (mb_magic == 0x36D76289u && mb_info_addr)
+    {
+        uint32_t total = *(uint32_t *)(uintptr_t)mb_info_addr;
+        uintptr_t tag = mb_info_addr + 8;
+
+        uintptr_t tags_end = mb_info_addr + total;
+
+        while (tag + 8 <= tags_end)
+        {
+            uint32_t type = *(uint32_t *)tag;
+            uint32_t size = *(uint32_t *)(tag + 4);
+
+            if (type == 0)
+                break;
+
+            if (type == 4)
+                detected_end = *(uint32_t *)(tag + 12) * 1024u;
+
+            tag += (size + 7) & ~7u;
+        }
+    }
+
     uint32_t buddy_start = free_start + pmm_size;
     uint32_t buddy_end;
 
@@ -102,6 +126,8 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
         buddy_end = buddy_start + 0x100000;
 
     buddy_init(buddy_start, buddy_end);
+    fb_backbuffer_init();
+    fb_flush();
     slab_init_all();
     tracker_init();
     provenance_init();
@@ -134,9 +160,13 @@ void kernel_main(uint32_t mb_magic, uint32_t mb_info_addr)
     pit_init(100);
     asm volatile("sti");
 
-    frontdesk_bringup(); // brings up the NIC, IPv4 + IPv6 addressing, DHCP - was never called
+    frontdesk_bringup(); // brings up the NIC, IPv4 + IPv6 addressing, DHCP - was never called from anywhere before this
     if (framebuffer_available())
         network_view_open();
+
+    ps2_mouse_init();
+    pic_unmask_irq(12);
+    gui_start();
 
     set_color(VGA_MAGENTA, VGA_BLACK);
     kprintf("                    Welcome to AevrosOS\n");

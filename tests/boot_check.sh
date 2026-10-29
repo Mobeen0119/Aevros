@@ -37,6 +37,7 @@ BEFORE=$(wc -c < "$T/serial")
 python3 - "$T/mon" <<'PY'
 import socket, sys, time
 s = socket.socket(socket.AF_UNIX); s.connect(sys.argv[1]); time.sleep(.3)
+s.send(b"sendkey esc\n"); time.sleep(2)
 for ch in "provenance\n":
     s.send(("sendkey " + {"\n": "ret"}.get(ch, ch) + "\n").encode()); time.sleep(.12)
 time.sleep(.5)

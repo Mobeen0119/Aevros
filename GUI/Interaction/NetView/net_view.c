@@ -515,7 +515,7 @@ static void draw_event_detail(void)
 
     font_draw_string(x + 100, y + 6, event->direction == NETWATCH_RX ? "Received packet" : "Transmitted packet", text_color());
 
-    font_draw_string(x + 12, y + 22, "Length (bytes):", text_color());
+    font_draw_string(x + 12, y + 22, "Length in bytes:", text_color());
 
     char length_text[11];
     uint32_t length = event->length;
@@ -613,7 +613,7 @@ void network_view_update(const netwatch_snapshot_t *state)
         network_view_draw();
 }
 
-void network_view_draw(void)
+static void network_view_draw_frame(void)
 {
     if (!visible)
         return;
@@ -625,6 +625,12 @@ void network_view_draw(void)
     draw_events();
     draw_traffic_history();
     draw_event_detail();
+}
+
+void network_view_draw(void)
+{
+    network_view_draw_frame();
+    fb_flush();
 }
 
 void network_view_mouse(int32_t x, int32_t y, uint8_t buttons)
@@ -682,6 +688,37 @@ void network_view_select_event(uint32_t index)
 int32_t network_view_selected_event(void)
 {
     return selected_index();
+}
+
+void network_view_move_selection(int32_t delta)
+{
+    if (!visible)
+        return;
+
+    int32_t n = (int32_t)snapshot.event_count;
+    if (n > NETWATCH_MAX_EVENTS)
+        n = NETWATCH_MAX_EVENTS;
+
+    int32_t idx = selected_index();
+
+    for (int32_t step = 0; step < n; step++)
+    {
+        if (idx < 0)
+            idx = delta > 0 ? 0 : n - 1;
+        else
+            idx += delta > 0 ? 1 : -1;
+
+        if (idx < 0 || idx >= n)
+            return;
+
+        if (snapshot.events[idx].valid)
+        {
+            selected_id = snapshot.events[idx].id;
+            has_selection = 1;
+            network_view_draw();
+            return;
+        }
+    }
 }
 
 void network_view_clear_selection(void)

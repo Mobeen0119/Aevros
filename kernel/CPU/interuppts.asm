@@ -7,6 +7,7 @@ extern isr_handler
 global irq0_handler
 global irq1_handler
 global irq12_handler
+global irq2_handler
 global irq9_handler
 global irq10_handler
 global irq11_handler
@@ -72,6 +73,7 @@ irq%1_handler:
 %endmacro
 
 IRQ 0, 32
+IRQ 2, 34
 IRQ 1, 33
 IRQ 12, 44
 IRQ 9, 41
@@ -79,3 +81,33 @@ IRQ 10, 42
 IRQ 11, 43
 IRQ 7, 39
 IRQ 15, 47
+
+extern unhandled_vector
+
+global dflt_table
+
+%macro DFLT 1
+dflt%1:
+    push dword %1
+    jmp dflt_common
+%endmacro
+
+%assign dflt_i 0
+%rep 256
+DFLT dflt_i
+%assign dflt_i dflt_i+1
+%endrep
+
+dflt_common:
+    call unhandled_vector
+.hang:
+    hlt
+    jmp .hang
+
+section .data
+dflt_table:
+%assign dflt_i 0
+%rep 256
+    dd dflt %+ dflt_i
+%assign dflt_i dflt_i+1
+%endrep

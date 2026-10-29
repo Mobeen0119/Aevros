@@ -127,6 +127,9 @@ static mouse_event_t decode_packet(const uint8_t p[3])
 void ps2_mouse_irq_handler(void)
 {
     uint8_t byte = inb(PS2_DATA_PORT);
+    if (packet_index == 0 && (!(byte & 0x08) || byte == 0xFA || byte == 0xFE || byte == 0xAA))
+        return;
+
     packet_buf[packet_index++] = byte;
 
     if (packet_index == 3)

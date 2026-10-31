@@ -7,6 +7,7 @@
 #include "../GUI/Algo/Font/font.h"
 #include "../GUI/Algo/algo.h"
 #include "../GUI/Interaction/NetView/net_view.h"
+#include "../GUI/Interaction/NetView/gui_task.h"
 
 uint16_t *const vga_memory = (uint16_t *)0xB8000;
 
@@ -194,7 +195,7 @@ void handle_enter()
 
 static void render_frame(void)
 {
-    if (framebuffer_available() && network_view_is_visible())
+    if (framebuffer_available() && gui_active())
         return;
 
     for (int y = 0; y < HEIGHT; y++)
@@ -215,6 +216,9 @@ static void render_frame(void)
 
 void render(void)
 {
+    if (framebuffer_available() && gui_active())
+        return;
+
     render_frame();
     fb_flush();
 }

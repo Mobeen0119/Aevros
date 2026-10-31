@@ -1,5 +1,9 @@
 #include "gui_task.h"
-#include "../NetView/net_view.h"
+#include "net_view.h"
+#include "../../WM/wm.h"
+#include "../../WM/health_window.h"
+#include "../../WM/desktop.h"
+#include "../../WM/style.h"
 #include "../../Framebuffer/framebuffer.h"
 #include "../../Algo/algo.h"
 #include "../../../Drivers/Mouse/mouse.h"
@@ -10,14 +14,24 @@
 #define KEY_QUEUE_LEN 16
 #define GUI_SCREEN_W 1024
 #define GUI_SCREEN_H 768
+#define DESKTOP_REFRESH_TICKS 20
+
+typedef enum
+{
+    MODE_SHELL,
+    MODE_NETVIEW,
+    MODE_DESKTOP
+} gui_mode_t;
 
 static volatile uint8_t key_queue[KEY_QUEUE_LEN];
 static volatile int key_head;
 static volatile int key_tail;
 
+static volatile gui_mode_t mode = MODE_NETVIEW;
 static int32_t nv_cursor_x = GUI_SCREEN_W / 2;
 static int32_t nv_cursor_y = GUI_SCREEN_H / 2;
 static bool left_was_down;
+static uint32_t last_desktop_draw;
 
 void gui_push_key(uint8_t key)
 {
@@ -29,17 +43,46 @@ void gui_push_key(uint8_t key)
     key_head = next;
 }
 
-static void toggle_netview(void)
+int gui_active(void)
 {
-    if (network_view_is_visible())
-    {
+    return mode != MODE_SHELL;
+}
+
+static void draw_cursor(void)
+{
+    aev_cross(nv_cursor_x - 4, nv_cursor_y - 4, 8, AEV_DAWN);
+    aev_fill(nv_cursor_x, nv_cursor_y, 2, 2, AEV_TEXT);
+}
+
+static void draw_desktop(void)
+{
+    desktop_paint();
+    wm_paint_all();
+
+    draw_cursor();
+    fb_flush();
+    last_desktop_draw = get_ticks();
+}
+
+static void enter_mode(gui_mode_t next)
+{
+    if (mode == MODE_NETVIEW)
         network_view_hide();
+
+    mode = next;
+
+    if (next == MODE_SHELL)
+    {
         fb_clear(0, 0, 0);
         terminal_show();
     }
-    else
+    else if (next == MODE_NETVIEW)
     {
         network_view_open();
+    }
+    else
+    {
+        draw_desktop();
     }
 }
 
@@ -47,33 +90,33 @@ static void handle_key(uint8_t key)
 {
     if (key == 27)
     {
-        toggle_netview();
+        enter_mode(mode == MODE_SHELL ? MODE_NETVIEW : MODE_SHELL);
         return;
     }
 
-    if (!network_view_is_visible())
+    if (key == GUI_KEY_F2)
+    {
+        enter_mode(mode == MODE_DESKTOP ? MODE_SHELL : MODE_DESKTOP);
+        return;
+    }
+
+    if (mode != MODE_NETVIEW)
         return;
 
     if (key == GUI_KEY_UP)
         network_view_move_selection(-1);
-
     else if (key == GUI_KEY_DOWN)
         network_view_move_selection(1);
-
     else if (key == 'r' || key == 'R')
         network_view_clear_selection();
-}
-
-static void draw_cursor(void)
-{
-    fb_rect_filled(nv_cursor_x, nv_cursor_y, 6, 6, 255, 255, 255);
 }
 
 static void handle_mouse(void)
 {
     mouse_event_t ev;
     bool moved = false;
-    bool clicked = false;
+    bool pressed = false;
+    bool released = false;
 
     while (ps2_mouse_poll_event(&ev))
     {
@@ -96,18 +139,30 @@ static void handle_mouse(void)
             moved = true;
 
         if (ev.left_button && !left_was_down)
-            clicked = true;
-        left_was_down = ev.left_button;
+            pressed = true;
 
-        if (clicked && network_view_is_visible())
-            network_view_mouse(nv_cursor_x, nv_cursor_y, 1);
+        if (!ev.left_button && left_was_down)
+            released = true;
+
+        left_was_down = ev.left_button;
     }
 
-    if (network_view_is_visible() && (moved || clicked))
+    if (mode == MODE_NETVIEW)
     {
-        network_view_draw();
-        draw_cursor();
-        fb_flush();
+        if (pressed)
+            network_view_mouse(nv_cursor_x, nv_cursor_y, 1);
+        if (moved || pressed)
+        {
+            network_view_draw();
+            draw_cursor();
+            fb_flush();
+        }
+    }
+    else if (mode == MODE_DESKTOP)
+    {
+        bool changed = wm_mouse(nv_cursor_x, nv_cursor_y, left_was_down, pressed, released);
+        if (changed || moved)
+            draw_desktop();
     }
 }
 
@@ -124,8 +179,11 @@ static void gui_task(void)
 
         handle_mouse();
 
-        if (network_view_is_visible())
+        if (mode == MODE_NETVIEW)
             netview_tick(get_ticks());
+
+        else if (mode == MODE_DESKTOP && get_ticks() - last_desktop_draw >= DESKTOP_REFRESH_TICKS)
+            draw_desktop();
 
         asm volatile("hlt");
     }
@@ -133,5 +191,8 @@ static void gui_task(void)
 
 void gui_start(void)
 {
+    wm_init();
+    wm_open("SYSTEM HEALTH", 40, 40, 560, 230, health_window_paint, health_window_status, health_window_why);
+
     task_create_kernel(gui_task);
 }

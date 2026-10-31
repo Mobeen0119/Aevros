@@ -3,4 +3,6 @@
 
 const char *shell_health(void);
 
+int shell_health_task_count(void);
+
 #endif

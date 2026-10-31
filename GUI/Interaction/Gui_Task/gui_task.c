@@ -1,5 +1,5 @@
 #include "gui_task.h"
-#include "net_view.h"
+#include "../NetView/net_view.h"
 #include "../../WM/wm.h"
 #include "../../WM/health_window.h"
 #include "../../WM/desktop.h"

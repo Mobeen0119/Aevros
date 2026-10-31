@@ -24,16 +24,19 @@ static int task_count(void)
     return count;
 }
 
+int shell_health_task_count(void)
+{
+    return task_count();
+}
+
 const char *shell_health(void)
 {
     uint32_t free_frames = pmm_free_frames();
     uint32_t leaks = tracker_live_count();
     int tasks = task_count();
 
-
-    if (free_frames < 16)
+       if (free_frames < 16)
         return "CRITICAL";
-
 
     if (free_frames < 64)
         return "LOW MEMORY";
@@ -43,7 +46,6 @@ const char *shell_health(void)
 
     if (tasks > 32)
         return "HIGH LOAD";
-
 
     return "STABLE";
 }

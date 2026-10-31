@@ -236,7 +236,7 @@ static void observe_ipv6(netwatch_direction_t dir, const capture_t *c)
 
     uint8_t next = d[20];
     uint32_t src = hash_ipv6(d + 22);
-    uint32_t dst = hash_ipv6(d + 38);
+    uint32_t dst = (d[38] == 0xFF) ? NETWATCH_GROUP_DST : hash_ipv6(d + 38);
     uint16_t sport = 0;
     uint16_t dport = 0;
 

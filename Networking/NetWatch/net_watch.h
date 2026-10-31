@@ -73,6 +73,8 @@ typedef struct
 
 } netwatch_snapshot_t;
 
+#define NETWATCH_GROUP_DST 0xFFFFFFFEu
+
 void netwatch_init(void);
 
 void netwatch_packet_rx(netwatch_protocol_t protocol, uint32_t length, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port);

@@ -98,7 +98,7 @@ void nettrace_rebuild_at(const netwatch_snapshot_t *snapshot, uint64_t now)
 
         if (claimed[i])
             events[i].status = NETTRACE_STATUS_ANSWERED;
-        else if (events[i].dst_ip == 0xFFFFFFFFu || (events[i].dst_ip >> 28) == 0xE)
+        else if (events[i].dst_ip == 0xFFFFFFFFu || events[i].dst_ip == NETWATCH_GROUP_DST || (events[i].dst_ip >> 28) == 0xE)
             events[i].status = NETTRACE_STATUS_NONE;
         else if (now > events[i].tick && now - events[i].tick > NETTRACE_TIMEOUT_TICKS)
             events[i].status = NETTRACE_STATUS_TIMED_OUT;

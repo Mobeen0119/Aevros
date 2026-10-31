@@ -82,6 +82,12 @@ void keyboard_handler()
     if (scan & KEY_RELEASE)
         return;
 
+    if (scan == 0x3C)
+    {
+        gui_push_key(GUI_KEY_F2);
+        return;
+    }
+
     if (network_view_is_visible())
     {
         if (scan == SCAN_UP)

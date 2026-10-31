@@ -7,7 +7,8 @@
 #include "../GUI/Algo/Font/font.h"
 #include "../GUI/Algo/algo.h"
 #include "../GUI/Interaction/NetView/net_view.h"
-#include "../GUI/Interaction/NetView/gui_task.h"
+#include "../GUI/Interaction/Gui_Task/gui_task.h"
+#include "../GUI/WM/style.h"
 
 uint16_t *const vga_memory = (uint16_t *)0xB8000;
 
@@ -16,43 +17,71 @@ uint16_t *const vga_memory = (uint16_t *)0xB8000;
 #define GLYPH_SCALE 2
 
 static uint16_t shadow[WIDTH * HEIGHT];
+static uint16_t cells[WIDTH * HEIGHT];
 
 static uint32_t vga_rgb(uint8_t c)
 {
     static const uint32_t pal[16] = {
-        0x000000, 0x0000AA, 0x00AA00, 0x00AAAA, 0xAA0000, 0xAA00AA, 0xAA5500, 0xAAAAAA,
-        0x555555, 0x5555FF, 0x55FF55, 0x55FFFF, 0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF};
+        0x07090D, 0x3A5F8C, 0x5BD39A, 0x6FB7C9, 0xC2572A, 0x9A6FB0, 0x8A6A2E, 0x9AA3B0,
+        0x5A6470, 0x8FB8E8, 0x8BE8B8, 0x9FE0EA, 0xE06060, 0xD9B77A, 0xE8A33D, 0xE6E9EF};
+
     return pal[c & 0xF];
 }
 
-static void draw_cell(int idx, uint16_t cell)
+static void draw_cell_at(int px, int py, uint16_t cell)
 {
-    int x = (idx % WIDTH) * CELL_W;
-    int y = (idx / WIDTH) * CELL_H;
+
     uint32_t bg = vga_rgb((uint8_t)(cell >> 12));
     uint32_t fg = vga_rgb((uint8_t)(cell >> 8));
 
-    fb_rect_filled(x, y, CELL_W, CELL_H, (bg >> 16) & 0xFF, (bg >> 8) & 0xFF, bg & 0xFF);
-    font_draw_char_scaled(x + 1, y + 1, (char)(cell & 0xFF), fg, GLYPH_SCALE);
+    fb_rect_filled(px, py, CELL_W, CELL_H, (bg >> 16) & 0xFF, (bg >> 8) & 0xFF, bg & 0xFF);
+    font_draw_char_scaled(px + 1, py + 1, (char)(cell & 0xFF), fg, GLYPH_SCALE);
 }
 
 static void put_cell(int idx, uint16_t cell)
 {
     if (idx < 0 || idx >= WIDTH * HEIGHT)
-    {
         return;
-    }
+
+    cells[idx] = cell;
+
     if (!framebuffer_available())
     {
         vga_memory[idx] = cell;
         return;
     }
 
+    if (gui_active())
+        return;
+
     if (shadow[idx] == cell)
         return;
 
     shadow[idx] = cell;
-    draw_cell(idx, cell);
+    draw_cell_at((idx % WIDTH) * CELL_W, (idx / WIDTH) * CELL_H, cell);
+}
+
+void terminal_paint(int x, int y, int w, int h)
+{
+    (void)w;
+    (void)h;
+
+    for (int r = 0; r < HEIGHT; r++)
+        for (int c = 0; c < WIDTH; c++)
+            draw_cell_at(x + c * CELL_W, y + r * CELL_H, cells[r * WIDTH + c]);
+}
+
+const char *terminal_status(uint32_t *color)
+{
+    *color = 0x5BD39A;
+    return "READY";
+}
+
+void terminal_why(char *buf, int cap)
+{
+    int len = 0;
+    len = aev_put_str(buf, len, cap, "INPUT GOES TO THE SHELL  ESC FULL SCREEN  F2 LEAVES DESKTOP");
+    (void)len;
 }
 
 void terminal_show(void)
@@ -195,9 +224,6 @@ void handle_enter()
 
 static void render_frame(void)
 {
-    if (framebuffer_available() && gui_active())
-        return;
-
     for (int y = 0; y < HEIGHT; y++)
     {
         int line = scroll_top + y;
@@ -216,11 +242,10 @@ static void render_frame(void)
 
 void render(void)
 {
-    if (framebuffer_available() && gui_active())
-        return;
-
     render_frame();
-    fb_flush();
+
+    if (framebuffer_available() && !gui_active())
+        fb_flush();
 }
 
 void render_input_line(void)

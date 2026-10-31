@@ -9,12 +9,15 @@
 #include "../../../Drivers/Mouse/mouse.h"
 #include "../../../Include/terminal.h"
 #include "../../../kernel/Process/task.h"
+
 #include <stdbool.h>
 
 #define KEY_QUEUE_LEN 16
 #define GUI_SCREEN_W 1024
 #define GUI_SCREEN_H 768
 #define DESKTOP_REFRESH_TICKS 20
+
+void keyboard_push(char c);
 
 typedef enum
 {
@@ -58,7 +61,6 @@ static void draw_desktop(void)
 {
     desktop_paint();
     wm_paint_all();
-
     draw_cursor();
     fb_flush();
     last_desktop_draw = get_ticks();
@@ -97,6 +99,13 @@ static void handle_key(uint8_t key)
     if (key == GUI_KEY_F2)
     {
         enter_mode(mode == MODE_DESKTOP ? MODE_SHELL : MODE_DESKTOP);
+        return;
+    }
+
+    if (mode == MODE_DESKTOP)
+    {
+        if (key < 0x80)
+            keyboard_push((char)key);
         return;
     }
 
@@ -192,7 +201,8 @@ static void gui_task(void)
 void gui_start(void)
 {
     wm_init();
-    wm_open("SYSTEM HEALTH", 40, 40, 560, 230, health_window_paint, health_window_status, health_window_why);
+    wm_open("TERMINAL", 24, 44, 962, 500, terminal_paint, terminal_status, terminal_why);
 
+    wm_open("SYSTEM HEALTH", 440, 260, 560, 230, health_window_paint, health_window_status, health_window_why);
     task_create_kernel(gui_task);
 }

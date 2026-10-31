@@ -8,6 +8,7 @@
 #define GUI_KEY_F2 0x82
 
 void gui_push_key(uint8_t key);
+int gui_active(void);
 void gui_start(void);
 
 #endif

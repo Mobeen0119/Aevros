@@ -115,3 +115,25 @@ int aev_put_uint(char *buf, int len, int cap, uint32_t value)
     buf[len] = 0;
     return len;
 }
+
+void aev_frame(int x, int y, int w, int h, bool focused)
+{
+    uint32_t accent = focused ? AEV_DAWN : AEV_MUTED;
+    int arm = focused ? 12 : 7;
+
+    aev_fill(x, y, w, h, AEV_PANEL);
+    aev_fill(x, y, w, 1, AEV_RULE);
+    aev_fill(x, y + h - 1, w, 1, AEV_RULE);
+    aev_fill(x, y, 1, h, AEV_RULE);
+    aev_fill(x + w - 1, y, 1, h, AEV_RULE);
+
+    aev_fill(x, y, arm, 1, accent);
+    aev_fill(x, y, 1, arm, accent);
+    aev_fill(x + w - arm, y, arm, 1, accent);
+    aev_fill(x + w - 1, y, 1, arm, accent);
+
+    aev_fill(x, y + h - 1, arm, 1, accent);
+    aev_fill(x, y + h - arm, 1, arm, accent);
+    aev_fill(x + w - arm, y + h - 1, arm, 1, accent);
+    aev_fill(x + w - 1, y + h - arm, 1, arm, accent);
+}

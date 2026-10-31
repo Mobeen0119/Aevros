@@ -1,4 +1,5 @@
 #include "net_view.h"
+#include "../../WM/style.h"
 #include "../../Framebuffer/framebuffer.h"
 #include "../../Algo/algo.h"
 #include "../../Algo/Render/render_color.h"
@@ -6,39 +7,39 @@
 #include "../../../Networking/NetWatch/net_watch.h"
 #include "../../Algo/Font/font.h"
 
-#define BG_R 8
-#define BG_G 12
-#define BG_B 18
+#define BG_R 7
+#define BG_G 9
+#define BG_B 13
 
-#define PANEL_R 16
-#define PANEL_G 22
+#define PANEL_R 14
+#define PANEL_G 18
 
-#define PANEL_B 30
+#define PANEL_B 24
 
-#define LINE_R 55
-#define LINE_G 65
-#define LINE_B 80
+#define LINE_R 30
+#define LINE_G 38
+#define LINE_B 49
 
-#define TEXT_R 220
+#define TEXT_R 230
 
-#define TEXT_G 225
-#define TEXT_B 235
+#define TEXT_G 233
+#define TEXT_B 239
 
-#define ACCENT_R 70
-#define ACCENT_G 180
-#define ACCENT_B 255
+#define ACCENT_R 232
+#define ACCENT_G 163
+#define ACCENT_B 61
 
-#define RX_R 70
-#define RX_G 220
-#define RX_B 150
+#define RX_R 91
+#define RX_G 211
+#define RX_B 154
 
-#define TX_R 240
-#define TX_G 170
-#define TX_B 70
+#define TX_R 224
+#define TX_G 104
+#define TX_B 58
 
-#define SELECT_R 240
-#define SELECT_G 200
-#define SELECT_B 80
+#define SELECT_R 232
+#define SELECT_G 163
+#define SELECT_B 61
 
 #define HEADER_HEIGHT 56
 
@@ -150,8 +151,7 @@ static void fill_background(void)
 
 static void draw_panel(int x, int y, int w, int h)
 {
-    fb_rect_filled(x, y, w, h, PANEL_R, PANEL_G, PANEL_B);
-    fb_rect(x, y, w, h, LINE_R, LINE_G, LINE_B);
+    aev_frame(x, y, w, h, false);
 }
 
 static void draw_header(void)
@@ -160,9 +160,10 @@ static void draw_header(void)
 
     fb_line(0, HEADER_HEIGHT - 1, NETWORK_VIEW_WIDTH - 1, HEADER_HEIGHT - 1, LINE_R, LINE_G, LINE_B);
 
-    font_draw_string(24, 13, "AEVROS / NETWORK OBSERVATORY", text_color());
+    aev_text(24, 10, "AEVROS", AEV_DAWN, 2);
+    aev_text(170, 16, "NETWORK OBSERVATORY", AEV_MUTED, 1);
 
-    font_draw_string(24, 32, "Packet activity and event inspection", (ACCENT_R << 16) | (ACCENT_G << 8) | ACCENT_B);
+    aev_text(170, 30, "PACKET ACTIVITY AND EVENT INSPECTION", AEV_TEXT, 1);
 }
 
 static void draw_status_indicator(int x, int y, uint8_t up)
@@ -489,6 +490,10 @@ static void draw_events(void)
 
         draw_event_row(i, EVENTS_Y + 48 + (int)i * EVENT_ROW_HEIGHT);
     }
+
+    aev_text(EVENTS_X + 16, EVENTS_Y + EVENTS_H - 18, "WHY", AEV_MUTED, 1);
+    aev_text(EVENTS_X + 16 + (int)aev_text_width("WHY  ", 1), EVENTS_Y + EVENTS_H - 18,
+             "NEWEST FIRST. WAIT: NO REPLY YET. LOST: NO REPLY IN 5 S. BLANK: NO REPLY EXPECTED.", AEV_TEXT, 1);
 }
 
 static void draw_event_detail(void)

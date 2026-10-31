@@ -56,4 +56,8 @@ void terminal_show(void);
 void render_input_line(void);
 void terminal_readline(char *out);
 
+void terminal_paint(int x, int y, int w, int h);
+const char *terminal_status(uint32_t *color);
+void terminal_why(char *buf, int cap);
+
 #endif

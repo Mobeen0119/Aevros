@@ -245,6 +245,53 @@ static void test_heap_preempt(void)
     CHECK("no block was corrupted while tasks were preempted", heap_bad == 0);
 }
 
+static volatile uint32_t churn_done;
+static volatile uint32_t churn_work;
+
+static void churn_child(void)
+{
+    for (uint32_t i = 0; i < 2000; i++)
+        churn_work++;
+    churn_done++;
+    sys_exit(0);
+}
+
+static void test_ready_churn(void)
+{
+    kprintf("-- ready queue under preemption (create and retire 240 tasks) --\n");
+    churn_done = 0;
+    churn_work = 0;
+
+    uint32_t created = 0;
+    pit_set_time_slice(1);
+    for (int round = 0; round < 60; round++)
+    {
+        int pids[4];
+        int n = 0;
+        for (int k = 0; k < 4; k++)
+        {
+            task_t *c = task_create_kernel(churn_child);
+            if (c)
+            {
+                pids[n++] = (int)c->pid;
+                created++;
+            }
+        }
+        for (int k = 0; k < n; k++)
+        {
+            int st;
+            sys_waitpid(pids[k], &st);
+        }
+    }
+    pit_set_time_slice(0);
+
+    int ok = 1;
+    uint32_t count = count_ready_queue(1000, &ok);
+    kprintf("  created %u, finished %u, ready queue entries %u\n", created, churn_done, count);
+    CHECK("every child task ran and exited", churn_done == created && created > 0);
+    CHECK("ready queue is still a valid ring", ok);
+}
+
 void selftest_run(void)
 {
     pass = 0;
@@ -259,5 +306,6 @@ void selftest_run(void)
     test_fork();
     test_preemption();
     test_heap_preempt();
+    test_ready_churn();
     kprintf("\n%d passed, %d failed\n\n", pass, fail);
 }

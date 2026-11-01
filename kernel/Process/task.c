@@ -2,16 +2,15 @@
 #include "../Memory/pmm.h"
 #include "../Paging/paging.h"
 #include "../../Include/vfs.h"
-
 #include "../../Include/screen.h"
 #include "../../Include/shell.h"
 #include "../Dev/dev.h"
 #include "../Memory/kheap.h"
 #include "../CPU/TSS.h"
-
 #include "userspace.h"
 #include "process-memory/process_memory.h"
 #include "../../Lib/kprintf.h"
+#include "../../Include/critical.h"
 #include "../../Lib/string.h"
 #include "../../Drivers/PIT/pit.h"
 #include "TaskLife/tasklife.h"
@@ -317,6 +316,7 @@ __attribute__((noinline)) void sys_exit(int status)
             asm volatile("hlt");
     }
 
+    uint32_t queue_flags = critical_enter();
     task_t *temp = ready_queue;
     while (temp->next != dead)
         temp = temp->next;
@@ -324,6 +324,7 @@ __attribute__((noinline)) void sys_exit(int status)
     temp->next = dead->next;
     if (ready_queue == dead)
         ready_queue = dead->next;
+    critical_leave(queue_flags);
 
     if (dead->is_user && dead->cr3)
         destroy_user_space(dead->cr3);
@@ -415,6 +416,8 @@ void task_add_ready(task_t *task)
         return;
 
     task->state = TASK_READY;
+
+    uint32_t queue_flags = critical_enter();
     if (ready_queue == NULL)
     {
         ready_queue = task;
@@ -428,6 +431,7 @@ void task_add_ready(task_t *task)
         temp->next = task;
         task->next = ready_queue;
     }
+    critical_leave(queue_flags);
 }
 
 void task_remove_ready(task_t *task)
@@ -438,9 +442,12 @@ void task_remove_ready(task_t *task)
     task_log_event(task, EVT_BLOCKED, 0);
     task->state = TASK_BLOCKED;
 
+    uint32_t queue_flags = critical_enter();
+
     if (ready_queue == task && ready_queue->next == ready_queue)
     {
         ready_queue = NULL;
+        critical_leave(queue_flags);
         return;
     }
 
@@ -452,12 +459,15 @@ void task_remove_ready(task_t *task)
         temp = temp->next;
     } while (temp->next != ready_queue);
 
-    if (temp->next != task)
-        return;
-    temp->next = task->next;
+    if (temp->next == task)
+    {
+        temp->next = task->next;
 
-    if (ready_queue == task)
-        ready_queue = task->next;
+        if (ready_queue == task)
+            ready_queue = task->next;
+    }
+
+    critical_leave(queue_flags);
 }
 
 task_t *pick_next_task(void)

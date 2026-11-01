@@ -177,8 +177,8 @@ static void draw_status_indicator(int x, int y, uint8_t up)
 static void draw_traffic_bars(void)
 {
     const int x = STATS_X + 24;
-    const int base_y = STATS_Y + 240;
-    const int max_h = 40;
+    const int base_y = STATS_Y + 226;
+    const int max_h = 30;
     const int bar_w = 72;
 
     uint32_t rx = snapshot.stats.rx_packets;
@@ -191,10 +191,10 @@ static void draw_traffic_bars(void)
     int rx_h = (int)scale_u32(rx, max_h, max);
     int tx_h = (int)scale_u32(tx, max_h, max);
 
-    font_draw_string(x, STATS_Y + 184, "RX PACKETS",
+    font_draw_string(x, STATS_Y + 186, "RX PACKETS",
                      (RX_R << 16) | (RX_G << 8) | RX_B);
 
-    font_draw_string(x + 140, STATS_Y + 184, "TX PACKETS",
+    font_draw_string(x + 140, STATS_Y + 186, "TX PACKETS",
                      (TX_R << 16) | (TX_G << 8) | TX_B);
 
     fb_rect(x, base_y - max_h, bar_w, max_h, LINE_R, LINE_G, LINE_B);
@@ -249,6 +249,11 @@ static void draw_stats(void)
     font_draw_string(STATS_X + 170, STATS_Y + 62, tx_text, (TX_R << 16) | (TX_G << 8) | TX_B);
 
     draw_traffic_bars();
+
+    aev_text(STATS_X + 12, STATS_Y + STATS_H - 16, "WHY", AEV_MUTED, 1);
+    aev_text(STATS_X + 12 + (int)aev_text_width("WHY  ", 1), STATS_Y + STATS_H - 16,
+             snapshot.stats.link_up ? "LINK UP: NIC REPORTS CARRIER" : "LINK DOWN: NIC REPORTS NO CARRIER",
+             AEV_TEXT, 1);
 }
 
 static void draw_protocol_activity(void)

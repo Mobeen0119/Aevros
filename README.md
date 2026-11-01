@@ -63,17 +63,19 @@ Few moments, and you're at a shell that can explain itself. Details: [`docs/BUIL
 
 ## What's actually working
 
-| Area                                                                                           | Status                                                         |
-| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Boot, GDT/IDT/PIC, interrupts                                                                  | Working                                                        |
-| Physical memory, paging, buddy + slab allocators                                               | Working                                                        |
-| Allocation tracker (file, line, owner, per alloc)                                              | Working                                                        |
-| Scheduler, fork/exec, ELF loader                                                               | Working (round-robin, timer-driven, no priorities)             |
-| Syscalls (`int 0x80`), VFS, RAMFS                                                              | Working                                                        |
-| `whyalive`, `blast`, `quarantine`, `memfreeze`, checkpoint/restore                             | Working                                                        |
-| Network diagnostics: NetWatch (event log), NetTrace (request/reply pairing), NetView (overlay) | Builds and links, host-tested                                  |
-| Provenance (cause-and-effect log: NIC driver to packet to reply), `provenance` shell command   | Builds and links, host-tested, not yet observed in a live boot |
-| DevFS, full ring 3 isolation                                                                   | Experimental / partial                                         |
+| Area                                                                                              | Status                                                            |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Boot, GDT/IDT/PIC, interrupts                                                                     | Working                                                           |
+| Physical memory, paging, buddy + slab allocators                                                  | Working                                                           |
+| Allocation tracker (file, line, owner, per alloc)                                                 | Working                                                           |
+| Scheduler, fork/exec, ELF loader                                                                  | Working (round-robin, timer-driven, no priorities)                |
+| Syscalls (`int 0x80`), VFS, RAMFS                                                                 | Working                                                           |
+| `whyalive`, `blast`, `quarantine`, `memfreeze`, checkpoint/restore                                | Working                                                           |
+| Networking: RTL8139 and e1000 (82540EM / 82574L) drivers, IPv4, IPv6 SLAAC, DHCP, TCP echo server | Working in QEMU, host-tested; not tested on real hardware         |
+| Network diagnostics: NetWatch (event log), NetTrace (request/reply pairing), NetView (overlay)    | Working in QEMU, host-tested                                      |
+| GUI: desktop (F2), movable windows, System Health and terminal windows, NetView                   | Working in QEMU; no page flipping yet (screen can tear on redraw) |
+| Provenance (cause-and-effect log: NIC driver to packet to reply), `provenance` shell command      | Builds and links, host-tested, not yet observed in a live boot    |
+| DevFS, full ring 3 isolation                                                                      | Experimental / partial                                            |
 
 Every "Working" row has a real self-test in `kernel/selftest.c`, run `selftest` yourself. Full table: [`README` implementation matrix in the repo](docs/ARCHITECTURE.md).
 
@@ -81,16 +83,26 @@ Every "Working" row has a real self-test in `kernel/selftest.c`, run `selftest` 
 
 - **NetWatch** logs the packets the NIC sees (RX and TX, IPv4/IPv6/ARP, TCP/UDP/ICMP).
 - **NetTrace** pairs a request with its reply and marks it answered, pending or timed out.
-- **NetView** shows both in a full-screen overlay.
+- **NetView** shows both. Press ESC to open it; it takes the keyboard and mouse until you press ESC again.
+- **Flood protection** (curfew and watchlist) counts only bad frames, so a large transfer is never refused for being fast.
+- **TCP** echo server: run `tcpecho` in the shell. `tests/boot_check.sh` runs 20 connections through it.
 - **Provenance** (`Provenance/`) logs cause-and-effect edges, like `DRIVER:1 --CREATED--> NETWORK:5`, so you can trace where a packet came from. The `provenance` shell command lists them.
 
 ## Running the tests
 
 ```bash
 ./tests/run_all.sh
+./tests/boot_check.sh aevrosos.iso
 ```
 
-Runs the networking and provenance tests, then a demo of the `provenance` command. This tests the logic, not a booted kernel with a real NIC.
+`run_all.sh` tests the logic, not a booted kernel. `boot_check.sh` needs `qemu-system-i386` and `python3`. Scripts that type shell commands press ESC first, because NetView owns the keyboard at boot.
+
+## Desktop and keys
+
+- **ESC**: shell, then NetView, then shell.
+- **F2**: opens the desktop. The System Health and terminal windows are on it.
+- **Desktop**: drag a window by its header, close it with the cross in the header. Keys go to the terminal window when it is the top window.
+- **NetView**: arrow keys select an event, a click selects a row, `r` clears the selection.
 
 ## Where this is going
 

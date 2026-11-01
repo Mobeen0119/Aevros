@@ -1,3 +1,4 @@
+#include "../../Include/critical.h"
 #include <stdint.h>
 #include "../../Include/ramfs.h"
 #include "../../Include/vfs.h"
@@ -5,7 +6,6 @@
 #include "../Memory/kheap.h"
 #include "../../Lib/string.h"
 #include "../Process/task.h"
-
 
 vfs_ops_t ramfs_ops = {
     .read = ramfs_read,
@@ -16,7 +16,7 @@ void ramfs_init()
     vfs_root->inode->ops = &ramfs_ops;
 }
 
-uint32_t ramfs_read(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
+static uint32_t ramfs_read_locked(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
     ramfs_inode_t *ram = dentry->inode->fs_private;
 
@@ -33,7 +33,7 @@ uint32_t ramfs_read(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *b
     return size;
 }
 
-uint32_t ramfs_write(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
+static uint32_t ramfs_write_locked(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
     ramfs_inode_t *ram = dentry->inode->fs_private;
     if (!ram)
@@ -51,7 +51,7 @@ uint32_t ramfs_write(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *
     return size;
 }
 
-dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
+static dentry_t *ramfs_create_files_locked(dentry_t *parent, const char *name)
 {
 
     dentry_t *child = kmalloc_raw(sizeof(dentry_t));
@@ -77,7 +77,7 @@ dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
 
     inode->created_tick = get_ticks();
     inode->created_pid = current_task ? current_task->pid : 0;
-    
+
     inode->size = 0;
     inode->flags = VFS_FILE;
     inode->ops = &ramfs_ops;
@@ -117,13 +117,13 @@ int ramfs_expand(ramfs_inode_t *ram, uint32_t needed)
     memcpy(new_data, ram->data, ram->capacity);
     kfree_raw(ram->data);
 
-    ram->data = (uint8_t*)new_data;
+    ram->data = (uint8_t *)new_data;
     ram->capacity = new_cap;
 
     return VFS_OK;
 }
 
-dentry_t *ramfs_mkdir(dentry_t *parent, const char *name)
+static dentry_t *ramfs_mkdir_locked(dentry_t *parent, const char *name)
 {
     if (!parent || !name)
         return 0;
@@ -151,4 +151,36 @@ dentry_t *ramfs_mkdir(dentry_t *parent, const char *name)
     parent->hash_bucket[bucket] = dentry;
 
     return dentry;
+}
+
+dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
+{
+    uint32_t saved_if = critical_enter();
+    dentry_t *result = ramfs_create_files_locked(parent, name);
+    critical_leave(saved_if);
+    return result;
+}
+
+dentry_t *ramfs_mkdir(dentry_t *parent, const char *name)
+{
+    uint32_t saved_if = critical_enter();
+    dentry_t *result = ramfs_mkdir_locked(parent, name);
+    critical_leave(saved_if);
+    return result;
+}
+
+uint32_t ramfs_write(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
+{
+    uint32_t saved_if = critical_enter();
+    uint32_t result = ramfs_write_locked(dentry, offset, size, buffer);
+    critical_leave(saved_if);
+    return result;
+}
+
+uint32_t ramfs_read(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
+{
+    uint32_t saved_if = critical_enter();
+    uint32_t result = ramfs_read_locked(dentry, offset, size, buffer);
+    critical_leave(saved_if);
+    return result;
 }

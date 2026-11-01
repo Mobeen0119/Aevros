@@ -9,6 +9,8 @@
 #include "../Drivers/PIT/pit.h"
 #include "../Lib/string.h"
 #include "../Include/shell.h"
+#include "../Include/vfs.h"
+#include "../Include/ramfs.h"
 
 static int pass = 0, fail = 0;
 #define CHECK(name, cond)                   \
@@ -292,6 +294,100 @@ static void test_ready_churn(void)
     CHECK("ready queue is still a valid ring", ok);
 }
 
+static volatile uint32_t vfs_bad, vfs_ops;
+static dentry_t *vfs_churn_dir;
+
+static void vfs_child(void)
+{
+    uint32_t id = current_task->pid;
+    uint8_t out[32], in[32];
+
+    for (uint32_t i = 0; i < 40; i++)
+    {
+        char name[24];
+        char path[40];
+        int n = 0;
+        name[n++] = 'f';
+        name[n++] = (char)('0' + (id / 10 % 10));
+        name[n++] = (char)('0' + (id % 10));
+        name[n++] = '_';
+        name[n++] = (char)('0' + (i / 10));
+        name[n++] = (char)('0' + (i % 10));
+        name[n] = 0;
+
+        strncpy(path, "/vfs_churn/", sizeof(path));
+        strncpy(path + 11, name, sizeof(path) - 11);
+
+        dentry_t *d = ramfs_create_files(vfs_churn_dir, name);
+        if (!d)
+        {
+            vfs_bad++;
+            continue;
+        }
+        if (vfs_lookup(vfs_root, path) != d)
+            vfs_bad++;
+
+        for (int k = 0; k < 32; k++)
+            out[k] = (uint8_t)(id * 31 + i + k);
+        ramfs_write(d, 0, 32, out);
+        ramfs_read(d, 0, 32, in);
+        for (int k = 0; k < 32; k++)
+            if (in[k] != out[k])
+            {
+                vfs_bad++;
+                break;
+            }
+
+        if (sys_unlink(path) != VFS_OK)
+            vfs_bad++;
+        vfs_ops++;
+    }
+    sys_exit(0);
+}
+
+static uint32_t vfs_leftovers(dentry_t *dir)
+{
+    uint32_t left = 0;
+    for (int b = 0; b < DENTRY_HASH; b++)
+        for (dentry_t *e = dir->hash_bucket[b]; e; e = e->hash_next)
+            left++;
+    return left;
+}
+
+static void test_vfs_churn(void)
+{
+    kprintf("-- VFS under preemption (4 tasks create, check, write, read, unlink in one directory) --\n");
+    vfs_bad = vfs_ops = 0;
+
+    sys_mkdir("/vfs_churn");
+    vfs_churn_dir = vfs_lookup(vfs_root, "/vfs_churn");
+    if (!vfs_churn_dir)
+    {
+        CHECK("vfs test directory exists", 0);
+        return;
+    }
+
+    int pids[4];
+    pit_set_time_slice(1);
+    for (int k = 0; k < 4; k++)
+    {
+        task_t *c = task_create_kernel(vfs_child);
+        pids[k] = c ? (int)c->pid : 0;
+    }
+    for (int k = 0; k < 4; k++)
+    {
+        int st;
+        if (pids[k])
+            sys_waitpid(pids[k], &st);
+    }
+    pit_set_time_slice(0);
+
+    uint32_t left = vfs_leftovers(vfs_churn_dir);
+    kprintf("  operations %u, errors %u, files left behind %u\n", vfs_ops, vfs_bad, left);
+    CHECK("every VFS operation succeeded", vfs_bad == 0 && vfs_ops == 160);
+    CHECK("no file was left behind after unlink", left == 0);
+}
+
 void selftest_run(void)
 {
     pass = 0;
@@ -307,5 +403,6 @@ void selftest_run(void)
     test_preemption();
     test_heap_preempt();
     test_ready_churn();
+    test_vfs_churn();
     kprintf("\n%d passed, %d failed\n\n", pass, fail);
 }

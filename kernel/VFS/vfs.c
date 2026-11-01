@@ -1,3 +1,4 @@
+#include "../../Include/critical.h"
 #include <stdint.h>
 #include "../Memory/kheap.h"
 #include "../Process/task.h"
@@ -7,7 +8,6 @@
 #include "../Dev/dev.h"
 #include "../Memory/pmm.h"
 #include "../Process/TaskLife/tasklife.h"
-
 
 dentry_t *vfs_root = 0;
 
@@ -189,7 +189,7 @@ dentry_t *vfs_follow_mount(dentry_t *dentry)
     return dentry;
 }
 
-dentry_t *vfs_lookup(dentry_t *root, const char *path)
+static dentry_t *vfs_lookup_locked(dentry_t *root, const char *path)
 {
     dentry_t *node = vfs_resolve_path(root, path);
     return vfs_follow_mount(node);
@@ -217,7 +217,7 @@ dentry_t *resolve_parent_dir(const char *path, const char **out_name)
     return vfs_lookup(vfs_root, parent_path);
 }
 
-int sys_open(const char *path, uint32_t flags)
+static int sys_open_locked(const char *path, uint32_t flags)
 {
     if (!path)
         return VFS_ERR;
@@ -293,7 +293,7 @@ int sys_read(int fd, uint8_t *buf, uint32_t size)
 
 int sys_write(int fd, uint8_t *buf, uint32_t size)
 {
-    
+
     if (fd < 0 || fd >= TASK_MAX_FDS || !current_task->fd_table[fd])
         return VFS_ERR;
 
@@ -314,7 +314,7 @@ int sys_write(int fd, uint8_t *buf, uint32_t size)
     return byte_write;
 }
 
-int sys_close(int fd)
+static int sys_close_locked(int fd)
 {
     if (fd < 0 || fd >= TASK_MAX_FDS)
         return VFS_ERR;
@@ -337,7 +337,7 @@ int sys_close(int fd)
     return VFS_OK;
 }
 
-int sys_mkdir(const char *path)
+static int sys_mkdir_locked(const char *path)
 {
     if (!path)
         return VFS_ERR;
@@ -363,7 +363,7 @@ int sys_mkdir(const char *path)
     return VFS_OK;
 }
 
-int sys_unlink(const char *path)
+static int sys_unlink_locked(const char *path)
 {
     if (!path)
         return VFS_ERR;
@@ -439,12 +439,12 @@ int sys_chdir(const char *path)
 
     dentry_t *target_dir = vfs_lookup(vfs_root, path);
     if (!target_dir)
-        return VFS_ERR; 
+        return VFS_ERR;
 
     if (!(target_dir->inode->flags & VFS_DIR))
         return VFS_ERR;
 
-    current_task->cwd = target_dir; 
+    current_task->cwd = target_dir;
 
     return VFS_OK;
 }
@@ -511,4 +511,44 @@ int sys_readdir(int fd, dirent_t *dirent)
     }
 
     return 0;
+}
+
+dentry_t *vfs_lookup(dentry_t *root, const char *path)
+{
+    uint32_t saved_if = critical_enter();
+    dentry_t *result = vfs_lookup_locked(root, path);
+    critical_leave(saved_if);
+    return result;
+}
+
+int sys_open(const char *path, uint32_t flags)
+{
+    uint32_t saved_if = critical_enter();
+    int result = sys_open_locked(path, flags);
+    critical_leave(saved_if);
+    return result;
+}
+
+int sys_close(int fd)
+{
+    uint32_t saved_if = critical_enter();
+    int result = sys_close_locked(fd);
+    critical_leave(saved_if);
+    return result;
+}
+
+int sys_mkdir(const char *path)
+{
+    uint32_t saved_if = critical_enter();
+    int result = sys_mkdir_locked(path);
+    critical_leave(saved_if);
+    return result;
+}
+
+int sys_unlink(const char *path)
+{
+    uint32_t saved_if = critical_enter();
+    int result = sys_unlink_locked(path);
+    critical_leave(saved_if);
+    return result;
 }

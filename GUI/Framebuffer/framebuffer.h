@@ -10,6 +10,7 @@ int framebuffer_available(void);
 
 void fb_backbuffer_init(void);
 void fb_flush(void);
+void fb_flush_rect(int x, int y, int w, int h);
 
 uint32_t framebuffer_width(void);
 uint32_t framebuffer_height(void);

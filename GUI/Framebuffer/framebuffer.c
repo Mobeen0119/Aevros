@@ -143,6 +143,36 @@ void fb_flush(void)
     memcpy(fb_base, back_base, fb_pitch * screen_h);
 }
 
+void fb_flush_rect(int x, int y, int w, int h)
+{
+    if (!available || !back_base)
+        return;
+
+    if (x < 0)
+    {
+        w += x;
+        x = 0;
+    }
+    if (y < 0)
+    {
+        h += y;
+        y = 0;
+    }
+    if (x + w > (int)screen_w)
+        w = (int)screen_w - x;
+    if (y + h > (int)screen_h)
+        h = (int)screen_h - y;
+    if (w <= 0 || h <= 0)
+        return;
+
+    uint32_t bpp = fb_bpp / 8;
+    for (int row = y; row < y + h; row++)
+    {
+        uint32_t off = (uint32_t)row * fb_pitch + (uint32_t)x * bpp;
+        memcpy(fb_base + off, back_base + off, (uint32_t)w * bpp);
+    }
+}
+
 int framebuffer_available(void)
 {
     return available;

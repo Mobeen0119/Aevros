@@ -781,11 +781,11 @@ static void fill_snapshot(void)
     netwatch_get_snapshot(&snapshot);
 }
 
-void netview_tick(uint64_t now)
+int netview_tick(uint64_t now)
 {
     if (now < last_check ||
         now - last_check < NETVIEW_CHECK_TICKS)
-        return;
+        return 0;
 
     last_check = now;
 
@@ -822,8 +822,13 @@ void netview_tick(uint64_t now)
         last_timed_out = timed_out;
 
         if (visible)
+        {
             network_view_draw();
+            return 1;
+        }
     }
+
+    return 0;
 }
 
 void network_view_open(void)

@@ -100,7 +100,7 @@ void network_view_draw_event_detail(void);
 
 void network_view_reset(void);
 
-void netview_tick(uint64_t now);
+int netview_tick(uint64_t now);
 
 void network_view_open(void);
 

@@ -252,6 +252,7 @@ static int sys_open_locked(const char *path, uint32_t flags)
     file->dentry = vfs_follow_mount(dentry);
     file->offset = 0;
     file->flags = flags;
+    file->ref_count = 1;
 
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
@@ -331,7 +332,10 @@ static int sys_close_locked(int fd)
         if (inode->ref_count > 0)
             inode->ref_count--;
     }
-    kfree_raw(file);
+    if (file->ref_count > 1)
+        file->ref_count--;
+    else
+        kfree_raw(file);
     current_task->fd_table[fd] = 0;
 
     return VFS_OK;

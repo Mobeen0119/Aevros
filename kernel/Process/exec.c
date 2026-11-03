@@ -103,6 +103,7 @@ int exec_user(void *binary, uint32_t size)
             continue;
         }
         task->fd_table[i] = current_task->fd_table[i];
+        task->fd_table[i]->ref_count++;
         task->fd_table[i]->inode->ref_count++;
     }
 
@@ -239,6 +240,7 @@ int sys_exec(const char *path)
             continue;
         }
         task->fd_table[i] = current_task->fd_table[i];
+        task->fd_table[i]->ref_count++;
         task->fd_table[i]->inode->ref_count++;
     }
 

@@ -27,6 +27,8 @@ void task_inherit_fds(task_t *child, task_t *parent)
     for (int i = 0; i < TASK_MAX_FDS; i++)
     {
         child->fd_table[i] = parent->fd_table[i];
+        if (child->fd_table[i])
+            child->fd_table[i]->ref_count++;
 
         if (child->fd_table[i] &&
             child->fd_table[i]->inode)
@@ -76,17 +78,20 @@ void init_tasking()
         stdin->flags = READ_ONLY;
         stdin->dentry = NULL;
         stdin->offset = 0;
+        stdin->ref_count = 1;
 
         file_t *stdout = kmalloc_raw(sizeof(file_t));
         stdout->inode = tty;
         stdout->flags = WRITE_ONLY;
         stdout->offset = 0;
         stdout->dentry = NULL;
+        stdout->ref_count = 1;
 
         file_t *stderr = kmalloc_raw(sizeof(file_t));
         stderr->offset = 0;
         stderr->inode = tty;
         stderr->flags = WRITE_ONLY;
+        stderr->ref_count = 1;
 
         current_task->fd_table[0] = stdin;
         current_task->fd_table[1] = stdout;

@@ -189,7 +189,7 @@ dentry_t *vfs_follow_mount(dentry_t *dentry)
     return dentry;
 }
 
-static dentry_t *vfs_lookup_locked(dentry_t *root, const char *path)
+dentry_t *vfs_lookup(dentry_t *root, const char *path)
 {
     dentry_t *node = vfs_resolve_path(root, path);
     return vfs_follow_mount(node);
@@ -217,7 +217,7 @@ dentry_t *resolve_parent_dir(const char *path, const char **out_name)
     return vfs_lookup(vfs_root, parent_path);
 }
 
-static int sys_open_locked(const char *path, uint32_t flags)
+int sys_open(const char *path, uint32_t flags)
 {
     if (!path)
         return VFS_ERR;
@@ -315,7 +315,7 @@ int sys_write(int fd, uint8_t *buf, uint32_t size)
     return byte_write;
 }
 
-static int sys_close_locked(int fd)
+int sys_close(int fd)
 {
     if (fd < 0 || fd >= TASK_MAX_FDS)
         return VFS_ERR;
@@ -341,7 +341,7 @@ static int sys_close_locked(int fd)
     return VFS_OK;
 }
 
-static int sys_mkdir_locked(const char *path)
+int sys_mkdir(const char *path)
 {
     if (!path)
         return VFS_ERR;
@@ -367,7 +367,7 @@ static int sys_mkdir_locked(const char *path)
     return VFS_OK;
 }
 
-static int sys_unlink_locked(const char *path)
+int sys_unlink(const char *path)
 {
     if (!path)
         return VFS_ERR;
@@ -515,44 +515,4 @@ int sys_readdir(int fd, dirent_t *dirent)
     }
 
     return 0;
-}
-
-dentry_t *vfs_lookup(dentry_t *root, const char *path)
-{
-    uint32_t saved_if = critical_enter();
-    dentry_t *result = vfs_lookup_locked(root, path);
-    critical_leave(saved_if);
-    return result;
-}
-
-int sys_open(const char *path, uint32_t flags)
-{
-    uint32_t saved_if = critical_enter();
-    int result = sys_open_locked(path, flags);
-    critical_leave(saved_if);
-    return result;
-}
-
-int sys_close(int fd)
-{
-    uint32_t saved_if = critical_enter();
-    int result = sys_close_locked(fd);
-    critical_leave(saved_if);
-    return result;
-}
-
-int sys_mkdir(const char *path)
-{
-    uint32_t saved_if = critical_enter();
-    int result = sys_mkdir_locked(path);
-    critical_leave(saved_if);
-    return result;
-}
-
-int sys_unlink(const char *path)
-{
-    uint32_t saved_if = critical_enter();
-    int result = sys_unlink_locked(path);
-    critical_leave(saved_if);
-    return result;
 }

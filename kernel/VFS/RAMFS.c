@@ -16,7 +16,7 @@ void ramfs_init()
     vfs_root->inode->ops = &ramfs_ops;
 }
 
-static uint32_t ramfs_read_locked(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
+uint32_t ramfs_read(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
     ramfs_inode_t *ram = dentry->inode->fs_private;
 
@@ -33,7 +33,7 @@ static uint32_t ramfs_read_locked(dentry_t *dentry, uint32_t offset, uint32_t si
     return size;
 }
 
-static uint32_t ramfs_write_locked(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
+uint32_t ramfs_write(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
 {
     ramfs_inode_t *ram = dentry->inode->fs_private;
     if (!ram)
@@ -51,7 +51,7 @@ static uint32_t ramfs_write_locked(dentry_t *dentry, uint32_t offset, uint32_t s
     return size;
 }
 
-static dentry_t *ramfs_create_files_locked(dentry_t *parent, const char *name)
+dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
 {
 
     dentry_t *child = kmalloc_raw(sizeof(dentry_t));
@@ -123,7 +123,7 @@ int ramfs_expand(ramfs_inode_t *ram, uint32_t needed)
     return VFS_OK;
 }
 
-static dentry_t *ramfs_mkdir_locked(dentry_t *parent, const char *name)
+dentry_t *ramfs_mkdir(dentry_t *parent, const char *name)
 {
     if (!parent || !name)
         return 0;
@@ -151,36 +151,4 @@ static dentry_t *ramfs_mkdir_locked(dentry_t *parent, const char *name)
     parent->hash_bucket[bucket] = dentry;
 
     return dentry;
-}
-
-dentry_t *ramfs_create_files(dentry_t *parent, const char *name)
-{
-    uint32_t saved_if = critical_enter();
-    dentry_t *result = ramfs_create_files_locked(parent, name);
-    critical_leave(saved_if);
-    return result;
-}
-
-dentry_t *ramfs_mkdir(dentry_t *parent, const char *name)
-{
-    uint32_t saved_if = critical_enter();
-    dentry_t *result = ramfs_mkdir_locked(parent, name);
-    critical_leave(saved_if);
-    return result;
-}
-
-uint32_t ramfs_write(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
-{
-    uint32_t saved_if = critical_enter();
-    uint32_t result = ramfs_write_locked(dentry, offset, size, buffer);
-    critical_leave(saved_if);
-    return result;
-}
-
-uint32_t ramfs_read(dentry_t *dentry, uint32_t offset, uint32_t size, uint8_t *buffer)
-{
-    uint32_t saved_if = critical_enter();
-    uint32_t result = ramfs_read_locked(dentry, offset, size, buffer);
-    critical_leave(saved_if);
-    return result;
 }

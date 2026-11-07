@@ -330,8 +330,8 @@ void frontdesk_irq_handler(void)
 {
     static uint32_t call_count = 0;
     call_count++;
-    if (call_count % 500 == 1)
-        kprintf("[FrontDesk] IRQ handler called %u times so far (a fast-rising count means the interrupt is re-firing without being resolved)\n", call_count);
+    if (call_count % 10000 == 0)
+        kprintf("[FrontDesk] %u NIC interrupts handled\n", call_count);
 
     if (!state.present)
         return;

@@ -135,12 +135,21 @@ void fb_backbuffer_init(void)
     back_base = buddy_alloc(order);
 }
 
+static void copy_words(void *dst, const void *src, uint32_t bytes)
+{
+    uint32_t count = bytes / 4;
+    asm volatile("cld; rep movsl"
+                 : "+D"(dst), "+S"(src), "+c"(count)
+                 :
+                 : "memory", "cc");
+}
+
 void fb_flush(void)
 {
     if (!available || !back_base)
         return;
 
-    memcpy(fb_base, back_base, fb_pitch * screen_h);
+    copy_words(fb_base, back_base, fb_pitch * screen_h);
 }
 
 void fb_flush_rect(int x, int y, int w, int h)
@@ -169,7 +178,10 @@ void fb_flush_rect(int x, int y, int w, int h)
     for (int row = y; row < y + h; row++)
     {
         uint32_t off = (uint32_t)row * fb_pitch + (uint32_t)x * bpp;
-        memcpy(fb_base + off, back_base + off, (uint32_t)w * bpp);
+        if (bpp == 4)
+            copy_words(fb_base + off, back_base + off, (uint32_t)w * bpp);
+        else
+            memcpy(fb_base + off, back_base + off, (uint32_t)w * bpp);
     }
 }
 

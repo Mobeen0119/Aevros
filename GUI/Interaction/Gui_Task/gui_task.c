@@ -35,6 +35,8 @@ static int32_t nv_cursor_x = GUI_SCREEN_W / 2;
 static int32_t nv_cursor_y = GUI_SCREEN_H / 2;
 static bool left_was_down;
 static uint32_t last_desktop_draw;
+static uint32_t desktop_seen_terminal;
+static uint32_t desktop_seen_health;
 
 void gui_push_key(uint8_t key)
 {
@@ -111,6 +113,14 @@ static void draw_desktop(void)
     cursor_paint();
     fb_flush();
     last_desktop_draw = get_ticks();
+    desktop_seen_terminal = terminal_generation();
+    desktop_seen_health = health_window_signature();
+}
+
+static bool desktop_content_changed(void)
+{
+    return terminal_generation() != desktop_seen_terminal ||
+           health_window_signature() != desktop_seen_health;
 }
 
 static void enter_mode(gui_mode_t next)
@@ -249,7 +259,8 @@ static void gui_task(void)
             fb_flush();
         }
 
-        else if (mode == MODE_DESKTOP && get_ticks() - last_desktop_draw >= DESKTOP_REFRESH_TICKS)
+        else if (mode == MODE_DESKTOP && get_ticks() - last_desktop_draw >= DESKTOP_REFRESH_TICKS &&
+                 desktop_content_changed())
             draw_desktop();
 
         asm volatile("hlt");

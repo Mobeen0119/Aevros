@@ -52,6 +52,8 @@ extern uint16_t *const vga_memory;
 void buffer_init();
 
 void render();
+uint32_t terminal_generation(void);
+
 void terminal_show(void);
 void render_input_line(void);
 void terminal_readline(char *out);

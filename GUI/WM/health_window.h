@@ -9,4 +9,6 @@ const char *health_window_status(uint32_t *color);
 
 void health_window_why(char *buf, int cap);
 
+uint32_t health_window_signature(void);
+
 #endif

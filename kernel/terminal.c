@@ -18,6 +18,12 @@ uint16_t *const vga_memory = (uint16_t *)0xB8000;
 
 static uint16_t shadow[WIDTH * HEIGHT];
 static uint16_t cells[WIDTH * HEIGHT];
+static uint32_t content_generation;
+
+uint32_t terminal_generation(void)
+{
+    return content_generation;
+}
 
 static uint32_t vga_rgb(uint8_t c)
 {
@@ -43,7 +49,11 @@ static void put_cell(int idx, uint16_t cell)
     if (idx < 0 || idx >= WIDTH * HEIGHT)
         return;
 
-    cells[idx] = cell;
+    if (cells[idx] != cell)
+    {
+        cells[idx] = cell;
+        content_generation++;
+    }
 
     if (!framebuffer_available())
     {

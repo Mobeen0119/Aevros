@@ -49,6 +49,11 @@ const char *health_window_status(uint32_t *color)
     return word;
 }
 
+uint32_t health_window_signature(void)
+{
+    return pmm_free_frames() * 31u + tracker_live_count() * 17u + (uint32_t)shell_health_task_count() * 7u + get_ticks() / 100;
+}
+
 void health_window_why(char *buf, int cap)
 {
     int len = 0;

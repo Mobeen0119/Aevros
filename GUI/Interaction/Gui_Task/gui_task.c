@@ -11,6 +11,7 @@
 #include "../../../kernel/Process/task.h"
 
 #include <stdbool.h>
+#include "../../../Lib/string.h"
 
 #define KEY_QUEUE_LEN 16
 #define GUI_SCREEN_W 1024
@@ -36,7 +37,7 @@ static int32_t nv_cursor_y = GUI_SCREEN_H / 2;
 static bool left_was_down;
 static uint32_t last_desktop_draw;
 static uint32_t desktop_seen_terminal;
-static uint32_t desktop_seen_health;
+static health_sig_t desktop_seen_health;
 
 void gui_push_key(uint8_t key)
 {
@@ -119,8 +120,9 @@ static void draw_desktop(void)
 
 static bool desktop_content_changed(void)
 {
+    health_sig_t now = health_window_signature();
     return terminal_generation() != desktop_seen_terminal ||
-           health_window_signature() != desktop_seen_health;
+           memcmp(&now, &desktop_seen_health, sizeof(health_sig_t)) != 0;
 }
 
 static void enter_mode(gui_mode_t next)

@@ -1,5 +1,5 @@
 #include "frontdesk.h"
-#include "../../Drivers/Wifi/e1000/e1000.h"
+#include "../../Drivers/Ethernet/e1000/e1000.h"
 #include "../../kernel/PCI/pci.h"
 #include "../../kernel/io.h"
 #include "../../kernel/pic.h"

@@ -81,7 +81,9 @@ static int is_net_chatter(const char *format)
         "[Postcard] delivered",
         "[Postcard] broadcast",
         "[Postcard] sent",
-        "[Conversation] accepted,"};
+        "[Conversation] accepted,",
+        "[Rolodex] forgetting",
+        "[Rolodex6] forgetting"};
 
     for (unsigned i = 0; i < sizeof(routine) / sizeof(routine[0]); i++)
         if (starts_with(format, routine[i]))

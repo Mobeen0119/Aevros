@@ -16,7 +16,7 @@
 #define KEY_QUEUE_LEN 16
 #define GUI_SCREEN_W 1024
 #define GUI_SCREEN_H 768
-#define DESKTOP_REFRESH_TICKS 20
+#define DESKTOP_REFRESH_TICKS 2
 
 void keyboard_push(char c);
 

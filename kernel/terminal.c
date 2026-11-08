@@ -276,6 +276,9 @@ void render_input_line(void)
         {
             put_cell(input_row * WIDTH + cursor_x, ('_' | (current_color << 8)));
         }
+
+        if (framebuffer_available() && !gui_active())
+            fb_flush_rect(0, input_row * CELL_H, WIDTH * CELL_W, CELL_H);
     }
 }
 

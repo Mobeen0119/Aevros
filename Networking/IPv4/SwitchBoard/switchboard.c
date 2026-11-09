@@ -47,6 +47,8 @@ int switchboard_connect_locked(const uint8_t dest_ip[4], uint16_t dest_port,
         return 0;
     }
 
+    accepted_generation[conn_id] = lockbox_get_generation(conn_id);
+
     uint32_t our_isn = lottery_draw_isn(our_ip, local_port, dest_ip, dest_port);
 
     rapport_initiate_connect(conn_id, our_isn);

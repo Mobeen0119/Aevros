@@ -132,6 +132,7 @@ task_t *task_create_kernel(void (*entry_point)())
 
     if (t)
     {
+        t->cwd = vfs_root;
         strncpy(t->name, "kernel", TASK_NAME_LEN);
         task_add_ready(t);
     }

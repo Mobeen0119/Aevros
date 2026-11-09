@@ -211,22 +211,25 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
             (flags & FLAG_ACK) ? " ACK (Recieved)" : "",
             (flags & FLAG_FIN) ? " FIN (End)" : "");
 
-    if (!menu_is_open(dst_port, 6))
-    {
-        kprintf("[Conversation] port %d isn't on the Menu, refusing regardless of any listener\n", dst_port);
-        return;
-    }
-
-    uint32_t listener = lockbox_find_listener(dst_port, 6);
-    if (listener == LOCKBOX_CAPACITY)
-    {
-        kprintf("[Conversation] nobody's listening on port %d, discarding\n", dst_port);
-        return;
-    }
-
     uint32_t seq = (uint32_t)((payload[4] << 24) | (payload[5] << 16) | (payload[6] << 8) | payload[7]);
 
     uint32_t existing_conn = lockbox_find_connection(dst_port, src_ip, src_port, 6);
+
+    if (existing_conn == LOCKBOX_CAPACITY)
+    {
+        if (!menu_is_open(dst_port, 6))
+        {
+            kprintf("[Conversation] port %d isn't on the Menu, refusing regardless of any listener\n", dst_port);
+            return;
+        }
+
+        uint32_t listener = lockbox_find_listener(dst_port, 6);
+        if (listener == LOCKBOX_CAPACITY)
+        {
+            kprintf("[Conversation] nobody's listening on port %d, discarding\n", dst_port);
+            return;
+        }
+    }
 
     if (existing_conn != LOCKBOX_CAPACITY && rapport_get_state(existing_conn) == CONV_SYN_SENT)
     {
@@ -239,6 +242,8 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
         if ((flags & FLAG_SYN) && (flags & FLAG_ACK))
         {
             uint32_t ack_num = (uint32_t)((payload[8] << 24) | (payload[9] << 16) | (payload[10] << 8) | payload[11]);
+            uint16_t syn_ack_window = (uint16_t)((payload[14] << 8) | payload[15]);
+            rapport_set_peer_window(existing_conn, syn_ack_window);
             rapport_on_syn_ack(existing_conn, seq, ack_num);
             return;
         }

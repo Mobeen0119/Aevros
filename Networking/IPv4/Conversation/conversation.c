@@ -187,6 +187,23 @@ static tcp_verdict_t conversation_check(const uint8_t *payload, uint16_t length,
     return TCP_ACCEPT;
 }
 
+static void send_ack_now(uint32_t conn_id, const uint8_t our_ip[4])
+{
+    uint8_t our_mac[6];
+    memcpy(our_mac, frontdesk_get_state()->mac, 6);
+
+    uint32_t pass_id;
+    if (conversation_dispatch_ack(conn_id, our_mac, our_ip, &pass_id))
+        bailiff_present_pass(pass_id, conversation_last_frame(), conversation_last_len());
+}
+
+void conversation_send_ack(uint32_t conn_id)
+{
+    uint8_t our_ip[4];
+    rolodex_get_ip(our_ip);
+    send_ack_now(conn_id, our_ip);
+}
+
 void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t src_ip[4], const uint8_t dst_ip[4])
 {
     tcp_verdict_t v = conversation_check(payload, length, src_ip, dst_ip);
@@ -361,6 +378,9 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
             why_note(conn_id, WHY_OUT_OF_ORDER);
             waystation_hold(conn_id, seq, payload + header_len, probe_len);
         }
+
+        if (probe_len > 0)
+            send_ack_now(conn_id, dst_ip);
         else if (why_note(conn_id, WHY_OUT_OF_ORDER))
             kprintf("[Conversation] slot %d: seq=%u doesn't match expected, refusing to trust it\n", conn_id, seq);
         return;
@@ -385,6 +405,7 @@ void conversation_handle(const uint8_t *payload, uint16_t length, const uint8_t 
     {
         rapport_advance_seq(conn_id, data_len);
         waystation_drain(conn_id);
+        send_ack_now(conn_id, dst_ip);
     }
 
     if (flags & FLAG_FIN)

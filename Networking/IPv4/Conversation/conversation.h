@@ -41,9 +41,11 @@ int conversation_dispatch_syn_ack(uint32_t conn_id, const uint8_t our_mac[6], co
 
 int conversation_dispatch_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id);
 
+void conversation_send_ack(uint32_t conn_id);
+
 int conversation_dispatch_syn(uint32_t conn_id, uint32_t our_isn, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id);
 
-int conversation_dispatch_data(uint32_t conn_id, const uint8_t *data, uint16_t len,const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id);
+int conversation_dispatch_data(uint32_t conn_id, const uint8_t *data, uint16_t len, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id);
 
 int conversation_dispatch_fin(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id);
 

@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include "../../Include/shell.h"
 #include "../../Networking/FrontDoor/tcpecho.h"
-#include "../../Networking/FrontDoor/fetch.h"
+#include "../../Networking/FrontDoor/Fetch/fetch.h"
 #include "../../Networking/Why/why.h"
 #include "../../Networking/WatchList/watchlist.h"
 #include "../../GUI/Framebuffer/framebuffer.h"

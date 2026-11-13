@@ -148,7 +148,11 @@ uint16_t switchboard_recv_locked(uint32_t conn_id, uint8_t *out, uint16_t max_le
         return 0;
     }
 
-    return inbox_read(conn_id, out, max_len);
+    uint16_t n = inbox_read(conn_id, out, max_len);
+
+    if (n > 0)
+        conversation_send_ack(conn_id);
+    return n;
 }
 
 uint16_t switchboard_recv_udp_locked(uint16_t port, uint8_t src_ip_out[4], uint16_t *src_port_out,

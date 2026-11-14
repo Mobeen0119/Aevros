@@ -676,8 +676,8 @@ int conversation_dispatch_fin(uint32_t conn_id, const uint8_t our_mac[6], const 
 
 int conversation_dispatch_ack(uint32_t conn_id, const uint8_t our_mac[6], const uint8_t our_ip[4], uint32_t *out_pass_id)
 {
-    uint32_t our_isn = rapport_get_our_isn(conn_id);
+    uint32_t seq = rapport_get_send_seq(conn_id);
     uint32_t ack = rapport_get_expected_seq(conn_id);
 
-    return conversation_dispatch(conn_id, FLAG_ACK, our_isn, ack, 0, 0, our_mac, our_ip, out_pass_id);
+    return conversation_dispatch(conn_id, FLAG_ACK, seq, ack, 0, 0, our_mac, our_ip, out_pass_id);
 }

@@ -89,8 +89,7 @@ static void fetch_task(void)
 
     for (;;)
     {
-        int got = frontdoor_recv(fd, fetch_buf + total, (uint16_t)(FETCH_BUF_MAX - total > 1400 ? 1400 : FETCH_BUF_MAX - total));
-
+        int got = frontdoor_recv(fd, fetch_buf + total, (uint16_t)(FETCH_BUF_MAX - total > 4096 ? 4096 : FETCH_BUF_MAX - total));
         if (got < 0)
             break;
 

@@ -6,14 +6,14 @@
 #include "fetch.h"
 #include <stdint.h>
 
-#define FETCH_BUF_MAX 262144
+#define FETCH_HEADER_MAX 1024
+#define FETCH_CHUNK 4096
 #define FETCH_TIMEOUT_TICKS 800
 
-static uint8_t fetch_buf[FETCH_BUF_MAX];
+static uint8_t fetch_head[FETCH_HEADER_MAX];
+static uint8_t fetch_chunk[FETCH_CHUNK];
 static const uint8_t fetch_ip[4] = {10, 0, 2, 2};
-
 static const uint16_t fetch_port = 8000;
-
 static char fetch_path[64] = "/hello.txt";
 static char fetch_save_as[64] = "/hello.txt";
 static char fetch_request[160];
@@ -26,10 +26,24 @@ static void fetch_wait(uint32_t n)
         ;
 }
 
+static uint32_t fnv_feed(uint32_t sum, const uint8_t *data, uint32_t len)
+{
+    for (uint32_t i = 0; i < len; i++)
+        sum = (sum ^ data[i]) * 16777619u;
+    return sum;
+}
+
+static int find_header_end(const uint8_t *buf, uint32_t len)
+{
+    for (uint32_t i = 0; i + 3 < len; i++)
+        if (buf[i] == '\r' && buf[i + 1] == '\n' && buf[i + 2] == '\r' && buf[i + 3] == '\n')
+            return (int)i + 4;
+    return -1;
+}
+
 static void fetch_task(void)
 {
     int n = 0;
-    fetch_request[0] = 0;
 
     const char *head = "GET ";
 
@@ -66,12 +80,11 @@ static void fetch_task(void)
     kprintf("[fetch] connecting to 10.0.2.2:%d\n", fetch_port);
 
     uint32_t started = get_ticks();
-    uint16_t req_len = (uint16_t)n;
     int sent = 0;
 
-    while (sent < 0 || (sent == 0 && get_ticks() - started < FETCH_TIMEOUT_TICKS))
+    while (sent == 0 && get_ticks() - started < FETCH_TIMEOUT_TICKS)
     {
-        int r = frontdoor_send(fd, (const uint8_t *)fetch_request, req_len);
+        int r = frontdoor_send(fd, (const uint8_t *)fetch_request, (uint16_t)n);
         if (r > 0)
             sent = r;
         else
@@ -85,66 +98,94 @@ static void fetch_task(void)
     }
     kprintf("[fetch] request sent (%d bytes)\n", sent);
 
-    uint32_t total = 0;
+    uint32_t head_len = 0;
+    int header_done = 0;
+    int out = -1;
+    uint32_t body_len = 0;
+    uint32_t sum = 2166136261u;
     uint32_t idle_since = get_ticks();
 
     for (;;)
     {
-        int got = frontdoor_recv(fd, fetch_buf + total, (uint16_t)(FETCH_BUF_MAX - total > 4096 ? 4096 : FETCH_BUF_MAX - total));
+        int got = frontdoor_recv(fd, fetch_chunk, FETCH_CHUNK);
         if (got < 0)
             break;
 
-        if (got > 0)
-        {
-            total += (uint32_t)got;
-            idle_since = get_ticks();
-            if (total >= FETCH_BUF_MAX)
-                break;
-        }
-        else
+        if (got == 0)
         {
             if (get_ticks() - idle_since > FETCH_TIMEOUT_TICKS)
                 break;
-
             fetch_wait(1);
+            continue;
+        }
+        idle_since = get_ticks();
+
+        uint32_t offset = 0;
+        if (!header_done)
+        {
+            uint32_t room = FETCH_HEADER_MAX - head_len;
+            uint32_t take = (uint32_t)got < room ? (uint32_t)got : room;
+            memcpy(fetch_head + head_len, fetch_chunk, take);
+            head_len += take;
+
+            int end = find_header_end(fetch_head, head_len);
+            if (end < 0)
+            {
+                if (head_len == FETCH_HEADER_MAX)
+                {
+                    kprintf("[fetch] headers too long, nothing saved\n");
+                    frontdoor_close(fd);
+                    sys_exit(1);
+                }
+                continue;
+            }
+
+            if (head_len < 12 || fetch_head[9] != '2' || fetch_head[10] != '0' || fetch_head[11] != '0')
+            {
+                kprintf("[fetch] server did not return 200 OK, nothing saved\n");
+                frontdoor_close(fd);
+                sys_exit(1);
+            }
+
+            out = sys_open(fetch_save_as, READ_WRITE | CREAT);
+            if (out < 0)
+            {
+                kprintf("[fetch] could not create %s\n", fetch_save_as);
+                frontdoor_close(fd);
+                sys_exit(1);
+            }
+            header_done = 1;
+
+            uint32_t body_in_head = head_len - (uint32_t)end;
+            if (body_in_head > 0)
+            {
+                sys_write(out, fetch_head + end, body_in_head);
+                sum = fnv_feed(sum, fetch_head + end, body_in_head);
+                body_len += body_in_head;
+            }
+            offset = take;
+        }
+
+        if (offset < (uint32_t)got)
+        {
+            uint32_t rest = (uint32_t)got - offset;
+            sys_write(out, fetch_chunk + offset, rest);
+            sum = fnv_feed(sum, fetch_chunk + offset, rest);
+            body_len += rest;
         }
     }
 
     frontdoor_close(fd);
-    kprintf("[fetch] received %u bytes\n", total);
+    if (out >= 0)
+        sys_close(out);
 
-    uint32_t body_at = 0;
-
-    for (uint32_t i = 0; i + 3 < total; i++)
+    if (!header_done)
     {
-        if (fetch_buf[i] == '\r' && fetch_buf[i + 1] == '\n' && fetch_buf[i + 2] == '\r' && fetch_buf[i + 3] == '\n')
-        {
-            body_at = i + 4;
-            break;
-        }
-    }
-
-    if (total < 12 || fetch_buf[9] != '2' || fetch_buf[10] != '0' || fetch_buf[11] != '0')
-    {
-        kprintf("[fetch] server did not return 200 OK, nothing saved\n");
+        kprintf("[fetch] no response\n");
         sys_exit(1);
     }
 
-    int out = sys_open(fetch_save_as, READ_WRITE | CREAT);
-    if (out < 0)
-    {
-        kprintf("[fetch] could not create %s\n", fetch_save_as);
-        sys_exit(1);
-    }
-    uint32_t body_len = total - body_at;
-    sys_write(out, fetch_buf + body_at, body_len);
-    sys_close(out);
-
-    uint32_t sum = 2166136261u;
-    for (uint32_t i = 0; i < body_len; i++)
-        sum = (sum ^ fetch_buf[body_at + i]) * 16777619u;
     kprintf("[fetch] saved %u bytes to %s, fnv1a %x\n", body_len, fetch_save_as, sum);
-
     sys_exit(0);
 }
 

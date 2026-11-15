@@ -4,8 +4,9 @@
 #include "../../../Lib/string.h"
 #include "../../../Include/vfs.h"
 #include "fetch.h"
+#include <stdint.h>
 
-#define FETCH_BUF_MAX 65536
+#define FETCH_BUF_MAX 262144
 #define FETCH_TIMEOUT_TICKS 800
 
 static uint8_t fetch_buf[FETCH_BUF_MAX];
@@ -138,7 +139,12 @@ static void fetch_task(void)
     uint32_t body_len = total - body_at;
     sys_write(out, fetch_buf + body_at, body_len);
     sys_close(out);
-    kprintf("[fetch] saved %u bytes to %s\n", body_len, fetch_save_as);
+
+    uint32_t sum = 2166136261u;
+    for (uint32_t i = 0; i < body_len; i++)
+        sum = (sum ^ fetch_buf[body_at + i]) * 16777619u;
+    kprintf("[fetch] saved %u bytes to %s, fnv1a %x\n", body_len, fetch_save_as, sum);
+
     sys_exit(0);
 }
 

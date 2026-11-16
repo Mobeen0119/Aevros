@@ -3,4 +3,6 @@
 
 void desktop_paint(void);
 
+void desktop_top_bar(void);
+
 #endif

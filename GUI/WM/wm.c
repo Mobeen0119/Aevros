@@ -143,6 +143,13 @@ bool wm_covered(int index, int x, int y, int w, int h)
     return false;
 }
 
+void wm_repaint_region(int x, int y, int w, int h)
+{
+    for (int i = 0; i < window_count; i++)
+        if (windows[i].open && rect_hits(&windows[i], x, y, w, h))
+            paint_window(&windows[i], i == window_count - 1);
+}
+
 void wm_repaint(int index)
 {
     if (index < 0 || index >= window_count || !windows[index].open)

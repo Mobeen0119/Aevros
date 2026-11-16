@@ -24,4 +24,6 @@ bool wm_covered(int index, int x, int y, int w, int h);
 
 void wm_repaint(int index);
 
+void wm_repaint_region(int x, int y, int w, int h);
+
 #endif

@@ -68,6 +68,11 @@ static void bottom_bar(void)
     aev_text(220, SCREEN_H - 20, "F2  DESKTOP", AEV_MUTED, 1);
 }
 
+void desktop_top_bar(void)
+{
+    top_bar();
+}
+
 void desktop_paint(void)
 {
     aev_fill(0, 0, SCREEN_W, SCREEN_H, AEV_BG);

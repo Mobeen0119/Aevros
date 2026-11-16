@@ -166,8 +166,14 @@ static void desktop_refresh(void)
 
     if (health_changed)
     {
-        draw_desktop();
-        return;
+        cursor_restore();
+        desktop_top_bar();
+        wm_repaint_region(0, 0, 1024, 31);
+
+        wm_repaint(health_index);
+        cursor_paint();
+        fb_flush_rect(0, 0, 1024, 31);
+        flush_window(health_index);
     }
 
     desktop_seen_terminal = terminal_generation();

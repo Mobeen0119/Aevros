@@ -16,4 +16,12 @@ void wm_paint_all(void);
 
 bool wm_mouse(int32_t mx, int32_t my, bool down, bool pressed, bool released);
 
+int wm_find(const char *title);
+
+bool wm_geometry(int index, int *x, int *y, int *w, int *h);
+
+bool wm_covered(int index, int x, int y, int w, int h);
+
+void wm_repaint(int index);
+
 #endif

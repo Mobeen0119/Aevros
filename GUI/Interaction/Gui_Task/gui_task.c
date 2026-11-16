@@ -107,6 +107,9 @@ static void cursor_move_flush(void)
     fb_flush_rect(x0, y0, x1 - x0 + 1, y1 - y0 + 1);
 }
 
+static int term_index = -1;
+static int health_index = -1;
+
 static void draw_desktop(void)
 {
     desktop_paint();
@@ -116,6 +119,60 @@ static void draw_desktop(void)
     last_desktop_draw = get_ticks();
     desktop_seen_terminal = terminal_generation();
     desktop_seen_health = health_window_signature();
+    term_index = wm_find("TERMINAL");
+    health_index = wm_find("SYSTEM HEALTH");
+}
+
+static bool term_covered(int x, int y, int w, int h)
+{
+    return wm_covered(term_index, x, y, w, h);
+}
+
+static void flush_window(int index)
+{
+    int x, y, w, h;
+    if (!wm_geometry(index, &x, &y, &w, &h))
+        return;
+    fb_flush_rect(x - 1, y - AEV_HEAD_H - 1, w + 2, h + AEV_HEAD_H + AEV_FOOT_H + 2);
+}
+
+static void desktop_refresh(void)
+{
+    if (term_index < 0 || health_index < 0)
+    {
+        draw_desktop();
+        return;
+    }
+
+    bool term_changed = terminal_generation() != desktop_seen_terminal;
+    health_sig_t health_now = health_window_signature();
+    bool health_changed = memcmp(&health_now, &desktop_seen_health, sizeof(health_sig_t)) != 0;
+
+    if (term_changed)
+    {
+        int x, y, w, h;
+        wm_geometry(term_index, &x, &y, &w, &h);
+        cursor_restore();
+        if (!terminal_paint_changes(x, y, term_covered))
+        {
+            draw_desktop();
+            return;
+        }
+        cursor_paint();
+        int gw, gh;
+        terminal_grid_extent(&gw, &gh);
+        fb_flush_rect(x, y, gw, gh);
+    }
+
+    if (health_changed)
+    {
+        draw_desktop();
+        return;
+    }
+
+    desktop_seen_terminal = terminal_generation();
+    desktop_seen_health = health_now;
+    last_desktop_draw = get_ticks();
 }
 
 static bool desktop_content_changed(void)
@@ -263,7 +320,7 @@ static void gui_task(void)
 
         else if (mode == MODE_DESKTOP && get_ticks() - last_desktop_draw >= DESKTOP_REFRESH_TICKS &&
                  desktop_content_changed())
-            draw_desktop();
+            desktop_refresh();
 
         asm volatile("hlt");
     }

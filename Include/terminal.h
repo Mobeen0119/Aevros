@@ -2,6 +2,7 @@
 #define TERMINAL_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #define WIDTH 80
 #define HEIGHT 25
 #define MAX_LINES 8192
@@ -53,6 +54,8 @@ void buffer_init();
 
 void render();
 uint32_t terminal_generation(void);
+void terminal_grid_extent(int *w, int *h);
+bool terminal_paint_changes(int x, int y, bool (*covered)(int, int, int, int));
 
 void terminal_show(void);
 void render_input_line(void);

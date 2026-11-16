@@ -8,7 +8,7 @@
 #include "../../Networking/FrontDesk/frontdesk.h"
 #include "../../Networking/Concierge/concierge.h"
 #include "../../Networking/NetWatch/net_observe.h"
-#define DEFAULT_TIME_SLICE 60 // ticks per slice (0.6 s at 100 Hz)
+#define DEFAULT_TIME_SLICE 5 // ticks per slice (50 ms at 100 Hz)
 
 static volatile uint32_t time_slice = DEFAULT_TIME_SLICE;
 

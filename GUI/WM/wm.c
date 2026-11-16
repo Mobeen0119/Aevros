@@ -111,6 +111,48 @@ static void paint_window(window_t *w, bool focused)
         w->paint(w->x + 1, w->y + AEV_HEAD_H + 1, w->w - 2, w->h - AEV_HEAD_H - AEV_FOOT_H - 2);
 }
 
+int wm_find(const char *title)
+{
+    for (int i = 0; i < window_count; i++)
+        if (windows[i].open && strcmp(windows[i].title, title) == 0)
+            return i;
+    return -1;
+}
+
+bool wm_geometry(int index, int *x, int *y, int *w, int *h)
+{
+    if (index < 0 || index >= window_count || !windows[index].open)
+        return false;
+    *x = windows[index].x + 1;
+    *y = windows[index].y + AEV_HEAD_H + 1;
+    *w = windows[index].w - 2;
+    *h = windows[index].h - AEV_HEAD_H - AEV_FOOT_H - 2;
+    return true;
+}
+
+static bool rect_hits(const window_t *a, int x, int y, int w, int h)
+{
+    return x < a->x + a->w && x + w > a->x && y < a->y + a->h && y + h > a->y;
+}
+
+bool wm_covered(int index, int x, int y, int w, int h)
+{
+    for (int j = index + 1; j < window_count; j++)
+        if (windows[j].open && rect_hits(&windows[j], x, y, w, h))
+            return true;
+    return false;
+}
+
+void wm_repaint(int index)
+{
+    if (index < 0 || index >= window_count || !windows[index].open)
+        return;
+    paint_window(&windows[index], index == window_count - 1);
+    for (int j = index + 1; j < window_count; j++)
+        if (windows[j].open && rect_hits(&windows[index], windows[j].x, windows[j].y, windows[j].w, windows[j].h))
+            paint_window(&windows[j], j == window_count - 1);
+}
+
 void wm_paint_all(void)
 {
     for (int i = 0; i < window_count; i++)

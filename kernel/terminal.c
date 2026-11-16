@@ -71,6 +71,10 @@ static void put_cell(int idx, uint16_t cell)
     draw_cell_at((idx % WIDTH) * CELL_W, (idx / WIDTH) * CELL_H, cell);
 }
 
+static uint16_t drawn[WIDTH * HEIGHT];
+static int drawn_x, drawn_y;
+static int drawn_valid;
+
 void terminal_paint(int x, int y, int w, int h)
 {
     (void)w;
@@ -78,7 +82,44 @@ void terminal_paint(int x, int y, int w, int h)
 
     for (int r = 0; r < HEIGHT; r++)
         for (int c = 0; c < WIDTH; c++)
+        {
             draw_cell_at(x + c * CELL_W, y + r * CELL_H, cells[r * WIDTH + c]);
+            drawn[r * WIDTH + c] = cells[r * WIDTH + c];
+        }
+
+    drawn_x = x;
+    drawn_y = y;
+    drawn_valid = 1;
+}
+
+void terminal_grid_extent(int *w, int *h)
+{
+    *w = WIDTH * CELL_W;
+    *h = HEIGHT * CELL_H;
+}
+
+bool terminal_paint_changes(int x, int y, bool (*covered)(int, int, int, int))
+{
+    if (!drawn_valid || x != drawn_x || y != drawn_y)
+        return false;
+
+    for (int r = 0; r < HEIGHT; r++)
+        for (int c = 0; c < WIDTH; c++)
+        {
+            int idx = r * WIDTH + c;
+            if (drawn[idx] == cells[idx])
+                continue;
+
+            int cx = x + c * CELL_W;
+            int cy = y + r * CELL_H;
+            if (covered(cx, cy, CELL_W, CELL_H))
+                continue;
+
+            draw_cell_at(cx, cy, cells[idx]);
+            drawn[idx] = cells[idx];
+        }
+
+    return true;
 }
 
 const char *terminal_status(uint32_t *color)

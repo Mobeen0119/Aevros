@@ -2,6 +2,7 @@
 #include "../../Include/shell.h"
 #include "../../Networking/FrontDoor/tcpecho.h"
 #include "../../Networking/FrontDoor/Fetch/fetch.h"
+#include "../../Drivers/Disk/Disk_cmd/disk_cmd.h"
 #include "../../Networking/Why/why.h"
 #include "../../Networking/WatchList/watchlist.h"
 #include "../../GUI/Framebuffer/framebuffer.h"
@@ -434,6 +435,10 @@ void shell_execute(char *input)
     {
         tcpecho_start();
     }
+    else if (strcmp(argv[0], "disk") == 0)
+    {
+        disk_command(argc, argv);
+    }
     else if (strcmp(argv[0], "fetch") == 0)
     {
         const char *server_path = argc > 1 ? argv[1] : "/hello.txt";
@@ -668,6 +673,7 @@ void shell_execute(char *input)
         help_line("stacks", "kernel stack use per task");
         help_line("tcpecho", "start a TCP echo server on port 7007");
         help_line("fetch <path> [name]", "download from 10.0.2.2:8000 (host server) into RAMFS");
+        help_line("disk info|list|save|load", "store RAMFS files on the primary disk (sector 2048 on)");
         help_line("why", "why connections were held back");
         help_line("netlog", "per-packet network narration: chatty | quiet");
         help_line("ticks", "show system tick count");

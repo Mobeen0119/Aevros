@@ -1,4 +1,4 @@
-#include "../Lib/aevros.h"
+#include "../lib/aevros.h"
 
 int main(void)
 {
